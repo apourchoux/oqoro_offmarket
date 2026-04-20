@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-oq-white text-oq-text font-sans;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-oq-black;
+    letter-spacing: -0.01em;
+  }
+
+  hr {
+    @apply border-0 border-t border-oq-border my-6;
+  }
+
+  a {
+    @apply text-oq-black underline-offset-4;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+
+  button {
+    font-family: inherit;
+  }
+}
+
+@layer components {
+  .oq-container {
+    @apply mx-auto w-full max-w-container px-4 md:px-6;
+  }
+
+  .oq-btn-primary {
+    @apply inline-flex items-center justify-center bg-oq-orange hover:bg-oq-orange-dark text-white font-semibold px-5 py-3 rounded-btn transition-colors;
+  }
+
+  .oq-btn-dark {
+    @apply inline-flex items-center justify-center bg-oq-black hover:bg-black text-white font-semibold px-5 py-3 rounded-btn transition-colors;
+  }
+
+  .oq-btn-secondary {
+    @apply inline-flex items-center justify-center bg-white hover:bg-oq-bg text-oq-black border border-oq-border font-medium px-5 py-3 rounded-btn transition-colors;
+  }
+
+  .oq-input {
+    @apply w-full bg-white border border-oq-border rounded-btn px-3 py-2.5 text-[15px] text-oq-text focus:outline-none focus:border-oq-black focus:ring-1 focus:ring-oq-black transition-colors;
+  }
+
+  .oq-label {
+    @apply block text-[13px] font-semibold text-oq-text mb-1.5;
+  }
+
+  .oq-card {
+    @apply bg-white border border-oq-border rounded-card overflow-hidden transition-all;
+  }
+
+  .oq-card-hover:hover {
+    @apply shadow-hover;
+    transform: translateY(-2px);
+  }
+
+  .oq-section-title {
+    @apply text-[20px] font-bold text-oq-black mb-4;
+  }
+}

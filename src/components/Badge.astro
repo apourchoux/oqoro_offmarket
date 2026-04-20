@@ -1,0 +1,27 @@
+---
+interface Props {
+  text: string;
+  variant?: 'neutral' | 'green' | 'red' | 'orange' | 'dark';
+  class?: string;
+}
+
+const { text, variant = 'neutral', class: className = '' } = Astro.props;
+
+const variantClasses: Record<NonNullable<Props['variant']>, string> = {
+  neutral: 'bg-oq-bg text-oq-text',
+  green: 'bg-oq-green-soft text-green-700',
+  red: 'bg-oq-red-soft text-red-700',
+  orange: 'bg-orange-100 text-oq-orange-dark',
+  dark: 'bg-oq-black text-white',
+};
+---
+
+<span
+  class:list={[
+    'inline-flex items-center rounded-badge px-3 py-1 text-[12px] font-semibold uppercase tracking-wide',
+    variantClasses[variant],
+    className,
+  ]}
+>
+  {text}
+</span>

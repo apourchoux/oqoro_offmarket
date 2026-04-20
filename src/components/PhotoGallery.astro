@@ -1,0 +1,48 @@
+---
+import type { PropertyPhoto } from '../lib/types';
+
+interface Props {
+  photos: PropertyPhoto[];
+  title: string;
+}
+
+const { photos, title } = Astro.props;
+
+const sorted = [...photos].sort((a, b) => a.sort_order - b.sort_order);
+const primary = sorted.find((p) => p.is_primary) ?? sorted[0];
+const others = sorted.filter((p) => p.id !== primary?.id).slice(0, 4);
+---
+
+{sorted.length > 0 && (
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-3">
+    {primary && (
+      <div class="md:col-span-2 relative">
+        <img
+          src={primary.url}
+          alt={primary.label ?? title}
+          class="w-full h-full aspect-[4/3] md:aspect-auto md:h-[480px] object-cover rounded-photo"
+        />
+      </div>
+    )}
+    {others.length > 0 && (
+      <div class="hidden md:grid md:grid-cols-1 gap-3">
+        {others.slice(0, 2).map((photo) => (
+          <div class="relative h-[236px]">
+            <img
+              src={photo.url}
+              alt={photo.label ?? title}
+              class="w-full h-full object-cover rounded-photo"
+            />
+          </div>
+        ))}
+      </div>
+    )}
+    {sorted.length > 3 && (
+      <div class="absolute bottom-6 right-6 pointer-events-none">
+        <span class="inline-flex items-center rounded-badge bg-oq-black/90 px-3 py-1.5 text-[12px] font-semibold text-white">
+          {sorted.length} photos
+        </span>
+      </div>
+    )}
+  </div>
+)}

@@ -1,0 +1,49 @@
+---
+import type { Property, PropertyFinancials } from '../lib/types';
+import { formatEur } from '../lib/format';
+import MetricRow from './MetricRow.astro';
+
+interface Props {
+  property: Property;
+  financials: PropertyFinancials;
+}
+
+const { property, financials } = Astro.props;
+---
+
+<aside class="lg:sticky lg:top-20">
+  <div class="bg-white border border-oq-border rounded-card p-6">
+    <div class="text-[12px] font-semibold uppercase tracking-wider text-oq-muted">
+      Prix de vente
+    </div>
+    <div class="text-[32px] font-extrabold text-oq-black leading-none mt-1">
+      {formatEur(property.sale_price)}
+    </div>
+    <div class="text-[13px] text-oq-muted mt-1">
+      Hors frais de notaire
+    </div>
+
+    <hr />
+
+    <MetricRow label="Frais de notaire" value={formatEur(property.notary_fees)} />
+    <MetricRow label="Total projet" value={formatEur(property.total_project)} highlight />
+    <MetricRow label="Loyer mensuel CC" value={formatEur(financials.monthly_rent_cc)} />
+    <MetricRow
+      label="Rendement brut"
+      value={`${financials.gross_yield.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} %`}
+      highlight
+      last
+    />
+
+    <button
+      type="button"
+      data-contact-trigger
+      class="oq-btn-dark w-full mt-6"
+    >
+      Demander les détails
+    </button>
+    <p class="text-[12px] text-oq-muted text-center mt-3">
+      Réponse sous 24-48h par notre équipe transaction.
+    </p>
+  </div>
+</aside>

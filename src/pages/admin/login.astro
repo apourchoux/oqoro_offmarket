@@ -1,0 +1,106 @@
+---
+export const prerender = false;
+
+import '../../styles/global.css';
+import { createClient } from '@supabase/supabase-js';
+
+const url = import.meta.env.PUBLIC_SUPABASE_URL;
+const anonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
+
+function getAdminEmails(): string[] {
+  const raw = import.meta.env.ADMIN_EMAILS ?? '';
+  return raw.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+}
+
+let errorMessage: string | null = null;
+
+if (Astro.url.searchParams.get('error') === 'forbidden') {
+  errorMessage = "Cet email n'est pas autorisé à accéder à l'admin.";
+}
+
+if (Astro.request.method === 'POST') {
+  try {
+    const form = await Astro.request.formData();
+    const email = String(form.get('email') ?? '').trim().toLowerCase();
+    const password = String(form.get('password') ?? '');
+
+    if (!email || !password) {
+      errorMessage = 'Email et mot de passe requis.';
+    } else if (!url || !anonKey) {
+      errorMessage = 'Configuration Supabase manquante.';
+    } else {
+      const allowed = getAdminEmails();
+      if (allowed.length > 0 && !allowed.includes(email)) {
+        errorMessage = "Cet email n'est pas autorisé.";
+      } else {
+        const supabase = createClient(url, anonKey, {
+          auth: { persistSession: false },
+        });
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error || !data.session) {
+          errorMessage = 'Identifiants invalides.';
+        } else {
+          const maxAge = 60 * 60 * 24 * 7;
+          const common = {
+            path: '/',
+            httpOnly: true,
+            secure: import.meta.env.PROD,
+            sameSite: 'lax' as const,
+            maxAge,
+          };
+          Astro.cookies.set('sb-access-token', data.session.access_token, common);
+          Astro.cookies.set('sb-refresh-token', data.session.refresh_token, common);
+          return Astro.redirect('/admin');
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[admin/login] error', err);
+    errorMessage = 'Erreur serveur. Réessayez.';
+  }
+}
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Connexion admin · OQORO</title>
+  </head>
+  <body class="min-h-screen bg-oq-bg flex items-center justify-center p-4">
+    <div class="bg-white rounded-card border border-oq-border w-full max-w-sm p-8">
+      <div class="flex items-center gap-3 mb-6">
+        <span class="font-extrabold text-oq-black text-xl tracking-tight">OQORO</span>
+        <span class="text-oq-border">|</span>
+        <span class="text-[13px] font-bold uppercase tracking-wider text-oq-text">Admin</span>
+      </div>
+      <h1 class="text-[20px] font-bold text-oq-black mb-2">Connexion</h1>
+      <p class="text-[13px] text-oq-muted mb-6">
+        Accès réservé à l'équipe OQORO.
+      </p>
+
+      {errorMessage && (
+        <div class="mb-4 p-3 rounded-btn bg-oq-red-soft text-red-700 text-[13px]">
+          {errorMessage}
+        </div>
+      )}
+
+      <form method="POST" class="space-y-4">
+        <div>
+          <label for="email" class="oq-label">Email</label>
+          <input id="email" name="email" type="email" required autocomplete="email" class="oq-input" />
+        </div>
+        <div>
+          <label for="password" class="oq-label">Mot de passe</label>
+          <input id="password" name="password" type="password" required autocomplete="current-password" class="oq-input" />
+        </div>
+        <button type="submit" class="oq-btn-dark w-full">Se connecter</button>
+      </form>
+    </div>
+  </body>
+</html>

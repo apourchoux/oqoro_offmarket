@@ -1,0 +1,353 @@
+---
+import Base from '../../layouts/Base.astro';
+import PhotoGallery from '../../components/PhotoGallery.astro';
+import Sidebar from '../../components/Sidebar.astro';
+import LotTable from '../../components/LotTable.astro';
+import AnnualReportTable from '../../components/AnnualReportTable.astro';
+import TransportList from '../../components/TransportList.astro';
+import DPE from '../../components/DPE.astro';
+import Badge from '../../components/Badge.astro';
+import MetricRow from '../../components/MetricRow.astro';
+import ContactModal from '../../components/ContactModal.tsx';
+import { getPropertyFull, listPublishedProperties } from '../../lib/supabase';
+import { PROPERTY_TYPE_LABELS, MANAGEMENT_TYPE_LABELS, CHARGES_OPTIONS } from '../../lib/types';
+import { formatEur, formatSurface } from '../../lib/format';
+
+export const prerender = true;
+
+export async function getStaticPaths() {
+  try {
+    const items = await listPublishedProperties();
+    return items.map(({ property }) => ({
+      params: { slug: property.slug },
+    }));
+  } catch (err) {
+    console.error('[biens/[slug]] getStaticPaths failed:', err);
+    return [];
+  }
+}
+
+const { slug } = Astro.params as { slug: string };
+const data = await getPropertyFull(slug);
+
+if (!data) {
+  return Astro.redirect('/404');
+}
+
+const { property, lots, photos, transports, annual_reports, financials } = data;
+
+const typeLabel = property.property_type
+  ? PROPERTY_TYPE_LABELS[property.property_type]
+  : null;
+const mgmtLabel = property.management_type
+  ? MANAGEMENT_TYPE_LABELS[property.management_type]
+  : null;
+
+const title =
+  property.meta_title ??
+  `${typeLabel ?? 'Bien'} ${property.total_surface ? `${property.total_surface}m² ` : ''}— ${formatEur(property.sale_price)} — ${property.city ?? ''}`;
+
+const description =
+  property.meta_description ??
+  `${typeLabel ?? 'Bien'} ${property.address ? `${property.address}, ` : ''}${property.city ?? ''}. Rendement brut ${financials.gross_yield.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%. Données locatives certifiées OQORO.`;
+
+const ogImage =
+  photos.find((p) => p.is_primary)?.url ??
+  photos[0]?.url ??
+  undefined;
+
+const siteUrl = import.meta.env.PUBLIC_SITE_URL || 'https://offmarket.oqoro.com';
+const canonical = `${siteUrl}/biens/${property.slug}`;
+
+const chargesLabels = (property.charges_included ?? [])
+  .map((v) => CHARGES_OPTIONS.find((o) => o.value === v)?.label ?? v);
+
+const jsonLd: Record<string, unknown> = {
+  '@context': 'https://schema.org',
+  '@type': 'Product',
+  name: property.title,
+  description,
+  ...(ogImage ? { image: ogImage } : {}),
+  offers: {
+    '@type': 'Offer',
+    price: property.sale_price,
+    priceCurrency: 'EUR',
+    availability: 'https://schema.org/InStock',
+    url: canonical,
+  },
+};
+---
+
+<Base
+  title={title}
+  description={description}
+  image={ogImage}
+  canonical={canonical}
+  jsonLd={jsonLd}
+>
+  <div class="oq-container pt-6">
+    <nav class="text-[13px] text-oq-muted mb-4">
+      <a href="/" class="text-oq-muted hover:text-oq-black no-underline">Accueil</a>
+      {property.city && (
+        <>
+          <span class="mx-2">›</span>
+          <span>{property.city}</span>
+        </>
+      )}
+      {property.address && (
+        <>
+          <span class="mx-2">›</span>
+          <span class="text-oq-text">{property.address}</span>
+        </>
+      )}
+    </nav>
+
+    {photos.length > 0 && (
+      <PhotoGallery photos={photos} title={property.title} />
+    )}
+  </div>
+
+  <div class="oq-container mt-10 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-10 lg:gap-12 pb-20">
+    <div>
+      <div class="flex flex-wrap gap-2 mb-4">
+        {typeLabel && <Badge text={typeLabel} variant="dark" />}
+        {financials.total_lots > 0 && (
+          <Badge
+            text={`${financials.rented_lots}/${financials.total_lots} loués`}
+            variant="green"
+          />
+        )}
+        {property.total_surface && (
+          <Badge text={formatSurface(property.total_surface)} />
+        )}
+      </div>
+
+      <h1 class="text-[26px] md:text-[32px] font-extrabold text-oq-black leading-tight">
+        {typeLabel && `${typeLabel} `}
+        {property.total_surface && `${formatSurface(property.total_surface)} `}
+        {property.city && `— ${property.city}`}
+      </h1>
+      <p class="mt-2 text-oq-muted">
+        {[property.address, property.neighborhood, property.postal_code]
+          .filter(Boolean)
+          .join(' · ')}
+      </p>
+
+      {property.description && (
+        <>
+          <hr />
+          <section>
+            <h2 class="oq-section-title">Le logement</h2>
+            <p class="text-oq-text leading-relaxed whitespace-pre-line">
+              {property.description}
+            </p>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 text-[14px]">
+              {property.nb_rooms !== null && (
+                <div>
+                  <div class="text-oq-muted text-[12px] uppercase tracking-wider">Pièces</div>
+                  <div class="font-semibold text-oq-black mt-1">{property.nb_rooms}</div>
+                </div>
+              )}
+              {property.total_surface !== null && (
+                <div>
+                  <div class="text-oq-muted text-[12px] uppercase tracking-wider">Surface</div>
+                  <div class="font-semibold text-oq-black mt-1">{formatSurface(property.total_surface)}</div>
+                </div>
+              )}
+              {property.floor !== null && (
+                <div>
+                  <div class="text-oq-muted text-[12px] uppercase tracking-wider">Étage</div>
+                  <div class="font-semibold text-oq-black mt-1">{property.floor}</div>
+                </div>
+              )}
+              {property.heating_type && (
+                <div>
+                  <div class="text-oq-muted text-[12px] uppercase tracking-wider">Chauffage</div>
+                  <div class="font-semibold text-oq-black mt-1">{property.heating_type}</div>
+                </div>
+              )}
+            </div>
+          </section>
+        </>
+      )}
+
+      <hr />
+
+      <section>
+        <h2 class="oq-section-title">Informations de vente</h2>
+        <MetricRow label="Prix de vente" value={formatEur(property.sale_price)} />
+        <MetricRow
+          label={`Frais de notaire (${(property.notary_rate * 100).toLocaleString('fr-FR', { maximumFractionDigits: 1 })}%)`}
+          value={formatEur(property.notary_fees)}
+        />
+        <MetricRow label="Total projet" value={formatEur(property.total_project)} highlight last />
+      </section>
+
+      {lots.length > 0 && (
+        <>
+          <hr />
+          <section>
+            <h2 class="oq-section-title">Revenus locatifs</h2>
+            <LotTable lots={lots} />
+            <div class="mt-6 space-y-0">
+              <MetricRow
+                label="Loyer mensuel CC"
+                value={formatEur(financials.monthly_rent_cc)}
+              />
+              <MetricRow
+                label="Loyer annuel CC"
+                value={formatEur(financials.annual_rent_cc)}
+              />
+              <MetricRow
+                label="Rendement brut"
+                value={`${financials.gross_yield.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} %`}
+                highlight
+              />
+              <MetricRow
+                label="Rendement projet (frais inclus)"
+                value={`${financials.project_yield.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} %`}
+                highlight
+                last
+              />
+            </div>
+          </section>
+        </>
+      )}
+
+      {annual_reports.length > 0 && (
+        <>
+          <hr />
+          <section>
+            <h2 class="oq-section-title">Historique locatif</h2>
+            <p class="text-oq-text text-[14px] mb-4">
+              Données issues de notre plateforme de gestion, vérifiées par nos équipes.
+            </p>
+            <AnnualReportTable reports={annual_reports} />
+          </section>
+        </>
+      )}
+
+      {(property.dpe_energy_class || property.dpe_ges_class) && (
+        <>
+          <hr />
+          <section>
+            <h2 class="oq-section-title">DPE</h2>
+            <DPE
+              energy_class={property.dpe_energy_class}
+              energy_value={property.dpe_energy_value}
+              ges_class={property.dpe_ges_class}
+              ges_value={property.dpe_ges_value}
+              energy_cost={property.dpe_energy_cost}
+            />
+          </section>
+        </>
+      )}
+
+      {property.matterport_url && (
+        <>
+          <hr />
+          <section>
+            <h2 class="oq-section-title">Visite virtuelle</h2>
+            <div class="aspect-video rounded-card overflow-hidden border border-oq-border">
+              <iframe
+                src={property.matterport_url}
+                title="Visite virtuelle"
+                allowfullscreen
+                class="w-full h-full"
+              ></iframe>
+            </div>
+          </section>
+        </>
+      )}
+
+      {(mgmtLabel || chargesLabels.length > 0) && (
+        <>
+          <hr />
+          <section>
+            <h2 class="oq-section-title">Gestion</h2>
+            {mgmtLabel && (
+              <p class="text-oq-text mb-4">
+                Ce bien est actuellement en gestion <strong>{mgmtLabel}</strong> par OQORO.
+                Le mandat de gestion est transférable à l'acheteur.
+              </p>
+            )}
+            {chargesLabels.length > 0 && (
+              <>
+                <div class="text-[13px] font-semibold uppercase tracking-wider text-oq-muted mb-3">
+                  Charges incluses
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  {chargesLabels.map((label) => (
+                    <Badge text={label} />
+                  ))}
+                </div>
+              </>
+            )}
+          </section>
+        </>
+      )}
+
+      {(transports.length > 0 || (property.latitude && property.longitude)) && (
+        <>
+          <hr />
+          <section>
+            <h2 class="oq-section-title">Localisation</h2>
+            {property.latitude && property.longitude && (
+              <div class="aspect-[16/9] rounded-card overflow-hidden border border-oq-border mb-6">
+                <iframe
+                  src={`https://www.google.com/maps?q=${property.latitude},${property.longitude}&z=15&output=embed`}
+                  title="Plan"
+                  class="w-full h-full"
+                  loading="lazy"
+                ></iframe>
+              </div>
+            )}
+            {transports.length > 0 && (
+              <>
+                <div class="text-[13px] font-semibold uppercase tracking-wider text-oq-muted mb-3">
+                  Transports à proximité
+                </div>
+                <TransportList transports={transports} />
+              </>
+            )}
+          </section>
+        </>
+      )}
+
+      {(property.oqoro_listing_url || property.sale_listing_url) && (
+        <>
+          <hr />
+          <section>
+            <h2 class="oq-section-title">Liens utiles</h2>
+            <ul class="space-y-2 text-[14px]">
+              {property.oqoro_listing_url && (
+                <li>
+                  <a href={property.oqoro_listing_url} target="_blank" rel="noopener">
+                    Annonce de location sur oqoro.com ↗
+                  </a>
+                </li>
+              )}
+              {property.sale_listing_url && (
+                <li>
+                  <a href={property.sale_listing_url} target="_blank" rel="noopener">
+                    Annonce de vente externe ↗
+                  </a>
+                </li>
+              )}
+            </ul>
+          </section>
+        </>
+      )}
+    </div>
+
+    <Sidebar property={property} financials={financials} />
+  </div>
+
+  <ContactModal
+    client:load
+    propertyId={property.id}
+    propertyTitle={property.title}
+    propertyAddress={`${property.address ?? ''}${property.city ? `, ${property.city}` : ''}`}
+    propertyPrice={formatEur(property.sale_price)}
+  />
+</Base>

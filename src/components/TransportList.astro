@@ -1,0 +1,35 @@
+---
+import type { PropertyTransport } from '../lib/types';
+
+interface Props {
+  transports: PropertyTransport[];
+}
+
+const { transports } = Astro.props;
+const sorted = [...transports].sort((a, b) => a.sort_order - b.sort_order);
+---
+
+{sorted.length > 0 && (
+  <ul class="space-y-3">
+    {sorted.map((t) => (
+      <li class="flex items-start gap-3 pb-3 border-b border-oq-border last:border-0">
+        <span class="mt-0.5 w-8 h-8 rounded-full bg-oq-bg flex items-center justify-center text-[12px] font-semibold text-oq-text">
+          {t.transport_type?.slice(0, 1).toUpperCase() ?? '·'}
+        </span>
+        <div class="flex-1">
+          <div class="text-[14px] font-semibold text-oq-black">{t.name}</div>
+          {(t.transport_type || t.destination) && (
+            <div class="text-[13px] text-oq-muted">
+              {[t.transport_type, t.destination].filter(Boolean).join(' · ')}
+            </div>
+          )}
+        </div>
+        {t.time_label && (
+          <span class="text-[13px] font-semibold text-oq-text whitespace-nowrap">
+            {t.time_label}
+          </span>
+        )}
+      </li>
+    ))}
+  </ul>
+)}

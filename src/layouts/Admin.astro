@@ -1,0 +1,68 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  activeSection?: 'dashboard' | 'biens' | 'leads';
+}
+
+const { title, activeSection = 'dashboard' } = Astro.props;
+const user = Astro.locals.user;
+
+const navItems = [
+  { href: '/admin', label: 'Tableau de bord', key: 'dashboard' },
+  { href: '/admin/biens', label: 'Biens', key: 'biens' },
+  { href: '/admin/leads', label: 'Leads', key: 'leads' },
+] as const;
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{title} · OQORO Admin</title>
+  </head>
+  <body class="bg-oq-bg">
+    <header class="bg-white border-b border-oq-border">
+      <div class="max-w-container mx-auto px-6 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-6">
+          <a href="/admin" class="flex items-center gap-3 no-underline">
+            <span class="font-extrabold text-oq-black text-lg tracking-tight">OQORO</span>
+            <span class="text-oq-border">|</span>
+            <span class="text-[13px] font-bold uppercase tracking-wider text-oq-text">Admin</span>
+          </a>
+          <nav class="flex gap-1">
+            {navItems.map((item) => (
+              <a
+                href={item.href}
+                class:list={[
+                  'px-3 py-1.5 rounded-btn text-[14px] no-underline transition-colors',
+                  activeSection === item.key
+                    ? 'bg-oq-black text-white'
+                    : 'text-oq-text hover:bg-oq-bg',
+                ]}
+              >
+                {item.label}
+              </a>
+            ))}
+          </nav>
+        </div>
+        <div class="flex items-center gap-4">
+          {user && (
+            <span class="text-[13px] text-oq-muted">{user.email}</span>
+          )}
+          <form method="POST" action="/admin/logout">
+            <button type="submit" class="text-[13px] text-oq-text hover:text-oq-black">
+              Déconnexion
+            </button>
+          </form>
+        </div>
+      </div>
+    </header>
+    <main class="max-w-container mx-auto px-6 py-8">
+      <slot />
+    </main>
+  </body>
+</html>
