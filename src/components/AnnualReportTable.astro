@@ -1,0 +1,46 @@
+---
+import type { PropertyAnnualReport } from '../lib/types';
+import { formatEur } from '../lib/format';
+
+interface Props {
+  reports: PropertyAnnualReport[];
+}
+
+const { reports } = Astro.props;
+const sorted = [...reports].sort((a, b) => b.year - a.year);
+---
+
+{sorted.length > 0 && (
+  <div class="overflow-x-auto">
+    <table class="w-full text-[14px]">
+      <thead>
+        <tr class="border-b border-oq-border text-left text-[12px] uppercase tracking-wider text-oq-muted">
+          <th class="py-3 pr-3 font-semibold">Année</th>
+          <th class="py-3 px-3 font-semibold text-right">Taux d'occupation</th>
+          <th class="py-3 px-3 font-semibold text-right">Loyers encaissés</th>
+          <th class="py-3 pl-3 font-semibold text-right">Impayés</th>
+        </tr>
+      </thead>
+      <tbody>
+        {sorted.map((r) => (
+          <tr class="border-b border-oq-border last:border-0">
+            <td class="py-3 pr-3 font-semibold text-oq-black">{r.year}</td>
+            <td class="py-3 px-3 text-right text-oq-text">
+              {r.occupancy_rate !== null
+                ? `${r.occupancy_rate.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} %`
+                : '—'}
+            </td>
+            <td class="py-3 px-3 text-right text-oq-text">
+              {formatEur(r.total_rent_collected)}
+            </td>
+            <td class="py-3 pl-3 text-right">
+              <span class={r.unpaid_amount > 0 ? 'text-oq-red font-semibold' : 'text-oq-text'}>
+                {formatEur(r.unpaid_amount)}
+              </span>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+)}

@@ -1,0 +1,99 @@
+---
+// Development preview page — renders all components with mock data.
+// Not indexed (excluded from sitemap) and safe to leave in prod behind the URL.
+import Base from '../layouts/Base.astro';
+import PropertyCard from '../components/PropertyCard.astro';
+import PhotoGallery from '../components/PhotoGallery.astro';
+import Sidebar from '../components/Sidebar.astro';
+import LotTable from '../components/LotTable.astro';
+import AnnualReportTable from '../components/AnnualReportTable.astro';
+import TransportList from '../components/TransportList.astro';
+import DPE from '../components/DPE.astro';
+import Badge from '../components/Badge.astro';
+import MetricRow from '../components/MetricRow.astro';
+import { mockPropertyFull } from '../lib/mocks';
+import { formatEur } from '../lib/format';
+
+const { property, lots, photos, transports, annual_reports, financials } =
+  mockPropertyFull;
+---
+
+<Base title="Preview · OQORO Off Market" noindex>
+  <div class="oq-container py-10 space-y-16">
+    <div>
+      <h1 class="text-[28px] font-extrabold text-oq-black mb-2">Design system preview</h1>
+      <p class="text-oq-muted">Composants rendus avec données mock. Non indexé.</p>
+    </div>
+
+    <section>
+      <h2 class="oq-section-title">Badges</h2>
+      <div class="flex flex-wrap gap-2">
+        <Badge text="Neutral" />
+        <Badge text="Loué" variant="green" />
+        <Badge text="Vacant" variant="red" />
+        <Badge text="Préavis" variant="orange" />
+        <Badge text="Colocation meublée" variant="dark" />
+      </div>
+    </section>
+
+    <section>
+      <h2 class="oq-section-title">Property card</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <PropertyCard
+          property={property}
+          financials={financials}
+          primaryPhoto={photos[0]}
+        />
+      </div>
+    </section>
+
+    <section>
+      <h2 class="oq-section-title">Photo gallery</h2>
+      <PhotoGallery photos={photos} title={property.title} />
+    </section>
+
+    <section>
+      <h2 class="oq-section-title">Metric row pattern</h2>
+      <div class="max-w-md">
+        <MetricRow label="Prix de vente" value={formatEur(property.sale_price)} />
+        <MetricRow label="Frais de notaire" value={formatEur(property.notary_fees)} />
+        <MetricRow label="Total projet" value={formatEur(property.total_project)} highlight last />
+      </div>
+    </section>
+
+    <section>
+      <h2 class="oq-section-title">Lot table</h2>
+      <LotTable lots={lots} />
+    </section>
+
+    <section>
+      <h2 class="oq-section-title">Annual report table</h2>
+      <AnnualReportTable reports={annual_reports} />
+    </section>
+
+    <section>
+      <h2 class="oq-section-title">Transport list</h2>
+      <div class="max-w-md">
+        <TransportList transports={transports} />
+      </div>
+    </section>
+
+    <section>
+      <h2 class="oq-section-title">DPE</h2>
+      <DPE
+        energy_class={property.dpe_energy_class}
+        energy_value={property.dpe_energy_value}
+        ges_class={property.dpe_ges_class}
+        ges_value={property.dpe_ges_value}
+        energy_cost={property.dpe_energy_cost}
+      />
+    </section>
+
+    <section>
+      <h2 class="oq-section-title">Sidebar</h2>
+      <div class="max-w-sm">
+        <Sidebar property={property} financials={financials} />
+      </div>
+    </section>
+  </div>
+</Base>

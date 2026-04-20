@@ -1,0 +1,38 @@
+---
+export const prerender = false;
+
+import Admin from '../../../layouts/Admin.astro';
+import LeadsTable from '../../../components/admin/LeadsTable.tsx';
+import { getAdminClient } from '../../../lib/supabase';
+
+const supabase = getAdminClient();
+const { data: leads } = await supabase
+  .from('leads')
+  .select('*, properties(title)')
+  .order('created_at', { ascending: false });
+
+const normalized = (leads ?? []).map((l: any) => ({
+  id: l.id,
+  property_id: l.property_id,
+  first_name: l.first_name,
+  last_name: l.last_name,
+  email: l.email,
+  phone: l.phone,
+  status: l.status,
+  notes: l.notes,
+  created_at: l.created_at,
+  property_title: l.properties?.title ?? null,
+}));
+---
+
+<Admin title="Leads" activeSection="leads">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-[28px] font-extrabold text-oq-black">Leads</h1>
+      <p class="text-oq-muted text-[14px] mt-1">
+        {normalized.length} au total
+      </p>
+    </div>
+  </div>
+  <LeadsTable client:load initialLeads={normalized} />
+</Admin>

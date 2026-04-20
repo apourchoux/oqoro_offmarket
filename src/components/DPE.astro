@@ -1,0 +1,88 @@
+---
+import type { DpeClass } from '../lib/types';
+
+interface Props {
+  energy_class: DpeClass | null;
+  energy_value: number | null;
+  ges_class: DpeClass | null;
+  ges_value: number | null;
+  energy_cost: number | null;
+}
+
+const { energy_class, energy_value, ges_class, ges_value, energy_cost } =
+  Astro.props;
+
+const classes: DpeClass[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+
+const energyColors: Record<DpeClass, string> = {
+  A: 'bg-[#319834] text-white',
+  B: 'bg-[#5BAC45] text-white',
+  C: 'bg-[#C3D54A] text-black',
+  D: 'bg-[#FFF12C] text-black',
+  E: 'bg-[#F0B41A] text-black',
+  F: 'bg-[#E16C3D] text-white',
+  G: 'bg-[#D7403D] text-white',
+};
+
+const gesColors: Record<DpeClass, string> = {
+  A: 'bg-[#F3EBF7] text-[#6E3A8A] border border-[#E5D4F0]',
+  B: 'bg-[#E7D5EF] text-[#6E3A8A] border border-[#D2B5E3]',
+  C: 'bg-[#D4BBE1] text-[#6E3A8A]',
+  D: 'bg-[#B695D0] text-white',
+  E: 'bg-[#9670BC] text-white',
+  F: 'bg-[#774EA7] text-white',
+  G: 'bg-[#5A3788] text-white',
+};
+---
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+  <div>
+    <div class="text-[13px] font-semibold uppercase tracking-wider text-oq-muted mb-3">
+      Consommation énergétique
+    </div>
+    <div class="space-y-1.5">
+      {classes.map((cls) => (
+        <div
+          class:list={[
+            'flex items-center justify-between px-3 py-2 rounded-btn text-[14px] font-semibold',
+            energyColors[cls],
+            cls === energy_class ? 'ring-2 ring-oq-black' : 'opacity-60',
+          ]}
+          style={`width: ${30 + (classes.indexOf(cls) / 6) * 70}%`}
+        >
+          <span>{cls}</span>
+          {cls === energy_class && energy_value !== null && (
+            <span class="text-[12px]">{energy_value} kWh/m²/an</span>
+          )}
+        </div>
+      ))}
+    </div>
+    {energy_cost !== null && (
+      <div class="mt-3 text-[13px] text-oq-muted">
+        Coût énergie estimé : <span class="font-semibold text-oq-text">{energy_cost} €/an</span>
+      </div>
+    )}
+  </div>
+  <div>
+    <div class="text-[13px] font-semibold uppercase tracking-wider text-oq-muted mb-3">
+      Émissions GES
+    </div>
+    <div class="space-y-1.5">
+      {classes.map((cls) => (
+        <div
+          class:list={[
+            'flex items-center justify-between px-3 py-2 rounded-btn text-[14px] font-semibold',
+            gesColors[cls],
+            cls === ges_class ? 'ring-2 ring-oq-black' : 'opacity-60',
+          ]}
+          style={`width: ${30 + (classes.indexOf(cls) / 6) * 70}%`}
+        >
+          <span>{cls}</span>
+          {cls === ges_class && ges_value !== null && (
+            <span class="text-[12px]">{ges_value} kg CO₂/m²/an</span>
+          )}
+        </div>
+      ))}
+    </div>
+  </div>
+</div>

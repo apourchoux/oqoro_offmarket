@@ -1,0 +1,29 @@
+---
+interface Props {
+  label: string;
+  value: string;
+  highlight?: boolean;
+  last?: boolean;
+}
+
+const { label, value, highlight = false, last = false } = Astro.props;
+---
+
+<div
+  class:list={[
+    'flex items-center justify-between py-3',
+    last ? '' : 'border-b border-oq-border',
+  ]}
+>
+  <span class="text-[14px] text-oq-text">{label}</span>
+  <span
+    class:list={[
+      'text-right',
+      highlight
+        ? 'text-[16px] font-bold text-oq-black'
+        : 'text-[14px] font-semibold text-oq-black',
+    ]}
+  >
+    {value}
+  </span>
+</div>

@@ -1,0 +1,46 @@
+---
+const year = new Date().getFullYear();
+---
+
+<footer class="bg-oq-black text-white mt-16">
+  <div class="oq-container py-12">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+      <div class="col-span-2">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="font-extrabold text-white text-xl tracking-tight">OQORO</span>
+          <span class="text-white/40">|</span>
+          <span class="text-[13px] font-bold uppercase tracking-wider text-white/80">Off Market</span>
+        </div>
+        <p class="text-[14px] text-white/70 max-w-sm">
+          Les biens en gestion OQORO à la vente. Des données locatives réelles,
+          certifiées, et vérifiées par nos équipes.
+        </p>
+      </div>
+      <div>
+        <h3 class="text-[13px] font-semibold uppercase tracking-wider text-white/80 mb-3">
+          Découvrir
+        </h3>
+        <ul class="space-y-2 text-[14px] text-white/70">
+          <li><a href="/#biens" class="text-white/70 hover:text-white no-underline">Nos biens</a></li>
+          <li><a href="/#pourquoi" class="text-white/70 hover:text-white no-underline">Notre approche</a></li>
+          <li><a href="https://oqoro.com" class="text-white/70 hover:text-white no-underline">oqoro.com</a></li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="text-[13px] font-semibold uppercase tracking-wider text-white/80 mb-3">
+          Contact
+        </h3>
+        <ul class="space-y-2 text-[14px] text-white/70">
+          <li><a href="mailto:offmarket@oqoro.com" class="text-white/70 hover:text-white no-underline">offmarket@oqoro.com</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="mt-10 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between gap-4 text-[13px] text-white/50">
+      <span>© {year} OQORO. Tous droits réservés.</span>
+      <div class="flex gap-6">
+        <a href="/mentions-legales" class="text-white/50 hover:text-white no-underline">Mentions légales</a>
+        <a href="/confidentialite" class="text-white/50 hover:text-white no-underline">Confidentialité</a>
+      </div>
+    </div>
+  </div>
+</footer>
