@@ -180,12 +180,23 @@ export default function PropertyForm({
   }
 
   async function handleUploadPhoto(file: File) {
-    const form = new FormData();
-    form.append('file', file);
-    const res = await fetch('/admin/api/upload', { method: 'POST', body: form });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data?.error ?? 'Upload failed');
-    return data.url as string;
+    const ext = (file.name.split('.').pop() ?? 'jpg').toLowerCase();
+    const urlRes = await fetch('/admin/api/photo-upload-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contentType: file.type, ext }),
+    });
+    const urlData = await urlRes.json();
+    if (!urlRes.ok) throw new Error(urlData?.error ?? 'Signed URL failed');
+
+    const upload = await fetch(urlData.signedUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type || 'image/jpeg' },
+      body: file,
+    });
+    if (!upload.ok) throw new Error(`Upload failed (${upload.status})`);
+
+    return urlData.publicUrl as string;
   }
 
   return (

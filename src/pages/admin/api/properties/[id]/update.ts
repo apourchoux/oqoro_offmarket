@@ -84,7 +84,7 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
   if (reportRows.length) await supabase.from('property_annual_reports').insert(reportRows);
 
   if (publish) {
-    const hook = import.meta.env.CLOUDFLARE_DEPLOY_HOOK;
+    const hook = import.meta.env.NETLIFY_BUILD_HOOK;
     if (hook) {
       try {
         await fetch(hook, { method: 'POST' });

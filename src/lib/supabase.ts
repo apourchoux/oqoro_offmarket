@@ -14,7 +14,7 @@ import type {
  * Public (anon) client. Safe to use in the browser.
  * RLS policies enforce read-only access to `published` rows.
  * Returns null when env vars are missing (e.g. first CI build before
- * Cloudflare secrets are set) so pages can render gracefully.
+ * Netlify env vars are set) so pages can render gracefully.
  */
 export function getPublicClient(): SupabaseClient | null {
   const url = import.meta.env.PUBLIC_SUPABASE_URL;

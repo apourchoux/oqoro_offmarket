@@ -2,14 +2,12 @@ import { defineConfig } from 'astro/config';
 import react from '@astrojs/react';
 import tailwind from '@astrojs/tailwind';
 import sitemap from '@astrojs/sitemap';
-import cloudflare from '@astrojs/cloudflare';
+import netlify from '@astrojs/netlify';
 
 export default defineConfig({
   site: 'https://offmarket.oqoro.com',
   output: 'hybrid',
-  adapter: cloudflare({
-    platformProxy: { enabled: true },
-  }),
+  adapter: netlify(),
   integrations: [
     react(),
     tailwind({ applyBaseStyles: false }),
@@ -17,9 +15,4 @@ export default defineConfig({
       filter: (page) => !page.includes('/admin') && !page.includes('/preview'),
     }),
   ],
-  vite: {
-    ssr: {
-      external: ['node:buffer', 'node:path', 'node:fs', 'node:os'],
-    },
-  },
 });

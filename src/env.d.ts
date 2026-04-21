@@ -10,7 +10,7 @@ interface ImportMetaEnv {
   readonly LEAD_NOTIFICATION_TO: string;
   readonly LEAD_NOTIFICATION_CC: string;
   readonly ADMIN_EMAILS: string;
-  readonly CLOUDFLARE_DEPLOY_HOOK: string;
+  readonly NETLIFY_BUILD_HOOK: string;
   readonly PUBLIC_GA_MEASUREMENT_ID: string;
   readonly PUBLIC_SITE_URL: string;
 }

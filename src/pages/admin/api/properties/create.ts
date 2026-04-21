@@ -103,7 +103,7 @@ async function syncChildren(
 }
 
 async function triggerRebuild() {
-  const hook = import.meta.env.CLOUDFLARE_DEPLOY_HOOK;
+  const hook = import.meta.env.NETLIFY_BUILD_HOOK;
   if (!hook) return;
   try {
     await fetch(hook, { method: 'POST' });

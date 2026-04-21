@@ -3,7 +3,7 @@
 Mini-site d'investissement locatif off-market. Biens en gestion OQORO à la vente,
 avec données locatives certifiées.
 
-- **Stack** : Astro 4 (hybrid) · React islands · Tailwind · Supabase · Resend · Cloudflare Pages
+- **Stack** : Astro 4 (hybrid) · React islands · Tailwind · Supabase · Resend · Netlify
 - **Domaine** : `offmarket.oqoro.com`
 
 ## Démarrage
@@ -17,7 +17,7 @@ npm run dev
 ## Variables d'environnement
 
 Voir `.env.example`. Les `PUBLIC_*` sont exposées au navigateur. Les autres
-restent côté serveur (Cloudflare Pages → Settings → Environment variables).
+restent côté serveur (Netlify → Site settings → Environment variables).
 
 ## Base de données
 
@@ -56,6 +56,17 @@ npm run typecheck  # astro check
 
 1. Admin → `/admin/login`
 2. Créer / éditer un bien
-3. Cocher *Publié* puis *Publier & rebuild* → déclenche le deploy hook
-   Cloudflare Pages et régénère les pages statiques
+3. Cocher *Publié* puis *Publier & rebuild* → déclenche le build hook Netlify
+   et régénère les pages statiques
 4. Les leads arrivent dans `/admin/leads`
+
+## Déploiement Netlify
+
+1. **Connecter le repo GitHub** dans Netlify → *Add new site → Import existing project*.
+   Build command et publish dir sont définis dans `netlify.toml`.
+2. **Renseigner les variables d'environnement** listées dans `.env.example`
+   (Site settings → Environment variables).
+3. **Créer un Build Hook** : Site settings → Build & deploy → Build hooks →
+   *Add build hook*. Copier l'URL dans la variable `NETLIFY_BUILD_HOOK`.
+4. **Pointer le domaine** `offmarket.oqoro.com` (Domains → Add custom domain →
+   CNAME vers `{site}.netlify.app`).
