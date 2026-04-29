@@ -1,8 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* ===== BRAND CORE ===== */
+    --oqoro-blue:   #221A5B;
+    --oqoro-purple: #5B30F3;
+    --oqoro-saumon: #F76863;
+    --oqoro-yellow: #FFD500;
+    --oqoro-cream:  #FAF9F6;
+
+    /* ===== BRAND SCALE ===== */
+    --brand-25:  #FCFAFF;
+    --brand-50:  #F3F3FF;
+    --brand-100: #EAE8FF;
+    --brand-200: #D9D6FE;
+    --brand-300: #D6BBFB;
+    --brand-400: #B692F6;
+    --brand-500: #7157FB;
+    --brand-600: #5B30F3;
+    --brand-700: #5022DF;
+    --brand-800: #421CBB;
+    --brand-900: #3E1C96;
+    --brand-950: #27115F;
+
+    /* ===== NEUTRALS ===== */
+    --gray-25:  #FCFCFD;
+    --gray-50:  #F9FAFB;
+    --gray-100: #F2F4F7;
+    --gray-200: #EAECF0;
+    --gray-300: #CECFD2;
+    --gray-400: #94969C;
+    --gray-500: #85888E;
+    --gray-600: #61646C;
+    --gray-700: #333741;
+    --gray-800: #1F242F;
+    --gray-900: #161B26;
+    --gray-950: #0C111D;
+
+    --success-600: #079455;
+
+    --fg-primary:    var(--gray-900);
+    --fg-secondary:  var(--gray-700);
+    --fg-tertiary:   var(--gray-600);
+    --fg-heading:    var(--oqoro-blue);
+
+    --bg-lilas:      #F0EFFB;
+
+    --border-primary:   var(--gray-300);
+    --border-secondary: var(--gray-200);
+    --border-tertiary:  var(--gray-100);
+
+    --gradient-oqoro: radial-gradient(116.28% 116.28% at 0% -16.28%, #634AFD 4.69%, #9A49F2 98.31%);
+
+    --shadow-xs: 0 1px 2px rgba(16,24,40,.05);
+    --shadow-sm: 0 1px 3px rgba(16,24,40,.08), 0 1px 2px rgba(16,24,40,.04);
+    --shadow-md: 0 4px 8px -2px rgba(16,24,40,.10), 0 2px 4px -2px rgba(16,24,40,.06);
+    --shadow-lg: 0 12px 16px -4px rgba(16,24,40,.08), 0 4px 6px -2px rgba(16,24,40,.03);
+    --shadow-xl: 0 20px 24px -4px rgba(16,24,40,.08), 0 8px 8px -4px rgba(16,24,40,.03);
+    --shadow-focus-brand: 0 0 0 4px rgba(91, 48, 243, 0.20);
+
+    --font-sans:    'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-display: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-serif:   'Playfair Display', Georgia, serif;
+  }
+
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -10,68 +75,232 @@
   }
 
   body {
-    @apply bg-oq-white text-oq-text font-sans;
-    font-size: 15px;
-    line-height: 1.6;
+    background: #fff;
+    color: var(--fg-primary);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply text-oq-black;
+    font-family: var(--font-display);
+    color: var(--fg-heading);
     letter-spacing: -0.01em;
   }
 
   hr {
-    @apply border-0 border-t border-oq-border my-6;
+    border: 0;
+    border-top: 1px solid var(--border-tertiary);
+    margin: 24px 0;
   }
 
   a {
-    @apply text-oq-black underline-offset-4;
+    color: var(--oqoro-purple);
+    text-decoration: none;
   }
+  a:hover { text-decoration: underline; }
 
-  a:hover {
-    text-decoration: underline;
-  }
+  button { font-family: inherit; }
 
-  button {
-    font-family: inherit;
-  }
+  img { display: block; max-width: 100%; }
 }
 
 @layer components {
   .oq-container {
-    @apply mx-auto w-full max-w-container px-4 md:px-6;
+    @apply mx-auto w-full max-w-container px-5 md:px-8;
   }
 
+  /* ========== Eyebrow tag ========== */
+  .oq-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--brand-700);
+    background: var(--brand-50);
+    border: 1px solid var(--brand-100);
+    padding: 6px 12px;
+    border-radius: 999px;
+  }
+  .oq-eyebrow .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--oqoro-saumon);
+  }
+
+  /* ========== Buttons ========== */
+  .oq-btn {
+    height: 48px;
+    padding: 0 22px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    border: 1px solid transparent;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: var(--shadow-xs);
+    transition: background-color .25s, color .25s, border-color .25s, transform .15s;
+    text-decoration: none;
+    white-space: nowrap;
+  }
   .oq-btn-primary {
-    @apply inline-flex items-center justify-center bg-oq-orange hover:bg-oq-orange-dark text-white font-semibold px-5 py-3 rounded-btn transition-colors;
+    @apply oq-btn;
+    background: var(--brand-600);
+    color: #fff;
   }
-
-  .oq-btn-dark {
-    @apply inline-flex items-center justify-center bg-oq-black hover:bg-black text-white font-semibold px-5 py-3 rounded-btn transition-colors;
+  .oq-btn-primary:hover {
+    background: var(--brand-700);
+    color: #fff;
+    text-decoration: none;
   }
-
   .oq-btn-secondary {
-    @apply inline-flex items-center justify-center bg-white hover:bg-oq-bg text-oq-black border border-oq-border font-medium px-5 py-3 rounded-btn transition-colors;
+    @apply oq-btn;
+    background: #fff;
+    color: var(--fg-heading);
+    border-color: var(--border-primary);
+  }
+  .oq-btn-secondary:hover {
+    background: var(--gray-50);
+    color: var(--fg-heading);
+    text-decoration: none;
+  }
+  .oq-btn-dark {
+    @apply oq-btn;
+    background: var(--oqoro-blue);
+    color: #fff;
+  }
+  .oq-btn-dark:hover {
+    background: #1a1448;
+    color: #fff;
+    text-decoration: none;
+  }
+  .oq-btn-ghost {
+    @apply oq-btn;
+    background: transparent;
+    color: var(--fg-heading);
+    border: none;
+    box-shadow: none;
+  }
+  .oq-btn-sm {
+    height: 38px;
+    padding: 0 14px;
+    font-size: 14px;
+    border-radius: 8px;
   }
 
+  /* ========== Inputs ========== */
   .oq-input {
-    @apply w-full bg-white border border-oq-border rounded-btn px-3 py-2.5 text-[15px] text-oq-text focus:outline-none focus:border-oq-black focus:ring-1 focus:ring-oq-black transition-colors;
+    width: 100%;
+    height: 48px;
+    padding: 0 16px;
+    border: 1px solid var(--border-primary);
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 15px;
+    color: var(--fg-primary);
+    background: #fff;
+    transition: border-color .2s, box-shadow .2s;
   }
-
+  .oq-input:focus {
+    outline: none;
+    border-color: var(--brand-500);
+    box-shadow: var(--shadow-focus-brand);
+  }
   .oq-label {
-    @apply block text-[13px] font-semibold text-oq-text mb-1.5;
-  }
-
-  .oq-card {
-    @apply bg-white border border-oq-border rounded-card overflow-hidden transition-all;
-  }
-
-  .oq-card-hover:hover {
-    @apply shadow-hover;
-    transform: translateY(-2px);
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fg-secondary);
+    margin-bottom: 6px;
   }
 
   .oq-section-title {
-    @apply text-[20px] font-bold text-oq-black mb-4;
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--fg-heading);
+    margin-bottom: 16px;
+    letter-spacing: -0.5px;
+  }
+
+  /* ========== Cards ========== */
+  .oq-card {
+    background: #fff;
+    border: 1px solid var(--border-secondary);
+    border-radius: 18px;
+    overflow: hidden;
+    transition: transform .25s, box-shadow .25s, border-color .25s;
+  }
+  .oq-card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--border-primary);
+  }
+
+  /* ========== Section headings ========== */
+  .oq-section-head {
+    max-width: 760px;
+    margin: 0 auto 64px;
+    text-align: center;
+  }
+  .oq-section-head .oq-eyebrow { margin-bottom: 16px; }
+  .oq-section-head h2 {
+    font-size: 48px;
+    line-height: 1.1;
+    letter-spacing: -1.5px;
+    margin: 0 0 16px;
+  }
+  .oq-section-head h2 em { color: var(--oqoro-purple); font-style: normal; }
+  .oq-section-head p {
+    font-size: 18px;
+    line-height: 1.55;
+    color: var(--fg-secondary);
+    margin: 0;
+  }
+
+  /* ========== Groovy underline (saumon hand-drawn) ========== */
+  .groovy-under {
+    position: relative;
+    display: inline-block;
+  }
+  .groovy-under::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 95%;
+    transform: translateX(-50%);
+    width: 110%;
+    height: 0.6em;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    background-image: url("data:image/svg+xml,%3Csvg width='142' height='16' viewBox='0 0 142 16' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M141.949 4.68C141.811 3.84 141.617 3.39 140.789 3.36C123.318 2.72 105.842 2.28 88.362 2.03C70.881 1.77 53.401 1.71 35.922 1.85C31.078 1.89 26.234 1.94 21.391 2.00C18.968 2.03 16.546 2.07 14.126 2.11C11.991 2.15 9.817 2.32 7.679 2.24C7.710 1.73 7.619 1.23 7.419 0.79C7.028 0.046 6.302 -0.103 5.596 0.059C3.953 0.428 2.855 2.406 2.049 3.883C1.066 5.687 0.273 7.896 0.115 10.022C0.049 10.927 0.075 11.981 0.586 12.738C1.840 14.597 4.540 13.996 6.338 13.963C8.866 13.914 11.393 13.872 13.920 13.835C23.923 13.683 33.926 13.594 43.929 13.568C63.833 13.517 83.734 13.713 103.633 14.155C114.792 14.406 125.951 14.733 137.110 15.136C137.852 15.163 138.977 13.504 139.299 13.020C140.168 11.702 140.857 10.213 141.339 8.615C141.690 7.415 142.156 5.950 141.949 4.681Z' fill='%23F76863'/%3E%3C/svg%3E");
+  }
+
+  .highlight-saumon {
+    background: linear-gradient(180deg, transparent 60%, #FDE1E0 60%);
+    color: var(--fg-heading);
+    font-weight: 600;
+    font-style: normal;
+    padding: 0 2px;
+  }
+
+  @keyframes oq-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(247,104,99,0.5); }
+    50%      { box-shadow: 0 0 0 6px rgba(247,104,99,0); }
+  }
+  .oq-pulse-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--oqoro-saumon);
+    animation: oq-pulse 1.6s infinite;
   }
 }
