@@ -1,23 +1,55 @@
 ---
 ---
 
-<header class="sticky top-0 z-40 bg-white border-b border-oq-border">
-  <div class="oq-container h-16 flex items-center justify-between">
+<header class="oq-header sticky top-0 z-50">
+  <div class="oq-container flex items-center gap-6 md:gap-8 h-[76px]">
     <a href="/" class="flex items-center gap-3 no-underline">
-      <span class="font-extrabold text-oq-black text-xl tracking-tight">OQORO</span>
-      <span class="text-oq-border">|</span>
-      <span class="text-[13px] font-bold uppercase tracking-wider text-oq-text">Off Market</span>
+      <img src="/oqoro/logos/oqoro-logo.svg" alt="OQORO" class="h-[26px]" />
+      <span class="oq-header-tag">Off Market</span>
     </a>
-    <nav class="hidden md:flex items-center gap-8">
-      <a href="/#biens" class="text-[14px] no-underline text-oq-text hover:text-oq-black">
-        Nos biens
-      </a>
-      <a href="/#pourquoi" class="text-[14px] no-underline text-oq-text hover:text-oq-black">
-        Pourquoi OQORO
-      </a>
-      <a href="https://oqoro.com" class="text-[14px] no-underline text-oq-text hover:text-oq-black">
-        Retour sur oqoro.com
-      </a>
+
+    <nav class="hidden md:flex items-center gap-7 ml-2">
+      <a href="/#biens" class="oq-header-link">Nos biens</a>
+      <a href="/#pourquoi" class="oq-header-link">Notre approche</a>
+      <a href="/#temoignages" class="oq-header-link">Investisseurs</a>
+      <a href="https://oqoro.com" class="oq-header-link">oqoro.com ↗</a>
     </nav>
+
+    <div class="ml-auto flex items-center gap-2.5">
+      <a href="/#alerte" class="oq-btn oq-btn-secondary oq-btn-sm hidden sm:inline-flex">M'alerter</a>
+      <a href="/#biens" class="oq-btn oq-btn-primary oq-btn-sm">Voir les biens</a>
+    </div>
   </div>
 </header>
+
+<style>
+  .oq-header {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-tertiary);
+  }
+  .oq-header-tag {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--oqoro-saumon);
+    border: 1px solid var(--oqoro-saumon);
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+  .oq-header-link {
+    color: var(--fg-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: color .2s;
+  }
+  .oq-header-link:hover {
+    color: var(--fg-heading);
+    text-decoration: none;
+  }
+</style>
