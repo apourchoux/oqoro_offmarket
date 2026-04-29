@@ -13,30 +13,61 @@ interface LeadPayload {
   last_name?: string;
   email?: string;
   phone?: string;
+  budget?: string;
+  source?: string;
 }
 
-export const POST: APIRoute = async ({ request }) => {
-  let payload: LeadPayload;
+function isFormSubmission(request: Request): boolean {
+  const ct = request.headers.get('content-type') ?? '';
+  return ct.includes('application/x-www-form-urlencoded') || ct.includes('multipart/form-data');
+}
+
+async function readPayload(request: Request): Promise<LeadPayload | null> {
+  if (isFormSubmission(request)) {
+    const form = await request.formData();
+    return {
+      property_id: (form.get('property_id') as string | null) || null,
+      first_name: (form.get('first_name') as string | null) ?? '',
+      last_name: (form.get('last_name') as string | null) ?? '',
+      email: (form.get('email') as string | null) ?? '',
+      phone: (form.get('phone') as string | null) ?? '',
+      budget: (form.get('budget') as string | null) ?? '',
+      source: (form.get('source') as string | null) ?? '',
+    };
+  }
   try {
-    payload = (await request.json()) as LeadPayload;
+    return (await request.json()) as LeadPayload;
   } catch {
-    return json({ error: 'JSON invalide' }, 400);
+    return null;
+  }
+}
+
+export const POST: APIRoute = async ({ request, redirect }) => {
+  const useFormFlow = isFormSubmission(request);
+  const payload = await readPayload(request);
+
+  if (!payload) {
+    return useFormFlow
+      ? redirect('/?lead=error&msg=invalid', 303)
+      : json({ error: 'JSON invalide' }, 400);
   }
 
-  const first_name = (payload.first_name ?? '').trim();
-  const last_name = (payload.last_name ?? '').trim();
   const email = (payload.email ?? '').trim();
-  const phone = (payload.phone ?? '').trim();
+  if (!email || !EMAIL_REGEX.test(email)) {
+    return useFormFlow
+      ? redirect('/?lead=error&msg=email#alerte', 303)
+      : json({ error: 'Email invalide' }, 400);
+  }
+
+  const first_name = (payload.first_name ?? '').trim() || '—';
+  const last_name = (payload.last_name ?? '').trim() || '—';
+  const phone = (payload.phone ?? '').trim() || '—';
   const property_id = payload.property_id ?? null;
 
-  if (!first_name || !last_name || !email || !phone) {
-    return json({ error: 'Tous les champs sont requis' }, 400);
-  }
-  if (!EMAIL_REGEX.test(email)) {
-    return json({ error: 'Email invalide' }, 400);
-  }
   if (first_name.length > 100 || last_name.length > 100 || phone.length > 50) {
-    return json({ error: 'Champs trop longs' }, 400);
+    return useFormFlow
+      ? redirect('/?lead=error&msg=length#alerte', 303)
+      : json({ error: 'Champs trop longs' }, 400);
   }
 
   try {
@@ -64,10 +95,12 @@ export const POST: APIRoute = async ({ request }) => {
       sendLeadConfirmation(lead, property),
     ]);
 
-    return json({ success: true });
+    return useFormFlow ? redirect('/?lead=ok#alerte', 303) : json({ success: true });
   } catch (err) {
     console.error('[api/leads] error', err);
-    return json({ error: "Erreur serveur lors de l'enregistrement" }, 500);
+    return useFormFlow
+      ? redirect('/?lead=error&msg=server#alerte', 303)
+      : json({ error: "Erreur serveur lors de l'enregistrement" }, 500);
   }
 };
 
