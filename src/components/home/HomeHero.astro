@@ -70,7 +70,9 @@ const heroImage = featured?.primary_photo?.url
         </div>
 
         <div class="data-badge">
-          <img src="/oqoro/emojis/check.png" alt="" />
+          <span class="data-badge-ic" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </span>
           <div>
             <div class="t">Données certifiées</div>
             <div class="s">Tirées des encaissements OQORO sur 12 mois</div>
@@ -196,7 +198,17 @@ const heroImage = featured?.primary_photo?.url
     box-shadow: var(--shadow-lg), 0 0 0 1px var(--border-secondary);
     width: 220px;
   }
-  .data-badge img { width: 28px; height: 28px; }
+  .data-badge-ic {
+    width: 28px;
+    height: 28px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--brand-50);
+    color: var(--brand-700);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
   .data-badge .t { font-size: 13px; font-weight: 700; color: var(--fg-heading); line-height: 1.2; }
   .data-badge .s { font-size: 11px; color: var(--fg-tertiary); margin-top: 2px; }
 
