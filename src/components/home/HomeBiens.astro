@@ -68,7 +68,9 @@ const { items, count, loadError } = Astro.props;
     )}
 
     <div class="biens-foot">
-      <img src="/oqoro/emojis/house.png" alt="" />
+      <span class="biens-foot-ic" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 2l9 7.5"/><path d="M5 9v11a1 1 0 0 0 1 1h4v-7h4v7h4a1 1 0 0 0 1-1V9"/></svg>
+      </span>
       <div class="copy">
         <b>Vous ne trouvez pas votre bonheur ?</b>
         <span>
@@ -151,7 +153,18 @@ const { items, count, loadError } = Astro.props;
     border-radius: 16px;
     flex-wrap: wrap;
   }
-  .biens-foot img { width: 48px; height: 48px; }
+  .biens-foot-ic {
+    width: 48px;
+    height: 48px;
+    flex: none;
+    border-radius: 14px;
+    background: var(--brand-50);
+    color: var(--brand-700);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 0 1px var(--border-secondary);
+  }
   .biens-foot .copy { flex: 1; min-width: 240px; }
   .biens-foot .copy b {
     font-family: var(--font-display);
