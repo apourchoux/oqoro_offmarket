@@ -1,0 +1,175 @@
+---
+import PropertyCard from '../PropertyCard.astro';
+import type { Property, PropertyFinancials, PropertyPhoto } from '../../lib/types';
+
+interface Item {
+  property: Property;
+  financials: PropertyFinancials;
+  primary_photo: PropertyPhoto | null;
+}
+
+interface Props {
+  items: Item[];
+  count: number;
+  loadError: string | null;
+}
+
+const { items, count, loadError } = Astro.props;
+---
+
+<section id="biens" class="biens">
+  <div class="oq-container">
+    <div class="biens-head">
+      <div>
+        <span class="oq-eyebrow">
+          <span class="dot"></span>
+          {count > 0
+            ? `${count} bien${count > 1 ? 's' : ''} disponible${count > 1 ? 's' : ''}`
+            : 'Mises à jour régulières'}
+        </span>
+        <h2>Nos biens en exclusivité.</h2>
+        <div class="sub">
+          Mise à jour quotidienne — chaque bien vient de notre portefeuille en
+          gestion.
+        </div>
+      </div>
+    </div>
+
+    {loadError && (
+      <div class="biens-error">
+        Impossible de charger les biens : {loadError}.
+      </div>
+    )}
+
+    {!loadError && items.length === 0 && (
+      <div class="biens-empty">
+        <h3>Aucun bien actuellement disponible</h3>
+        <p>
+          Nous publions régulièrement de nouveaux mandats. Laissez-nous votre
+          email pour être averti en priorité.
+        </p>
+        <form class="biens-empty-form" method="POST" action="/api/leads">
+          <input type="email" name="email" required placeholder="votre@email.com" class="oq-input" />
+          <button type="submit" class="oq-btn oq-btn-primary">M'alerter</button>
+        </form>
+      </div>
+    )}
+
+    {items.length > 0 && (
+      <div class="biens-grid">
+        {items.map(({ property, financials, primary_photo }) => (
+          <PropertyCard
+            property={property}
+            financials={financials}
+            primaryPhoto={primary_photo}
+          />
+        ))}
+      </div>
+    )}
+
+    <div class="biens-foot">
+      <img src="/oqoro/emojis/house.png" alt="" />
+      <div class="copy">
+        <b>Vous ne trouvez pas votre bonheur ?</b>
+        <span>
+          Nous publions de nouveaux mandats chaque semaine. Recevez les
+          annonces avant qu'elles soient en ligne.
+        </span>
+      </div>
+      <a href="#alerte" class="oq-btn oq-btn-dark">
+        M'alerter en priorité
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </a>
+    </div>
+  </div>
+</section>
+
+<style>
+  .biens { padding: 96px 0; background: #fff; }
+  .biens-head { margin-bottom: 36px; }
+  .biens-head h2 {
+    font-size: 44px;
+    line-height: 1.1;
+    letter-spacing: -1.5px;
+    margin: 16px 0 8px;
+  }
+  .biens-head .sub { color: var(--fg-tertiary); font-size: 15px; }
+
+  .biens-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+
+  .biens-empty {
+    background: var(--oqoro-cream);
+    border-radius: 18px;
+    padding: 48px 32px;
+    text-align: center;
+    border: 1px solid var(--border-secondary);
+  }
+  .biens-empty h3 {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--fg-heading);
+    margin: 0 0 8px;
+  }
+  .biens-empty p {
+    font-size: 15px;
+    color: var(--fg-secondary);
+    margin: 0 auto 24px;
+    max-width: 480px;
+  }
+  .biens-empty-form {
+    display: flex;
+    gap: 8px;
+    max-width: 420px;
+    margin: 0 auto;
+    flex-wrap: wrap;
+  }
+  .biens-empty-form .oq-input { flex: 1; min-width: 200px; }
+
+  .biens-error {
+    padding: 16px 20px;
+    border-radius: 12px;
+    background: #FEF3F2;
+    color: #B42318;
+    border: 1px solid #FECDCA;
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  .biens-foot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 48px;
+    padding: 24px 32px;
+    background: var(--oqoro-cream);
+    border-radius: 16px;
+    flex-wrap: wrap;
+  }
+  .biens-foot img { width: 48px; height: 48px; }
+  .biens-foot .copy { flex: 1; min-width: 240px; }
+  .biens-foot .copy b {
+    font-family: var(--font-display);
+    font-size: 18px;
+    color: var(--fg-heading);
+    display: block;
+    margin-bottom: 2px;
+    font-weight: 700;
+  }
+  .biens-foot .copy span { font-size: 14px; color: var(--fg-tertiary); }
+
+  @media (max-width: 1024px) {
+    .biens { padding: 72px 0; }
+    .biens-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 640px) {
+    .biens { padding: 56px 0; }
+    .biens-grid { grid-template-columns: 1fr; }
+    .biens-head h2 { font-size: 32px; }
+  }
+</style>
