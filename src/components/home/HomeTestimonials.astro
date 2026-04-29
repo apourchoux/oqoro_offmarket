@@ -1,0 +1,128 @@
+---
+const items = [
+  {
+    large: true,
+    initials: 'JM',
+    name: 'Jean-Marc Lefèvre',
+    role: 'Investisseur · 3 biens acquis · Paris 11e & 18e',
+    quote:
+      "C'est la première fois que je vois <em>les vrais loyers encaissés</em> avant d'acheter, pas une estimation d'agence. Le bien a fait exactement le rendement annoncé l'année suivante. Une transparence rare dans l'immobilier.",
+  },
+  {
+    large: false,
+    initials: 'AC',
+    name: 'Anne-Claire D.',
+    role: 'Cadre dirigeante · Lyon',
+    quote:
+      "Visite 3D le matin, données chiffrées en PDF l'après-midi, rendez-vous notarial 3 semaines plus tard. Tout s'est fait sans déplacement inutile.",
+  },
+  {
+    large: false,
+    initials: 'SR',
+    name: 'Sophie Renaud',
+    role: 'Investisseur particulier · 2 studios Paris',
+    quote:
+      'Le mandat de gestion a été repris automatiquement. Les locataires en place, la trésorerie qui tombe le 5 du mois. Aucune vacance.',
+  },
+];
+---
+
+<section id="temoignages" class="testi">
+  <div class="oq-container">
+    <div class="oq-section-head">
+      <span class="oq-eyebrow"><span class="dot"></span>Ils ont investi avec nous</span>
+      <h2>L'achat sans surprises.</h2>
+      <p>
+        Des investisseurs qui ont apprécié de voir les vrais chiffres avant
+        de signer.
+      </p>
+    </div>
+
+    <div class="testi-grid">
+      {items.map((t) => (
+        <div class:list={["testi-card", t.large && 'large']}>
+          <div class="quote-mark">"</div>
+          <blockquote set:html={t.quote}></blockquote>
+          <div class="testi-author">
+            <div class="av">{t.initials}</div>
+            <div>
+              <div class="nm">{t.name}</div>
+              <div class="rl">{t.role}</div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .testi { padding: 96px 0; background: var(--oqoro-cream); }
+  .testi-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 24px; }
+  .testi-card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 28px;
+    border: 1px solid var(--border-secondary);
+    display: flex;
+    flex-direction: column;
+  }
+  .testi-card .quote-mark {
+    font-family: var(--font-serif);
+    font-size: 64px;
+    line-height: 0.6;
+    color: var(--oqoro-saumon);
+    margin-bottom: 4px;
+  }
+  .testi-card blockquote {
+    margin: 0;
+    font-size: 17px;
+    line-height: 1.55;
+    color: var(--fg-secondary);
+    flex: 1;
+  }
+  .testi-card.large blockquote {
+    font-size: 20px;
+    color: var(--fg-heading);
+    font-weight: 500;
+  }
+  .testi-card.large blockquote :global(em) {
+    background: linear-gradient(180deg, transparent 60%, #FDE1E0 60%);
+    color: var(--fg-heading);
+    font-weight: 600;
+    font-style: normal;
+    padding: 0 2px;
+  }
+  .testi-author {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-tertiary);
+  }
+  .testi-author .av {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--brand-100);
+    color: var(--brand-700);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .testi-author .nm { font-weight: 700; font-size: 14px; color: var(--fg-heading); }
+  .testi-author .rl { font-size: 13px; color: var(--fg-tertiary); margin-top: 2px; }
+
+  @media (max-width: 1024px) {
+    .testi { padding: 72px 0; }
+    .testi-grid { grid-template-columns: 1fr 1fr; }
+    .testi-card.large { grid-column: 1 / -1; }
+  }
+  @media (max-width: 640px) {
+    .testi { padding: 56px 0; }
+    .testi-grid { grid-template-columns: 1fr; }
+  }
+</style>
