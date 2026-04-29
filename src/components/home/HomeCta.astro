@@ -1,0 +1,117 @@
+---
+---
+
+<section id="alerte" class="cta-band">
+  <div class="oq-container">
+    <div class="cta-card">
+      <div class="cta-copy">
+        <h2>Soyez prévenu avant tout le monde.</h2>
+        <p>
+          Recevez les nouveaux mandats Off Market par email, dès leur mise en
+          vente. Pas de spam, une notification par bien — uniquement quand
+          un nouveau bien correspond.
+        </p>
+        <div class="cta-bullets">
+          <span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Sans engagement
+          </span>
+          <span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            1 email par bien max
+          </span>
+          <span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Désinscription en 1 clic
+          </span>
+        </div>
+      </div>
+
+      <form class="cta-form" method="POST" action="/api/leads">
+        <label class="oq-label" for="cta-email">Votre email</label>
+        <input id="cta-email" name="email" type="email" placeholder="prenom.nom@email.com" required class="oq-input" />
+        <label class="oq-label" for="cta-budget" style="margin-top: 12px;">Budget indicatif</label>
+        <input id="cta-budget" name="budget" type="text" placeholder="Ex. 200 000 € — 500 000 €" class="oq-input" />
+        <button type="submit" class="oq-btn oq-btn-primary" style="width: 100%; margin-top: 16px;">M'alerter en priorité</button>
+        <div class="fine">
+          En soumettant ce formulaire, vous acceptez de recevoir nos alertes
+          par email.
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<style>
+  .cta-band { padding: 80px 0 96px; background: #fff; }
+  .cta-card {
+    position: relative;
+    background: var(--gradient-oqoro);
+    border-radius: 28px;
+    padding: 64px 56px;
+    color: #fff;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+  .cta-card::before {
+    content: '';
+    position: absolute;
+    right: -100px;
+    top: -100px;
+    width: 380px;
+    height: 380px;
+    background: radial-gradient(circle, rgba(247, 104, 99, 0.4) 0%, rgba(247, 104, 99, 0) 70%);
+    pointer-events: none;
+  }
+  .cta-card .cta-copy { position: relative; z-index: 1; }
+  .cta-card h2 {
+    font-size: 44px;
+    line-height: 1.05;
+    letter-spacing: -1.5px;
+    color: #fff;
+    margin: 0 0 16px;
+    font-weight: 800;
+  }
+  .cta-card p {
+    font-size: 17px;
+    color: rgba(255, 255, 255, 0.85);
+    margin: 0 0 28px;
+    max-width: 460px;
+    line-height: 1.55;
+  }
+  .cta-bullets {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    font-size: 14px;
+    color: #fff;
+  }
+  .cta-bullets span { display: inline-flex; align-items: center; gap: 8px; }
+  .cta-form {
+    position: relative;
+    z-index: 1;
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: var(--shadow-xl);
+  }
+  .cta-form .fine {
+    font-size: 12px;
+    color: var(--fg-tertiary);
+    margin-top: 10px;
+    line-height: 1.5;
+  }
+
+  @media (max-width: 1024px) {
+    .cta-card { grid-template-columns: 1fr; padding: 48px 32px; }
+    .cta-card h2 { font-size: 34px; }
+  }
+  @media (max-width: 640px) {
+    .cta-band { padding: 56px 0 64px; }
+    .cta-card { padding: 36px 24px; }
+    .cta-card h2 { font-size: 28px; }
+  }
+</style>

@@ -1,6 +1,11 @@
 ---
 import Base from '../layouts/Base.astro';
-import PropertyCard from '../components/PropertyCard.astro';
+import HomeHero from '../components/home/HomeHero.astro';
+import HomeProof from '../components/home/HomeProof.astro';
+import HomeWhy from '../components/home/HomeWhy.astro';
+import HomeBiens from '../components/home/HomeBiens.astro';
+import HomeTestimonials from '../components/home/HomeTestimonials.astro';
+import HomeCta from '../components/home/HomeCta.astro';
 import { listPublishedProperties } from '../lib/supabase';
 
 let items: Awaited<ReturnType<typeof listPublishedProperties>> = [];
@@ -13,123 +18,72 @@ try {
   console.error('[home] listPublishedProperties failed:', err);
 }
 
+const count = items.length;
+const featured = items[0] ?? null;
+
+const featuredYieldLabel = featured
+  ? `${featured.financials.gross_yield.toLocaleString('fr-FR', {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 2,
+    })} %`
+  : null;
+
+const featuredOccupancyLabel = featured
+  ? featured.financials.total_lots > 0
+    ? `${Math.round((featured.financials.rented_lots / featured.financials.total_lots) * 100)} %`
+    : '—'
+  : null;
+
+const avgYield =
+  count > 0
+    ? items.reduce((s, x) => s + x.financials.gross_yield, 0) / count
+    : null;
+
+const avgOccupancy = (() => {
+  const withLots = items.filter((x) => x.financials.total_lots > 0);
+  if (withLots.length === 0) return null;
+  const sum = withLots.reduce(
+    (s, x) => s + x.financials.rented_lots / x.financials.total_lots,
+    0,
+  );
+  return Math.round((sum / withLots.length) * 100);
+})();
+
+const heroStats = [
+  {
+    num: count > 0 ? String(count) : '—',
+    lbl: count > 1 ? 'Biens disponibles' : 'Bien disponible',
+  },
+  {
+    num:
+      avgYield !== null
+        ? `${avgYield.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`
+        : '—',
+    lbl: 'Rendement net moyen',
+  },
+  {
+    num: avgOccupancy !== null ? `${avgOccupancy} %` : '—',
+    lbl: "Taux d'occupation moyen",
+  },
+  { num: '7 ans', lbl: "D'historique de gestion" },
+];
+
 const title = 'OQORO Off Market — Investissement locatif, données certifiées';
 const description =
-  'Nos biens en gestion à la vente, avec les revenus locatifs réels, le taux d\'occupation vérifié et la gestion incluse.';
+  "Nos biens en gestion à la vente, avec les revenus locatifs réels, le taux d'occupation vérifié et la gestion incluse.";
 ---
 
 <Base title={title} description={description}>
-  <section class="oq-container pt-12 md:pt-20 pb-16">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 items-center">
-      <div>
-        <span class="inline-block text-[12px] font-bold uppercase tracking-wider text-oq-orange mb-4">
-          Exclusivité OQORO
-        </span>
-        <h1 class="text-[36px] md:text-[44px] lg:text-[48px] font-extrabold text-oq-black leading-[1.05] tracking-tight">
-          Investissement locatif — Données certifiées OQORO
-        </h1>
-        <p class="mt-5 text-[16px] md:text-[17px] text-oq-text leading-relaxed max-w-[520px]">
-          Nos biens en gestion à la vente, avec les revenus locatifs réels et
-          le taux d'occupation vérifié. Une information que personne d'autre
-          n'a sur le marché de la transaction.
-        </p>
-        <div class="mt-8 flex items-center gap-3">
-          <a href="#biens" class="oq-btn-dark">Découvrir nos biens</a>
-          <a href="#pourquoi" class="oq-btn-secondary">En savoir plus</a>
-        </div>
-      </div>
-      <div class="relative hidden md:block">
-        <img
-          src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1200&q=80"
-          alt="Immeuble parisien"
-          class="w-full h-[420px] object-cover rounded-card"
-        />
-      </div>
-    </div>
-  </section>
-
-  <hr class="oq-container" />
-
-  <section id="pourquoi" class="oq-container py-16">
-    <h2 class="text-[24px] md:text-[28px] font-extrabold text-oq-black">
-      Pourquoi OQORO Off Market
-    </h2>
-    <p class="mt-3 text-oq-text max-w-2xl">
-      Nous gérons ces biens au quotidien. Les données que nous affichons sont
-      les nôtres : elles viennent de notre plateforme, pas d'une estimation.
-    </p>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-10">
-      {[
-        { t: 'Rendements vérifiés', d: 'Revenus locatifs tirés directement des encaissements réels des 12 derniers mois.' },
-        { t: 'Occupation réelle', d: 'Taux d\'occupation historique, impayés, préavis — tout est visible avant l\'achat.' },
-        { t: 'Gestion incluse', d: 'Reprenez le mandat OQORO existant : locataires en place, zéro vacance à prévoir.' },
-        { t: 'Visite 3D', d: 'La plupart des biens sont disponibles en visite virtuelle Matterport avant déplacement.' },
-      ].map((item) => (
-        <div>
-          <div class="w-10 h-10 rounded-full bg-oq-black text-white flex items-center justify-center text-[14px] font-bold mb-4">✓</div>
-          <h3 class="text-[16px] font-semibold text-oq-black mb-2">{item.t}</h3>
-          <p class="text-[14px] text-oq-text leading-relaxed">{item.d}</p>
-        </div>
-      ))}
-    </div>
-  </section>
-
-  <hr class="oq-container" />
-
-  <section id="biens" class="oq-container py-16">
-    <div class="flex items-end justify-between mb-8">
-      <div>
-        <h2 class="text-[24px] md:text-[28px] font-extrabold text-oq-black">
-          Nos biens disponibles
-        </h2>
-        <p class="mt-2 text-oq-muted text-[14px]">
-          {items.length > 0
-            ? `${items.length} bien${items.length > 1 ? 's' : ''} en vente avec données locatives certifiées.`
-            : 'Mise à jour régulière des nouveaux mandats.'}
-        </p>
-      </div>
-    </div>
-
-    {loadError && (
-      <div class="p-4 rounded-card border border-oq-red-soft bg-oq-red-soft text-oq-red text-[14px]">
-        Impossible de charger les biens : {loadError}. Vérifiez la configuration Supabase.
-      </div>
-    )}
-
-    {!loadError && items.length === 0 && (
-      <div class="border border-oq-border rounded-card p-10 text-center">
-        <h3 class="text-[18px] font-semibold text-oq-black mb-2">
-          Aucun bien actuellement disponible
-        </h3>
-        <p class="text-oq-text mb-6">
-          Nous publions régulièrement de nouveaux mandats. Laissez-nous votre
-          email pour être averti en priorité.
-        </p>
-        <form class="max-w-sm mx-auto flex gap-2" method="POST" action="/api/leads">
-          <input
-            type="email"
-            name="email"
-            required
-            placeholder="votre@email.com"
-            class="oq-input"
-          />
-          <button type="submit" class="oq-btn-dark whitespace-nowrap">
-            M'alerter
-          </button>
-        </form>
-      </div>
-    )}
-
-    {items.length > 0 && (
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {items.map(({ property, financials, primary_photo }) => (
-          <PropertyCard
-            property={property}
-            financials={financials}
-            primaryPhoto={primary_photo}
-          />
-        ))}
-      </div>
-    )}
-  </section>
+  <HomeHero
+    count={count}
+    heroStats={heroStats}
+    featured={featured}
+    featuredYieldLabel={featuredYieldLabel}
+    featuredOccupancyLabel={featuredOccupancyLabel}
+  />
+  <HomeProof />
+  <HomeWhy />
+  <HomeBiens items={items} count={count} loadError={loadError} />
+  <HomeTestimonials />
+  <HomeCta />
 </Base>
