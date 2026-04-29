@@ -119,9 +119,9 @@ const heroImage = featured?.primary_photo?.url
   }
   .hero h1 {
     font-size: 64px;
-    line-height: 1.05;
+    line-height: 1.15;
     letter-spacing: -2.5px;
-    margin: 24px 0 20px;
+    margin: 24px 0 44px;
     font-weight: 800;
   }
   .hero h1 em { color: var(--oqoro-purple); font-style: normal; }
@@ -287,13 +287,13 @@ const heroImage = featured?.primary_photo?.url
   @media (max-width: 1024px) {
     .hero { padding: 48px 0 96px; }
     .hero-grid { grid-template-columns: 1fr; gap: 56px; }
-    .hero h1 { font-size: 48px; letter-spacing: -2px; }
+    .hero h1 { font-size: 48px; letter-spacing: -2px; margin-bottom: 36px; }
     .data-badge { display: none; }
     .featured-card { left: 16px; bottom: 16px; right: auto; }
   }
   @media (max-width: 640px) {
     .hero { padding: 32px 0 64px; }
-    .hero h1 { font-size: 36px; letter-spacing: -1.5px; }
+    .hero h1 { font-size: 36px; letter-spacing: -1.5px; margin-bottom: 28px; }
     .hero-trust { gap: 20px; }
     .featured-card { width: calc(100% - 32px); }
   }
