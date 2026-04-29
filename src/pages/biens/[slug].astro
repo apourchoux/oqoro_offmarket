@@ -9,23 +9,11 @@ import DPE from '../../components/DPE.astro';
 import Badge from '../../components/Badge.astro';
 import MetricRow from '../../components/MetricRow.astro';
 import ContactModal from '../../components/ContactModal.tsx';
-import { getPropertyFull, listPublishedProperties } from '../../lib/supabase';
+import { getPropertyFull } from '../../lib/supabase';
 import { PROPERTY_TYPE_LABELS, MANAGEMENT_TYPE_LABELS, CHARGES_OPTIONS } from '../../lib/types';
 import { formatEur, formatSurface } from '../../lib/format';
 
-export const prerender = true;
-
-export async function getStaticPaths() {
-  try {
-    const items = await listPublishedProperties();
-    return items.map(({ property }) => ({
-      params: { slug: property.slug },
-    }));
-  } catch (err) {
-    console.error('[biens/[slug]] getStaticPaths failed:', err);
-    return [];
-  }
-}
+export const prerender = false;
 
 const { slug } = Astro.params as { slug: string };
 const data = await getPropertyFull(slug);
