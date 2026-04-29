@@ -2,45 +2,94 @@
 const year = new Date().getFullYear();
 ---
 
-<footer class="bg-oq-black text-white mt-16">
-  <div class="oq-container py-12">
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
-      <div class="col-span-2">
-        <div class="flex items-center gap-3 mb-4">
-          <span class="font-extrabold text-white text-xl tracking-tight">OQORO</span>
-          <span class="text-white/40">|</span>
-          <span class="text-[13px] font-bold uppercase tracking-wider text-white/80">Off Market</span>
-        </div>
-        <p class="text-[14px] text-white/70 max-w-sm">
+<footer class="oq-footer">
+  <div class="oq-container py-16">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-10 md:gap-12 mb-12">
+      <div class="md:col-span-1">
+        <img src="/oqoro/logos/oqoro-logo-white.svg" alt="OQORO" class="h-[28px] mb-5" />
+        <p class="text-[14px] leading-[1.6] max-w-[320px] text-white/70">
           Les biens en gestion OQORO à la vente. Des données locatives réelles,
-          certifiées, et vérifiées par nos équipes.
+          certifiées et vérifiées par nos équipes.
         </p>
       </div>
+
       <div>
-        <h3 class="text-[13px] font-semibold uppercase tracking-wider text-white/80 mb-3">
-          Découvrir
-        </h3>
-        <ul class="space-y-2 text-[14px] text-white/70">
-          <li><a href="/#biens" class="text-white/70 hover:text-white no-underline">Nos biens</a></li>
-          <li><a href="/#pourquoi" class="text-white/70 hover:text-white no-underline">Notre approche</a></li>
-          <li><a href="https://oqoro.com" class="text-white/70 hover:text-white no-underline">oqoro.com</a></li>
+        <h4>Découvrir</h4>
+        <ul>
+          <li><a href="/#biens">Nos biens</a></li>
+          <li><a href="/#pourquoi">Notre approche</a></li>
+          <li><a href="/#temoignages">Témoignages</a></li>
+          <li><a href="/#alerte">M'alerter</a></li>
         </ul>
       </div>
+
       <div>
-        <h3 class="text-[13px] font-semibold uppercase tracking-wider text-white/80 mb-3">
-          Contact
-        </h3>
-        <ul class="space-y-2 text-[14px] text-white/70">
-          <li><a href="mailto:offmarket@oqoro.com" class="text-white/70 hover:text-white no-underline">offmarket@oqoro.com</a></li>
+        <h4>OQORO</h4>
+        <ul>
+          <li><a href="https://oqoro.com">Gestion locative</a></li>
+          <li><a href="https://oqoro.com">Espace propriétaire</a></li>
+          <li><a href="https://oqoro.com">Espace locataire</a></li>
+          <li><a href="https://oqoro.com">Carrières</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4>Contact</h4>
+        <ul>
+          <li><a href="mailto:offmarket@oqoro.com">offmarket@oqoro.com</a></li>
+          <li><a href="tel:+33180000000">01 80 00 00 00</a></li>
+          <li class="text-white/70">23 rue de la Paix, 75002 Paris</li>
         </ul>
       </div>
     </div>
-    <div class="mt-10 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between gap-4 text-[13px] text-white/50">
+
+    <div class="oq-footer-bottom">
       <span>© {year} OQORO. Tous droits réservés.</span>
-      <div class="flex gap-6">
-        <a href="/mentions-legales" class="text-white/50 hover:text-white no-underline">Mentions légales</a>
-        <a href="/confidentialite" class="text-white/50 hover:text-white no-underline">Confidentialité</a>
+      <div class="flex flex-wrap gap-6">
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="/confidentialite">Confidentialité</a>
+        <a href="/cgu">CGU</a>
       </div>
     </div>
   </div>
 </footer>
+
+<style>
+  .oq-footer {
+    background: var(--oqoro-blue);
+    color: rgba(255, 255, 255, 0.7);
+  }
+  .oq-footer h4 {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0 0 16px;
+  }
+  .oq-footer ul { list-style: none; padding: 0; margin: 0; }
+  .oq-footer li {
+    margin-bottom: 10px;
+    font-size: 14px;
+  }
+  .oq-footer a {
+    color: rgba(255, 255, 255, 0.7);
+    text-decoration: none;
+    transition: color .2s;
+  }
+  .oq-footer a:hover {
+    color: #fff;
+    text-decoration: none;
+  }
+  .oq-footer-bottom {
+    padding-top: 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+</style>
