@@ -49,6 +49,7 @@ const { items, count, loadError } = Astro.props;
           email pour être averti en priorité.
         </p>
         <form class="biens-empty-form" method="POST" action="/api/leads">
+          <input type="hidden" name="source" value="empty-state" />
           <input type="email" name="email" required placeholder="votre@email.com" class="oq-input" />
           <button type="submit" class="oq-btn oq-btn-primary">M'alerter</button>
         </form>
