@@ -1,0 +1,55 @@
+---
+const items = [
+  { num: '3 200+', lbl: 'Biens en gestion OQORO' },
+  { num: '7 ans', lbl: "D'historique d'encaissements vérifiés" },
+  { num: '0,4 %', lbl: "Taux d'impayés sur le portefeuille" },
+  { num: '100 %', lbl: 'Des biens visités physiquement par nos équipes' },
+];
+---
+
+<section class="proof">
+  <div class="oq-container">
+    {items.map((p) => (
+      <div class="proof-item">
+        <div class="num"><em>{p.num}</em></div>
+        <div class="lbl">{p.lbl}</div>
+      </div>
+    ))}
+  </div>
+</section>
+
+<style>
+  .proof {
+    padding: 56px 0;
+    background: var(--oqoro-blue);
+    color: #fff;
+  }
+  .proof .oq-container {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 32px;
+    align-items: center;
+  }
+  .proof-item .num {
+    font-family: var(--font-display);
+    font-size: 44px;
+    font-weight: 800;
+    letter-spacing: -1.5px;
+    line-height: 1;
+    color: #fff;
+  }
+  .proof-item .num em { color: var(--oqoro-saumon); font-style: normal; }
+  .proof-item .lbl {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-top: 8px;
+  }
+
+  @media (max-width: 1024px) {
+    .proof .oq-container { grid-template-columns: 1fr 1fr; gap: 24px; }
+    .proof-item .num { font-size: 36px; }
+  }
+  @media (max-width: 640px) {
+    .proof .oq-container { grid-template-columns: 1fr; gap: 20px; }
+  }
+</style>

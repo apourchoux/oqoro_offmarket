@@ -1,0 +1,96 @@
+---
+const cards = [
+  {
+    icon: '/oqoro/emojis/credit-card.png',
+    title: 'Rendements vérifiés',
+    desc: 'Revenus locatifs tirés directement des encaissements réels des 12 derniers mois — pas une projection, une réalité.',
+  },
+  {
+    icon: '/oqoro/emojis/clipboard.png',
+    title: 'Occupation réelle',
+    desc: "Taux d'occupation historique, retards, préavis, rotation des locataires — tout est visible avant l'achat.",
+  },
+  {
+    icon: '/oqoro/emojis/key.png',
+    title: 'Gestion incluse',
+    desc: 'Reprenez le mandat OQORO existant : locataires en place, baux signés, zéro vacance à prévoir.',
+  },
+  {
+    icon: '/oqoro/emojis/camera.png',
+    title: 'Visite 3D Matterport',
+    desc: 'La plupart des biens sont disponibles en visite virtuelle Matterport haute fidélité avant tout déplacement.',
+  },
+];
+---
+
+<section id="pourquoi" class="why">
+  <div class="oq-container">
+    <div class="oq-section-head">
+      <span class="oq-eyebrow"><span class="dot"></span>Notre approche</span>
+      <h2>On vend ce qu'on <em>connaît déjà</em>.</h2>
+      <p>
+        Ces biens, on les gère au quotidien depuis des années. Les chiffres
+        que vous voyez ne sont pas une estimation : ce sont nos relevés
+        bancaires.
+      </p>
+    </div>
+
+    <div class="why-grid">
+      {cards.map((c) => (
+        <div class="why-card">
+          <div class="ico"><img src={c.icon} alt="" /></div>
+          <h3>{c.title}</h3>
+          <p>{c.desc}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .why { padding: 96px 0; background: var(--oqoro-cream); }
+  .why-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+  .why-card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 28px 24px;
+    border: 1px solid var(--border-secondary);
+    transition: transform .25s, box-shadow .25s;
+  }
+  .why-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+  .why-card .ico {
+    width: 56px;
+    height: 56px;
+    background: #fff;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 18px;
+    box-shadow: 0 0 0 1px var(--border-secondary), var(--shadow-xs);
+  }
+  .why-card .ico img { width: 36px; height: 36px; }
+  .why-card h3 {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--fg-heading);
+    letter-spacing: -0.3px;
+    margin: 0 0 8px;
+  }
+  .why-card p {
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--fg-secondary);
+    margin: 0;
+  }
+
+  @media (max-width: 1024px) {
+    .why { padding: 72px 0; }
+    .why-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 640px) {
+    .why { padding: 56px 0; }
+    .why-grid { grid-template-columns: 1fr; }
+  }
+</style>
