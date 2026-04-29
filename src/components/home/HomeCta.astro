@@ -1,4 +1,9 @@
 ---
+const url = Astro.url;
+const leadStatus = url.searchParams.get('lead');
+const isOk = leadStatus === 'ok';
+const isError = leadStatus === 'error';
+const errorMsg = url.searchParams.get('msg') ?? '';
 ---
 
 <section id="alerte" class="cta-band">
@@ -27,23 +32,41 @@
         </div>
       </div>
 
-      <form class="cta-form" method="POST" action="/api/leads">
-        <label class="oq-label" for="cta-email">Votre email</label>
-        <input id="cta-email" name="email" type="email" placeholder="prenom.nom@email.com" required class="oq-input" />
-        <label class="oq-label" for="cta-budget" style="margin-top: 12px;">Budget indicatif</label>
-        <input id="cta-budget" name="budget" type="text" placeholder="Ex. 200 000 € — 500 000 €" class="oq-input" />
-        <button type="submit" class="oq-btn oq-btn-primary" style="width: 100%; margin-top: 16px;">M'alerter en priorité</button>
-        <div class="fine">
-          En soumettant ce formulaire, vous acceptez de recevoir nos alertes
-          par email.
+      {isOk ? (
+        <div class="cta-form cta-confirm">
+          <div class="confirm-ic" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h3>C'est noté !</h3>
+          <p>Vous serez prévenu par email dès qu'un nouveau bien correspond. À très vite.</p>
         </div>
-      </form>
+      ) : (
+        <form class="cta-form" method="POST" action="/api/leads">
+          <input type="hidden" name="source" value="alerte" />
+          {isError && (
+            <div class="cta-error">
+              {errorMsg === 'email'
+                ? 'Email invalide. Merci de vérifier.'
+                : "Une erreur est survenue. Réessayez dans un instant."}
+            </div>
+          )}
+          <label class="oq-label" for="cta-email">Votre email</label>
+          <input id="cta-email" name="email" type="email" placeholder="prenom.nom@email.com" required class="oq-input" />
+          <label class="oq-label" for="cta-budget" style="margin-top: 12px;">Budget indicatif</label>
+          <input id="cta-budget" name="budget" type="text" placeholder="Ex. 200 000 € — 500 000 €" class="oq-input" />
+          <button type="submit" class="oq-btn oq-btn-primary" style="width: 100%; margin-top: 16px;">M'alerter en priorité</button>
+          <div class="fine">
+            En soumettant ce formulaire, vous acceptez de recevoir nos alertes
+            par email.
+          </div>
+        </form>
+      )}
     </div>
   </div>
 </section>
 
 <style>
-  .cta-band { padding: 80px 0 96px; background: #fff; }
+  .cta-band { padding: 80px 0 96px; background: #fff; scroll-margin-top: 96px; }
   .cta-card {
     position: relative;
     background: var(--gradient-oqoro);
@@ -103,6 +126,44 @@
     color: var(--fg-tertiary);
     margin-top: 10px;
     line-height: 1.5;
+  }
+  .cta-error {
+    background: #FEF3F2;
+    color: #B42318;
+    border: 1px solid #FECDCA;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 13px;
+    margin-bottom: 14px;
+  }
+  .cta-confirm {
+    text-align: center;
+    padding: 36px 24px;
+  }
+  .cta-confirm .confirm-ic {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #DCFAE6;
+    color: #079455;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 18px;
+  }
+  .cta-confirm h3 {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--fg-heading);
+    letter-spacing: -0.5px;
+    margin: 0 0 8px;
+  }
+  .cta-confirm p {
+    font-size: 14px;
+    color: var(--fg-secondary);
+    line-height: 1.55;
+    margin: 0;
   }
 
   @media (max-width: 1024px) {
