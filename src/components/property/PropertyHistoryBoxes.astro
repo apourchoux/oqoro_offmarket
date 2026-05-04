@@ -1,0 +1,98 @@
+---
+import type { PropertyAnnualReport } from '../../lib/types';
+import { formatEur } from '../../lib/format';
+
+interface Props {
+  reports: PropertyAnnualReport[];
+}
+
+const { reports } = Astro.props;
+
+const sorted = [...reports].sort((a, b) => a.year - b.year);
+---
+
+{sorted.length > 0 && (
+  <section class="s">
+    <h2>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>
+      Historique d'encaissement
+      <span class="sub">· Vérifié OQORO</span>
+    </h2>
+    <div class="histo">
+      {sorted.map((r) => {
+        const occLabel =
+          r.occupancy_rate !== null
+            ? r.occupancy_rate >= 1
+              ? 'Loué 12/12'
+              : `${Math.round(r.occupancy_rate * 12)}/12 mois`
+            : 'Loué';
+        return (
+          <div class="y">
+            <div class="yr">{r.year}</div>
+            <div class="v">{formatEur(r.total_rent_collected)}</div>
+            <div class="ok">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              {occLabel}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </section>
+)}
+
+<style>
+  section.s { padding: 28px 0; border-top: 1px solid var(--border-tertiary); }
+  section.s h2 {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--fg-heading);
+    letter-spacing: -0.3px;
+    margin: 0 0 18px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  section.s h2 svg { width: 17px; height: 17px; color: var(--brand-600); }
+  section.s h2 .sub {
+    color: var(--fg-tertiary);
+    font-weight: 500;
+    font-size: 13px;
+    letter-spacing: 0;
+  }
+
+  .histo { display: flex; gap: 10px; flex-wrap: wrap; }
+  .histo .y {
+    flex: 1;
+    min-width: 130px;
+    text-align: center;
+    padding: 12px;
+    background: var(--gray-50);
+    border-radius: 10px;
+  }
+  .histo .y .yr {
+    font-size: 11px;
+    color: var(--fg-tertiary);
+    font-weight: 600;
+  }
+  .histo .y .v {
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--fg-heading);
+    letter-spacing: -0.2px;
+    margin-top: 4px;
+  }
+  .histo .y .ok {
+    font-size: 11px;
+    color: #079455;
+    font-weight: 600;
+    margin-top: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .histo .y .ok svg { width: 11px; height: 11px; }
+</style>

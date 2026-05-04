@@ -1,0 +1,140 @@
+---
+import type { Property, PropertyFinancials } from '../../lib/types';
+import { PROPERTY_TYPE_LABELS } from '../../lib/types';
+import { formatSurface } from '../../lib/format';
+
+interface Props {
+  property: Property;
+  financials: PropertyFinancials;
+}
+
+const { property, financials } = Astro.props;
+
+const typeLabel = property.property_type ? PROPERTY_TYPE_LABELS[property.property_type] : null;
+const floorLabel =
+  property.floor === null
+    ? null
+    : property.floor === 0
+      ? 'Rez-de-chaussée'
+      : `${property.floor}${property.floor === 1 ? 'er' : 'e'} étage`;
+
+const occupancyBadge =
+  financials.total_lots > 0
+    ? `${financials.rented_lots}/${financials.total_lots} loué${financials.rented_lots > 1 ? 's' : ''}`
+    : null;
+
+const publishedAt = property.published_at ? new Date(property.published_at) : null;
+let publishedLabel = 'Disponible';
+if (publishedAt) {
+  const days = Math.max(0, Math.round((Date.now() - publishedAt.getTime()) / (1000 * 60 * 60 * 24)));
+  if (days === 0) publishedLabel = 'Disponible · publié aujourd’hui';
+  else if (days === 1) publishedLabel = 'Disponible · publié hier';
+  else publishedLabel = `Disponible · publié il y a ${days} jours`;
+}
+---
+
+<div class="title-block">
+  <h1>{property.title}</h1>
+  <div class="meta-row">
+    {property.address && (
+      <span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        {property.address}{property.city ? `, ${property.city}` : ''}
+      </span>
+    )}
+    {typeLabel && (
+      <>
+        <span class="dot"></span>
+        <span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          {typeLabel}
+        </span>
+      </>
+    )}
+    {property.total_surface && (
+      <>
+        <span class="dot"></span>
+        <span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+          {formatSurface(property.total_surface)}
+        </span>
+      </>
+    )}
+    {floorLabel && (
+      <>
+        <span class="dot"></span>
+        <span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="9" y1="22" x2="9" y2="2"/><line x1="15" y1="22" x2="15" y2="2"/></svg>
+          {floorLabel}
+        </span>
+      </>
+    )}
+  </div>
+  <div class="badges">
+    <span class="b success">{publishedLabel}</span>
+    {typeLabel && <span class="b dark">{typeLabel}</span>}
+    {occupancyBadge && <span class="b outline">{occupancyBadge}</span>}
+    {property.matterport_url && <span class="b outline">Visite 3D</span>}
+  </div>
+</div>
+
+<style>
+  .title-block { margin-bottom: 28px; }
+  .title-block h1 {
+    font-family: var(--font-display);
+    font-size: 32px;
+    line-height: 1.15;
+    letter-spacing: -1px;
+    margin: 0 0 10px;
+    font-weight: 800;
+    color: var(--fg-heading);
+  }
+  .meta-row {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    align-items: center;
+    font-size: 14px;
+    color: var(--fg-secondary);
+    margin-bottom: 14px;
+  }
+  .meta-row span { display: inline-flex; align-items: center; gap: 6px; }
+  .meta-row svg { width: 15px; height: 15px; color: var(--gray-500); flex: none; }
+  .meta-row .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--gray-300); }
+
+  .badges { display: flex; gap: 8px; flex-wrap: wrap; }
+  .b {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 5px;
+  }
+  .b.dark { background: var(--oqoro-blue); color: #fff; }
+  .b.saumon { background: var(--oqoro-saumon); color: #fff; }
+  .b.outline {
+    background: #fff;
+    border: 1px solid var(--border-primary);
+    color: var(--fg-secondary);
+    font-weight: 600;
+  }
+  .b.success {
+    background: #ECFDF3;
+    color: #067647;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .b.success::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #17B26A;
+  }
+
+  @media (max-width: 640px) {
+    .title-block h1 { font-size: 24px; letter-spacing: -0.6px; }
+  }
+</style>

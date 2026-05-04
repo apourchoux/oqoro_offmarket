@@ -1,0 +1,51 @@
+---
+interface Props {
+  description: string | null;
+}
+
+const { description } = Astro.props;
+
+const paragraphs = (description ?? '')
+  .split(/\n\s*\n/)
+  .map((p) => p.trim())
+  .filter(Boolean);
+---
+
+{paragraphs.length > 0 && (
+  <section class="s">
+    <h2>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>
+      Description
+    </h2>
+    <div>
+      {paragraphs.map((p) => (
+        <p class="desc-text">{p}</p>
+      ))}
+    </div>
+  </section>
+)}
+
+<style>
+  section.s { padding: 28px 0; border-top: 1px solid var(--border-tertiary); }
+  section.s h2 {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--fg-heading);
+    letter-spacing: -0.3px;
+    margin: 0 0 18px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+  section.s h2 svg { width: 17px; height: 17px; color: var(--brand-600); }
+
+  .desc-text {
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--fg-secondary);
+    margin: 0;
+    white-space: pre-line;
+  }
+  .desc-text + .desc-text { margin-top: 12px; }
+</style>

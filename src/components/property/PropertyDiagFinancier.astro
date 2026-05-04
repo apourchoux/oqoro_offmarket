@@ -1,0 +1,93 @@
+---
+import type { PropertyFinancials } from '../../lib/types';
+
+interface Props {
+  financials: PropertyFinancials;
+}
+
+const { financials } = Astro.props;
+
+const monthlyRent = financials.monthly_rent_cc ?? 0;
+const charges = monthlyRent * 0.088;
+const tax = monthlyRent * 0.072;
+const mgmt = monthlyRent * 0.08;
+const cashflow = Math.max(0, monthlyRent - charges - tax - mgmt);
+
+const total = monthlyRent || 1;
+const segs = [
+  { label: 'Cashflow net', value: cashflow, color: 'var(--brand-600)' },
+  { label: 'Charges copropriété', value: charges, color: 'var(--oqoro-saumon)' },
+  { label: 'Taxe foncière', value: tax, color: 'var(--brand-200)' },
+  { label: 'Gestion & assurance', value: mgmt, color: 'var(--gray-300)' },
+];
+const segsPct = segs.map((s) => ({
+  ...s,
+  pct: (s.value / total) * 100,
+  pctLabel: `${((s.value / total) * 100).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`,
+}));
+---
+
+{monthlyRent > 0 && (
+  <section class="s">
+    <h2>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+      Diagnostic financier
+    </h2>
+    <div class="diag-bar">
+      {segsPct.map((s) => (
+        <span style={`width: ${s.pct}%; background: ${s.color};`}></span>
+      ))}
+    </div>
+    <div class="diag-legend">
+      {segsPct.map((s) => (
+        <div class="leg">
+          <span class="sw" style={`background: ${s.color};`}></span>
+          <span class="lab">{s.label}</span>
+          <span class="v">{s.pctLabel}</span>
+        </div>
+      ))}
+    </div>
+  </section>
+)}
+
+<style>
+  section.s { padding: 28px 0; border-top: 1px solid var(--border-tertiary); }
+  section.s h2 {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--fg-heading);
+    letter-spacing: -0.3px;
+    margin: 0 0 18px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+  section.s h2 svg { width: 17px; height: 17px; color: var(--brand-600); }
+
+  .diag-bar {
+    display: flex;
+    height: 14px;
+    border-radius: 99px;
+    overflow: hidden;
+    margin-bottom: 18px;
+  }
+  .diag-bar span { display: block; }
+  .diag-legend {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 24px;
+  }
+  .leg {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    padding: 4px 0;
+  }
+  .leg .sw { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+  .leg .lab { color: var(--fg-secondary); flex: 1; }
+  .leg .v { font-weight: 700; color: var(--fg-heading); }
+
+  @media (max-width: 1024px) { .diag-legend { grid-template-columns: 1fr; } }
+</style>

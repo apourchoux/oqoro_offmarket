@@ -1,0 +1,147 @@
+---
+import type { PropertyFinancials } from '../../lib/types';
+import { formatEur } from '../../lib/format';
+
+interface Props {
+  financials: PropertyFinancials;
+}
+
+const { financials } = Astro.props;
+
+const monthlyRent = financials.monthly_rent_cc ?? 0;
+
+const monthlyCharges = Math.round(monthlyRent * 0.088);
+const monthlyTax = Math.round(monthlyRent * 0.072);
+const monthlyMgmt = Math.round(monthlyRent * 0.08);
+const monthlyCashflow = Math.max(0, monthlyRent - monthlyCharges - monthlyTax - monthlyMgmt);
+
+const yearlyRent = monthlyRent * 12;
+const yearlyCharges = monthlyCharges * 12;
+const yearlyTax = monthlyTax * 12;
+const yearlyMgmt = monthlyMgmt * 12;
+const yearlyCashflow = monthlyCashflow * 12;
+---
+
+{monthlyRent > 0 && (
+  <section class="s">
+    <h2>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg>
+      Calcul de rentabilité
+    </h2>
+    <table class="rent-table">
+      <thead>
+        <tr><th>Poste</th><th>Mensuel</th><th>Annuel</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            Loyer encaissé
+          </td>
+          <td>{formatEur(monthlyRent)}</td>
+          <td><b>{formatEur(yearlyRent)}</b></td>
+        </tr>
+        <tr>
+          <td class="label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/><path d="M2 7l10 5 10-5L12 2 2 7z"/></svg>
+            Charges de copropriété
+          </td>
+          <td>– {formatEur(monthlyCharges)}</td>
+          <td>– {formatEur(yearlyCharges)}</td>
+        </tr>
+        <tr>
+          <td class="label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>
+            Taxe foncière
+          </td>
+          <td>– {formatEur(monthlyTax)}</td>
+          <td>– {formatEur(yearlyTax)}</td>
+        </tr>
+        <tr>
+          <td class="label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+            Gestion OQORO &amp; assurance
+          </td>
+          <td>– {formatEur(monthlyMgmt)}</td>
+          <td>– {formatEur(yearlyMgmt)}</td>
+        </tr>
+        <tr class="tot">
+          <td class="label">
+            <svg style="color:var(--brand-600)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
+            Cashflow net
+          </td>
+          <td><b>{formatEur(monthlyCashflow)}</b></td>
+          <td><b>{formatEur(yearlyCashflow)}</b></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="cert-note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+      <span>
+        <b>Données certifiées OQORO.</b> Loyer issu de nos relevés bancaires de gestion locative
+        sur les 12 derniers mois — pas une projection. Charges, taxe foncière et frais de gestion estimés.
+      </span>
+    </div>
+  </section>
+)}
+
+<style>
+  section.s { padding: 28px 0; border-top: 1px solid var(--border-tertiary); }
+  section.s h2 {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--fg-heading);
+    letter-spacing: -0.3px;
+    margin: 0 0 18px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+  section.s h2 svg { width: 17px; height: 17px; color: var(--brand-600); }
+
+  .rent-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .rent-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--fg-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-tertiary);
+  }
+  .rent-table th:not(:first-child) { text-align: right; }
+  .rent-table td {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-tertiary);
+    color: var(--fg-secondary);
+  }
+  .rent-table td:not(:first-child) {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .rent-table td.label { display: flex; align-items: center; gap: 10px; }
+  .rent-table td.label svg { width: 15px; height: 15px; color: var(--gray-500); flex: none; }
+  .rent-table tr.tot td {
+    color: var(--brand-700);
+    font-weight: 700;
+    border-bottom: none;
+    padding-top: 16px;
+  }
+  .rent-table tr.tot td b { font-family: var(--font-display); font-size: 17px; }
+
+  .cert-note {
+    display: flex;
+    gap: 10px;
+    padding: 12px 14px;
+    background: var(--brand-50);
+    border-radius: 10px;
+    margin-top: 16px;
+    font-size: 13px;
+    color: #421CBB;
+    line-height: 1.5;
+  }
+  .cert-note svg { width: 16px; height: 16px; color: var(--brand-600); flex: none; margin-top: 2px; }
+  .cert-note b { color: #3E1C96; font-weight: 700; }
+</style>
