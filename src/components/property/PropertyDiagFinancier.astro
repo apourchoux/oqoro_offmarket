@@ -1,16 +1,22 @@
 ---
-import type { PropertyFinancials } from '../../lib/types';
+import type { Property, PropertyFinancials } from '../../lib/types';
 
 interface Props {
+  property: Property;
   financials: PropertyFinancials;
 }
 
-const { financials } = Astro.props;
+const { property, financials } = Astro.props;
 
 const monthlyRent = financials.monthly_rent_cc ?? 0;
-const charges = monthlyRent * 0.088;
-const tax = monthlyRent * 0.072;
-const mgmt = monthlyRent * 0.08;
+
+// Phase 3 : valeurs réelles si renseignées, sinon estimations.
+const charges = property.monthly_charges ?? monthlyRent * 0.088;
+const tax =
+  property.yearly_property_tax !== null
+    ? property.yearly_property_tax / 12
+    : monthlyRent * 0.072;
+const mgmt = property.monthly_management_fee ?? monthlyRent * 0.08;
 const cashflow = Math.max(0, monthlyRent - charges - tax - mgmt);
 
 const total = monthlyRent || 1;

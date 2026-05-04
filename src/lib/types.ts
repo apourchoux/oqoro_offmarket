@@ -1,8 +1,4 @@
-// ══════════════════════════════════════════════
-// CONTRAT DE DONNÉES — tous les WS importent ce fichier
-// Il fait autorité sur la structure des données.
-// ══════════════════════════════════════════════
-
+// ══════════════════════════════
 export type PropertyStatus = 'draft' | 'published';
 
 export type PropertyType =
@@ -61,9 +57,35 @@ export interface Property {
   meta_title: string | null;
   meta_description: string | null;
 
+  // Phase 3 — données premium (toutes nullable)
+  monthly_charges: number | null;
+  yearly_property_tax: number | null;
+  monthly_management_fee: number | null;
+  oqoro_fees: number | null;
+  market_data: PropertyMarketData | null;
+  agent: PropertyAgent | null;
+
   published_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface PropertyMarketData {
+  price_per_m2?: number;
+  rent_per_m2?: number;
+  yield_median?: number;
+  tension?: string;
+  relocation_delay?: string;
+  price_evolution_5y?: number;
+  price_delta_12m?: number;
+  rent_delta_12m?: number;
+}
+
+export interface PropertyAgent {
+  name?: string;
+  role?: string;
+  initials?: string;
+  phone?: string;
 }
 
 export interface PropertyLot {
@@ -87,6 +109,14 @@ export interface PropertyPhoto {
   sort_order: number;
 }
 
+export type TransportCategory =
+  | 'transport'
+  | 'education'
+  | 'shopping'
+  | 'park'
+  | 'health'
+  | 'other';
+
 export interface PropertyTransport {
   id: string;
   property_id: string;
@@ -94,6 +124,7 @@ export interface PropertyTransport {
   transport_type: string | null;
   destination: string | null;
   time_label: string | null;
+  category: TransportCategory | null;
   sort_order: number;
 }
 

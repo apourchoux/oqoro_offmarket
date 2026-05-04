@@ -40,7 +40,16 @@ const locality = property.city
   : property.address || '';
 ---
 
-<a href={`/biens/${property.slug}`} class="bien-card group">
+<a
+  href={`/biens/${property.slug}`}
+  class="bien-card group"
+  data-city={property.city ?? ''}
+  data-type={property.property_type ?? ''}
+  data-price={property.sale_price}
+  data-yield={financials.gross_yield}
+  data-surface={property.total_surface ?? 0}
+  data-published={property.published_at ?? ''}
+>
   <div class="bien-img">
     {primaryPhoto ? (
       <img

@@ -11,6 +11,7 @@ import PropertyHistoryBoxes from '../../components/property/PropertyHistoryBoxes
 import PropertyMarket from '../../components/property/PropertyMarket.astro';
 import PropertyDPEBars from '../../components/property/PropertyDPEBars.astro';
 import PropertyLocation from '../../components/property/PropertyLocation.astro';
+import PropertyExternalLinks from '../../components/property/PropertyExternalLinks.astro';
 import PropertyBuyCard from '../../components/property/PropertyBuyCard.astro';
 import PropertyCtaFinal from '../../components/property/PropertyCtaFinal.astro';
 import ContactModal from '../../components/ContactModal.tsx';
@@ -72,19 +73,25 @@ const jsonLd: Record<string, unknown> = {
   jsonLd={jsonLd}
 >
   <div class="bien-wrap">
-    <nav class="crumbs">
-      <a href="/">OQORO Off Market</a>
-      <span class="sep">/</span>
-      <a href="/#biens">Nos biens</a>
-      {property.city && (
-        <>
-          <span class="sep">/</span>
-          <span>{property.city}</span>
-        </>
-      )}
-      <span class="sep">/</span>
-      <b>{property.title}</b>
-    </nav>
+    <div class="crumbs-bar">
+      <nav class="crumbs">
+        <a href="/">OQORO Off Market</a>
+        <span class="sep">/</span>
+        <a href="/#biens">Nos biens</a>
+        {property.city && (
+          <>
+            <span class="sep">/</span>
+            <span>{property.city}</span>
+          </>
+        )}
+        <span class="sep">/</span>
+        <b>{property.title}</b>
+      </nav>
+      <button type="button" class="share-btn" id="share-btn" aria-label="Partager ce bien">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        <span>Partager</span>
+      </button>
+    </div>
 
     <PropertyGallery photos={photos} title={property.title} matterportUrl={property.matterport_url} />
 
@@ -94,8 +101,8 @@ const jsonLd: Record<string, unknown> = {
         <PropertyVisit3D matterportUrl={property.matterport_url} bgImage={heroPhoto} />
         <PropertyDescription description={property.description} />
         <PropertyFeatures property={property} financials={financials} />
-        <PropertyProfitability financials={financials} />
-        <PropertyDiagFinancier financials={financials} />
+        <PropertyProfitability property={property} financials={financials} />
+        <PropertyDiagFinancier property={property} financials={financials} />
         <PropertyHistoryBoxes reports={annual_reports} />
         <PropertyMarket property={property} financials={financials} />
         <PropertyDPEBars
@@ -106,6 +113,10 @@ const jsonLd: Record<string, unknown> = {
           energyCost={property.dpe_energy_cost}
         />
         <PropertyLocation property={property} transports={transports} />
+        <PropertyExternalLinks
+          oqoroListingUrl={property.oqoro_listing_url}
+          saleListingUrl={property.sale_listing_url}
+        />
       </div>
       <PropertyBuyCard property={property} financials={financials} />
     </div>
@@ -128,8 +139,14 @@ const jsonLd: Record<string, unknown> = {
     margin: 0 auto;
     padding: 0 32px;
   }
-  .crumbs {
+  .crumbs-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
     padding: 16px 0;
+  }
+  .crumbs {
     font-size: 13px;
     color: var(--fg-tertiary);
     display: flex;
@@ -141,6 +158,32 @@ const jsonLd: Record<string, unknown> = {
   .crumbs a:hover { color: var(--fg-heading); }
   .crumbs .sep { color: var(--gray-300); }
   .crumbs b { color: var(--fg-primary); font-weight: 500; }
+
+  .share-btn {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: #fff;
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    color: var(--fg-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color .2s, color .2s, border-color .2s;
+  }
+  .share-btn:hover {
+    background: var(--gray-50);
+    color: var(--fg-heading);
+  }
+  .share-btn.copied {
+    background: #ECFDF3;
+    color: #067647;
+    border-color: #ABEFC6;
+  }
+  .share-btn svg { width: 14px; height: 14px; }
 
   .bien-grid {
     display: grid;
@@ -156,5 +199,36 @@ const jsonLd: Record<string, unknown> = {
   }
   @media (max-width: 640px) {
     .bien-wrap { padding: 0 20px; }
+    .crumbs-bar { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .share-btn { align-self: flex-end; }
   }
 </style>
+
+<script define:vars={{ shareTitle: property.title, shareUrl: canonical }}>
+  const btn = document.getElementById('share-btn');
+  if (btn) {
+    btn.addEventListener('click', async () => {
+      try {
+        if (navigator.share) {
+          await navigator.share({ title: shareTitle, url: shareUrl });
+          return;
+        }
+      } catch {
+        // user cancelled or share unsupported, fall through to copy
+      }
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        const label = btn.querySelector('span');
+        const original = label?.textContent ?? 'Partager';
+        if (label) label.textContent = 'Lien copié !';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.classList.remove('copied');
+          if (label) label.textContent = original;
+        }, 2000);
+      } catch {
+        prompt('Copiez le lien :', shareUrl);
+      }
+    });
+  }
+</script>
