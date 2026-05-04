@@ -1,19 +1,35 @@
 ---
-import type { PropertyFinancials } from '../../lib/types';
+import type { Property, PropertyFinancials } from '../../lib/types';
 import { formatEur } from '../../lib/format';
 
 interface Props {
+  property: Property;
   financials: PropertyFinancials;
 }
 
-const { financials } = Astro.props;
+const { property, financials } = Astro.props;
 
 const monthlyRent = financials.monthly_rent_cc ?? 0;
 
-const monthlyCharges = Math.round(monthlyRent * 0.088);
-const monthlyTax = Math.round(monthlyRent * 0.072);
-const monthlyMgmt = Math.round(monthlyRent * 0.08);
-const monthlyCashflow = Math.max(0, monthlyRent - monthlyCharges - monthlyTax - monthlyMgmt);
+// Phase 3 : valeurs réelles si renseignées par l'admin, sinon estimations Phase 2
+// (ratios issus du design : 8.8 % charges, 7.2 % taxe, 8 % gestion+assurance).
+const hasReal =
+  property.monthly_charges !== null ||
+  property.yearly_property_tax !== null ||
+  property.monthly_management_fee !== null;
+
+const monthlyCharges =
+  property.monthly_charges ?? Math.round(monthlyRent * 0.088);
+const monthlyTax =
+  property.yearly_property_tax !== null
+    ? Math.round(property.yearly_property_tax / 12)
+    : Math.round(monthlyRent * 0.072);
+const monthlyMgmt =
+  property.monthly_management_fee ?? Math.round(monthlyRent * 0.08);
+const monthlyCashflow = Math.max(
+  0,
+  monthlyRent - monthlyCharges - monthlyTax - monthlyMgmt,
+);
 
 const yearlyRent = monthlyRent * 12;
 const yearlyCharges = monthlyCharges * 12;
@@ -79,7 +95,8 @@ const yearlyCashflow = monthlyCashflow * 12;
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
       <span>
         <b>Données certifiées OQORO.</b> Loyer issu de nos relevés bancaires de gestion locative
-        sur les 12 derniers mois — pas une projection. Charges, taxe foncière et frais de gestion estimés.
+        sur les 12 derniers mois — pas une projection.
+        {hasReal ? ' Charges, taxe foncière et gestion : valeurs réelles fournies par le propriétaire.' : ' Charges, taxe foncière et frais de gestion estimés à titre indicatif.'}
       </span>
     </div>
   </section>
