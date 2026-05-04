@@ -1,0 +1,86 @@
+---
+import Base from '../layouts/Base.astro';
+
+const title = "CGU — OQORO Off Market";
+const description = "Conditions générales d'utilisation du site OQORO Off Market.";
+---
+
+<Base title={title} description={description} noindex>
+  <article class="legal-page">
+    <h1>Conditions générales d'utilisation</h1>
+
+    <h2>1. Objet</h2>
+    <p>
+      Les présentes conditions régissent l'utilisation du site OQORO Off Market, accessible
+      à l'adresse offmarket.oqoro.com. En accédant au site, vous acceptez sans réserve ces conditions.
+    </p>
+
+    <h2>2. Service proposé</h2>
+    <p>
+      Le site présente une sélection de biens immobiliers actuellement gérés par OQORO et mis en vente.
+      Les caractéristiques affichées (rendement, occupation, loyer encaissé) proviennent des relevés
+      bancaires de la plateforme de gestion locative et sont vérifiées avant publication.
+    </p>
+
+    <h2>3. Caractère non contractuel</h2>
+    <p>
+      Les informations sont données à titre indicatif. Elles ne constituent pas une offre contractuelle
+      au sens des articles 1112 et suivants du Code civil. Une visite et une offre formalisée sont nécessaires
+      avant toute conclusion de vente.
+    </p>
+
+    <h2>4. Demandes de contact</h2>
+    <p>
+      En soumettant un formulaire, vous acceptez d'être recontacté par les équipes OQORO au sujet
+      du bien concerné ou de votre demande d'alerte.
+    </p>
+
+    <h2>5. Comportement</h2>
+    <p>
+      Toute tentative de scraping, de surcharge volontaire ou d'usage abusif du formulaire de contact
+      pourra entraîner une exclusion immédiate du service.
+    </p>
+
+    <h2>6. Droit applicable</h2>
+    <p>
+      Les présentes conditions sont soumises au droit français. En cas de litige, et après tentative de
+      résolution amiable, les tribunaux de Lyon seront compétents.
+    </p>
+  </article>
+</Base>
+
+<style>
+  .legal-page {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 48px 32px 80px;
+    color: var(--fg-secondary);
+    font-size: 15px;
+    line-height: 1.7;
+  }
+  .legal-page h1 {
+    font-family: var(--font-display);
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--fg-heading);
+    letter-spacing: -1px;
+    margin: 0 0 32px;
+  }
+  .legal-page h2 {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--fg-heading);
+    letter-spacing: -0.4px;
+    margin: 32px 0 12px;
+  }
+  .legal-page p { margin: 0 0 12px; }
+  .legal-page b { color: var(--fg-heading); font-weight: 600; }
+  .legal-page a { color: var(--brand-600); }
+  .legal-page a:hover { text-decoration: underline; }
+
+  @media (max-width: 640px) {
+    .legal-page { padding: 32px 20px 64px; }
+    .legal-page h1 { font-size: 28px; }
+  }
+</style>
