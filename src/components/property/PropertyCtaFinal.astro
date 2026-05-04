@@ -1,0 +1,75 @@
+---
+interface Props {
+  agentName?: string;
+}
+
+const { agentName = 'Camille' } = Astro.props;
+---
+
+<div class="cta-final">
+  <h3>Une question sur ce bien ?</h3>
+  <p>{agentName} vous rappelle dans la journée. Pas de robot, pas de spam.</p>
+  <div class="ctas">
+    <button type="button" class="btn btn-primary" data-cta="rdv">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Prendre rendez-vous
+    </button>
+    <button type="button" class="btn btn-secondary" data-cta="rappel">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      Être rappelé
+    </button>
+  </div>
+</div>
+
+<style>
+  .cta-final {
+    padding: 56px 32px;
+    text-align: center;
+    background: var(--oqoro-cream);
+    border-radius: 18px;
+    margin-bottom: 64px;
+  }
+  .cta-final h3 {
+    font-family: var(--font-display);
+    font-size: 28px;
+    margin: 0 0 8px;
+    letter-spacing: -0.6px;
+    font-weight: 800;
+    color: var(--fg-heading);
+  }
+  .cta-final p {
+    color: var(--fg-secondary);
+    font-size: 15px;
+    margin: 0 0 24px;
+  }
+  .cta-final .ctas {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .btn {
+    height: 42px;
+    padding: 0 18px;
+    border-radius: 8px;
+    font: 600 14px var(--font-sans);
+    border: 1px solid transparent;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-decoration: none;
+    transition: background-color .2s, color .2s, border-color .2s;
+    box-shadow: var(--shadow-xs);
+  }
+  .btn svg { width: 16px; height: 16px; }
+  .btn-primary { background: var(--brand-600); color: #fff; }
+  .btn-primary:hover { background: var(--brand-700); }
+  .btn-secondary {
+    background: #fff;
+    color: var(--fg-heading);
+    border-color: var(--border-primary);
+  }
+  .btn-secondary:hover { background: var(--gray-50); }
+</style>

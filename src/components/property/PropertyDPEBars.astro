@@ -1,0 +1,153 @@
+---
+import type { DpeClass } from '../../lib/types';
+
+interface Props {
+  energyClass: DpeClass | null;
+  energyValue: number | null;
+  gesClass: DpeClass | null;
+  gesValue: number | null;
+  energyCost: number | null;
+}
+
+const { energyClass, energyValue, gesClass, gesValue, energyCost } = Astro.props;
+
+const ENERGY_RANGES: Array<{ cls: DpeClass; label: string; width: number }> = [
+  { cls: 'A', label: '≤ 70', width: 30 },
+  { cls: 'B', label: '71 – 110', width: 42 },
+  { cls: 'C', label: '111 – 180', width: 54 },
+  { cls: 'D', label: '181 – 250', width: 66 },
+  { cls: 'E', label: '251 – 330', width: 78 },
+  { cls: 'F', label: '331 – 420', width: 88 },
+  { cls: 'G', label: '≥ 421', width: 100 },
+];
+
+const GES_RANGES: Array<{ cls: DpeClass; label: string; width: number }> = [
+  { cls: 'A', label: '≤ 6', width: 30 },
+  { cls: 'B', label: '7 – 11', width: 42 },
+  { cls: 'C', label: '12 – 30', width: 54 },
+  { cls: 'D', label: '31 – 50', width: 66 },
+  { cls: 'E', label: '51 – 70', width: 78 },
+  { cls: 'F', label: '71 – 100', width: 88 },
+  { cls: 'G', label: '> 100', width: 100 },
+];
+---
+
+{(energyClass || gesClass) && (
+  <section class="s">
+    <h2>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      Diagnostic énergétique
+    </h2>
+    <div class="dpe-grid">
+      <div class="dpe-side">
+        <h4>Consommation énergétique</h4>
+        <div class="dpe-stack">
+          {ENERGY_RANGES.map((r) => (
+            <div class:list={['dpe-bar', `dpe-${r.cls}`, energyClass === r.cls && 'current']} style={`width: ${r.width}%;`}>
+              <span class="letter">{r.cls}</span>
+              {r.label}
+            </div>
+          ))}
+        </div>
+        <div class="dpe-info">
+          {energyValue !== null && <><b>{energyValue} kWhEP/m²/an</b> · </>}
+          Classe <b>{energyClass ?? '—'}</b>
+          {energyCost !== null && <> · estimation {energyCost.toLocaleString('fr-FR')} €/an</>}
+        </div>
+      </div>
+      <div class="dpe-side">
+        <h4>Émissions de gaz à effet de serre</h4>
+        <div class="dpe-stack">
+          {GES_RANGES.map((r) => (
+            <div class:list={['dpe-bar', `dpe-${r.cls}`, gesClass === r.cls && 'current']} style={`width: ${r.width}%;`}>
+              <span class="letter">{r.cls}</span>
+              {r.label}
+            </div>
+          ))}
+        </div>
+        <div class="dpe-info">
+          {gesValue !== null && <><b>{gesValue} kgCO₂/m²/an</b> · </>}
+          Classe <b>{gesClass ?? '—'}</b>
+        </div>
+      </div>
+    </div>
+  </section>
+)}
+
+<style>
+  section.s { padding: 28px 0; border-top: 1px solid var(--border-tertiary); }
+  section.s h2 {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--fg-heading);
+    letter-spacing: -0.3px;
+    margin: 0 0 18px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+  section.s h2 svg { width: 17px; height: 17px; color: var(--brand-600); }
+
+  .dpe-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+  }
+  .dpe-side h4 {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--fg-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0 0 14px;
+  }
+  .dpe-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .dpe-bar {
+    display: flex;
+    align-items: center;
+    height: 22px;
+    border-radius: 4px;
+    padding-right: 10px;
+    color: #fff;
+    font-weight: 700;
+    font-size: 11px;
+    justify-content: flex-end;
+    position: relative;
+  }
+  .dpe-bar .letter {
+    position: absolute;
+    left: 8px;
+    font-size: 13px;
+    font-weight: 800;
+  }
+  .dpe-bar.current::after {
+    content: '';
+    position: absolute;
+    right: -10px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 5px solid transparent;
+    border-right-color: var(--fg-heading);
+  }
+  .dpe-A { background: #1B7A3E; }
+  .dpe-B { background: #2EA84A; }
+  .dpe-C { background: #B7CB1E; }
+  .dpe-D { background: #FFD500; color: #2A2A2A; }
+  .dpe-E { background: #F49A1F; }
+  .dpe-F { background: #EE6B27; }
+  .dpe-G { background: #D62F1F; }
+
+  .dpe-info {
+    font-size: 13px;
+    color: var(--fg-secondary);
+    margin-top: 14px;
+  }
+  .dpe-info b { color: var(--fg-heading); font-weight: 700; }
+
+  @media (max-width: 1024px) { .dpe-grid { grid-template-columns: 1fr; } }
+</style>
