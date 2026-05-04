@@ -98,6 +98,7 @@ export default function PropertyForm({
       sale_price: 0,
       title: '',
       slug: '',
+      management_type: 'plus',
     },
   );
   const [lots, setLots] = useState<LotDraft[]>(
