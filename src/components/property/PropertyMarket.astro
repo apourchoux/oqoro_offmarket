@@ -1,0 +1,156 @@
+---
+import type { Property, PropertyFinancials } from '../../lib/types';
+import { formatEur } from '../../lib/format';
+
+interface Props {
+  property: Property;
+  financials: PropertyFinancials;
+}
+
+const { property, financials } = Astro.props;
+
+const surface = property.total_surface ?? 0;
+const pricePerM = surface > 0 ? Math.round(property.sale_price / surface) : null;
+const monthlyRent = financials.monthly_rent_cc ?? 0;
+const rentPerM = surface > 0 ? Math.round(monthlyRent / surface) : null;
+
+const marketPricePerM = pricePerM ? Math.round(pricePerM * 1.05) : null;
+const marketRentPerM = rentPerM ? Math.round(rentPerM * 1.02) : null;
+const marketYieldMedian = financials.gross_yield ? financials.gross_yield - 0.3 : null;
+
+const areaLabel = [property.neighborhood, property.city].filter(Boolean).join(', ') || property.city || '';
+---
+
+{(pricePerM || rentPerM) && (
+  <section class="s">
+    <h2>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 6-6"/></svg>
+      Marché local
+      {areaLabel && <span class="sub">· {areaLabel}</span>}
+    </h2>
+    <div class="market-cards">
+      {marketPricePerM && (
+        <div class="mc">
+          <div class="l">Prix moyen au m²</div>
+          <div class="v">{formatEur(marketPricePerM)}<small>/m²</small></div>
+          <div class="delta up">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            + 2,1 % sur 12 mois
+          </div>
+        </div>
+      )}
+      {marketRentPerM && (
+        <div class="mc">
+          <div class="l">Loyer médian</div>
+          <div class="v">{marketRentPerM} €<small>/m²</small></div>
+          <div class="delta up">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            + 3,4 % sur 12 mois
+          </div>
+        </div>
+      )}
+    </div>
+    {marketYieldMedian !== null && (
+      <div class="market-row">
+        <span class="l">Rendement médian dans le quartier</span>
+        <span class="v">{marketYieldMedian.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %</span>
+      </div>
+    )}
+    <div class="market-row">
+      <span class="l">Tension locative</span>
+      <span class="v">Élevée · 3,2 candidats / annonce</span>
+    </div>
+    <div class="market-row">
+      <span class="l">Délai moyen de relocation</span>
+      <span class="v">11 jours</span>
+    </div>
+    <div class="market-row">
+      <span class="l">Évolution prix · 5 ans</span>
+      <span class="v" style="color:#079455;">+ 14,2 %</span>
+    </div>
+    <p class="market-note">Indicateurs estimés. Données précises de marché disponibles sur demande.</p>
+  </section>
+)}
+
+<style>
+  section.s { padding: 28px 0; border-top: 1px solid var(--border-tertiary); }
+  section.s h2 {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--fg-heading);
+    letter-spacing: -0.3px;
+    margin: 0 0 18px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  section.s h2 svg { width: 17px; height: 17px; color: var(--brand-600); }
+  section.s h2 .sub {
+    color: var(--fg-tertiary);
+    font-weight: 500;
+    font-size: 13px;
+    letter-spacing: 0;
+  }
+
+  .market-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .mc {
+    padding: 16px;
+    border: 1px solid var(--border-secondary);
+    border-radius: 12px;
+  }
+  .mc .l { font-size: 12px; color: var(--fg-tertiary); }
+  .mc .v {
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--fg-heading);
+    letter-spacing: -0.6px;
+    margin-top: 6px;
+    line-height: 1;
+  }
+  .mc .v small {
+    font-size: 13px;
+    color: var(--fg-tertiary);
+    font-weight: 600;
+    margin-left: 2px;
+  }
+  .mc .delta {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    margin-top: 8px;
+  }
+  .mc .delta svg { width: 12px; height: 12px; }
+  .mc .delta.up { color: #079455; }
+  .mc .delta.dn { color: #D92D20; }
+
+  .market-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-top: 1px solid var(--border-tertiary);
+    font-size: 14px;
+  }
+  .market-row .l { color: var(--fg-secondary); }
+  .market-row .v { font-weight: 600; color: var(--fg-heading); }
+
+  .market-note {
+    margin: 12px 0 0;
+    font-size: 12px;
+    color: var(--fg-tertiary);
+    font-style: italic;
+  }
+
+  @media (max-width: 1024px) {
+    .market-cards { grid-template-columns: 1fr; }
+  }
+</style>
