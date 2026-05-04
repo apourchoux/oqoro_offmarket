@@ -1,6 +1,6 @@
 ---
 import type { Property, PropertyFinancials } from '../../lib/types';
-import { PROPERTY_TYPE_LABELS, MANAGEMENT_TYPE_LABELS } from '../../lib/types';
+import { PROPERTY_TYPE_LABELS } from '../../lib/types';
 import { formatSurface } from '../../lib/format';
 
 interface Props {
@@ -47,9 +47,8 @@ const floorLabel =
       : `${property.floor}${property.floor === 1 ? 'er' : 'e'} étage`;
 const dpeLabel = property.dpe_energy_class ? `Classe ${property.dpe_energy_class}` : '—';
 const heatingLabel = property.heating_type ?? '—';
-const mgmtLabel = property.management_type
-  ? `${MANAGEMENT_TYPE_LABELS[property.management_type]} · incluse`
-  : 'Gestion OQORO incluse';
+// Tous les biens Off Market sont en mandat Oqoro Plus.
+const mgmtLabel = 'Oqoro Plus · incluse';
 const tenantLabel =
   financials.total_lots > 0
     ? financials.rented_lots > 0
