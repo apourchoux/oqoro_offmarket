@@ -101,8 +101,8 @@ const jsonLd: Record<string, unknown> = {
         <PropertyVisit3D matterportUrl={property.matterport_url} bgImage={heroPhoto} />
         <PropertyDescription description={property.description} />
         <PropertyFeatures property={property} financials={financials} />
-        <PropertyProfitability financials={financials} />
-        <PropertyDiagFinancier financials={financials} />
+        <PropertyProfitability property={property} financials={financials} />
+        <PropertyDiagFinancier property={property} financials={financials} />
         <PropertyHistoryBoxes reports={annual_reports} />
         <PropertyMarket property={property} financials={financials} />
         <PropertyDPEBars

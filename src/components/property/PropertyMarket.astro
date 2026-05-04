@@ -8,17 +8,29 @@ interface Props {
 }
 
 const { property, financials } = Astro.props;
+const market = property.market_data;
 
 const surface = property.total_surface ?? 0;
 const pricePerM = surface > 0 ? Math.round(property.sale_price / surface) : null;
 const monthlyRent = financials.monthly_rent_cc ?? 0;
 const rentPerM = surface > 0 ? Math.round(monthlyRent / surface) : null;
 
-const marketPricePerM = pricePerM ? Math.round(pricePerM * 1.05) : null;
-const marketRentPerM = rentPerM ? Math.round(rentPerM * 1.02) : null;
-const marketYieldMedian = financials.gross_yield ? financials.gross_yield - 0.3 : null;
+// Phase 3 : utilise market_data si présent, sinon estimations dérivées du bien.
+const marketPricePerM = market?.price_per_m2 ?? (pricePerM ? Math.round(pricePerM * 1.05) : null);
+const marketRentPerM = market?.rent_per_m2 ?? (rentPerM ? Math.round(rentPerM * 1.02) : null);
+const marketYieldMedian =
+  market?.yield_median ?? (financials.gross_yield ? financials.gross_yield - 0.3 : null);
+const priceDelta12m = market?.price_delta_12m ?? 2.1;
+const rentDelta12m = market?.rent_delta_12m ?? 3.4;
+const tension = market?.tension ?? 'Élevée · 3,2 candidats / annonce';
+const relocationDelay = market?.relocation_delay ?? '11 jours';
+const priceEvolution5y = market?.price_evolution_5y ?? 14.2;
 
+const hasReal = Boolean(market);
 const areaLabel = [property.neighborhood, property.city].filter(Boolean).join(', ') || property.city || '';
+
+const fmtPct = (v: number) =>
+  `${v >= 0 ? '+ ' : ''}${v.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
 ---
 
 {(pricePerM || rentPerM) && (
@@ -33,9 +45,9 @@ const areaLabel = [property.neighborhood, property.city].filter(Boolean).join(',
         <div class="mc">
           <div class="l">Prix moyen au m²</div>
           <div class="v">{formatEur(marketPricePerM)}<small>/m²</small></div>
-          <div class="delta up">
+          <div class:list={['delta', priceDelta12m >= 0 ? 'up' : 'dn']}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-            + 2,1 % sur 12 mois
+            {fmtPct(priceDelta12m)} sur 12 mois
           </div>
         </div>
       )}
@@ -43,9 +55,9 @@ const areaLabel = [property.neighborhood, property.city].filter(Boolean).join(',
         <div class="mc">
           <div class="l">Loyer médian</div>
           <div class="v">{marketRentPerM} €<small>/m²</small></div>
-          <div class="delta up">
+          <div class:list={['delta', rentDelta12m >= 0 ? 'up' : 'dn']}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-            + 3,4 % sur 12 mois
+            {fmtPct(rentDelta12m)} sur 12 mois
           </div>
         </div>
       )}
@@ -58,17 +70,19 @@ const areaLabel = [property.neighborhood, property.city].filter(Boolean).join(',
     )}
     <div class="market-row">
       <span class="l">Tension locative</span>
-      <span class="v">Élevée · 3,2 candidats / annonce</span>
+      <span class="v">{tension}</span>
     </div>
     <div class="market-row">
       <span class="l">Délai moyen de relocation</span>
-      <span class="v">11 jours</span>
+      <span class="v">{relocationDelay}</span>
     </div>
     <div class="market-row">
       <span class="l">Évolution prix · 5 ans</span>
-      <span class="v" style="color:#079455;">+ 14,2 %</span>
+      <span class="v" style={`color:${priceEvolution5y >= 0 ? '#079455' : '#D92D20'};`}>{fmtPct(priceEvolution5y)}</span>
     </div>
-    <p class="market-note">Indicateurs estimés. Données précises de marché disponibles sur demande.</p>
+    {!hasReal && (
+      <p class="market-note">Indicateurs estimés. Données précises de marché disponibles sur demande.</p>
+    )}
   </section>
 )}
 
@@ -132,6 +146,7 @@ const areaLabel = [property.neighborhood, property.city].filter(Boolean).join(',
   .mc .delta svg { width: 12px; height: 12px; }
   .mc .delta.up { color: #079455; }
   .mc .delta.dn { color: #D92D20; }
+  .mc .delta.dn svg { transform: scaleY(-1); }
 
   .market-row {
     display: flex;
