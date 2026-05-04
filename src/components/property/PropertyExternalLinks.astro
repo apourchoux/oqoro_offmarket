@@ -1,0 +1,69 @@
+---
+interface Props {
+  oqoroListingUrl: string | null;
+  saleListingUrl: string | null;
+}
+
+const { oqoroListingUrl, saleListingUrl } = Astro.props;
+const hasLinks = Boolean(oqoroListingUrl || saleListingUrl);
+---
+
+{hasLinks && (
+  <section class="s">
+    <h2>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      Liens utiles
+    </h2>
+    <div class="links">
+      {oqoroListingUrl && (
+        <a href={oqoroListingUrl} target="_blank" rel="noopener" class="link">
+          <span>Annonce de location sur oqoro.com</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+      )}
+      {saleListingUrl && (
+        <a href={saleListingUrl} target="_blank" rel="noopener" class="link">
+          <span>Annonce de vente externe</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+      )}
+    </div>
+  </section>
+)}
+
+<style>
+  section.s { padding: 28px 0; border-top: 1px solid var(--border-tertiary); }
+  section.s h2 {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--fg-heading);
+    letter-spacing: -0.3px;
+    margin: 0 0 18px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+  section.s h2 svg { width: 17px; height: 17px; color: var(--brand-600); }
+
+  .links { display: flex; flex-direction: column; gap: 6px; }
+  .link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border: 1px solid var(--border-secondary);
+    border-radius: 10px;
+    color: var(--fg-heading);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    transition: background-color .2s, border-color .2s;
+  }
+  .link:hover {
+    background: var(--gray-50);
+    border-color: var(--border-primary);
+    text-decoration: none;
+  }
+  .link svg { width: 15px; height: 15px; color: var(--fg-tertiary); }
+</style>
