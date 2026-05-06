@@ -31,6 +31,15 @@ type ReportDraft = Omit<PropertyAnnualReport, 'property_id'> & { _isNew?: boolea
 
 const DPE_CLASSES: DpeClass[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
 
+const STEPS = [
+  { id: 1, label: 'Le bien' },
+  { id: 2, label: 'Photos' },
+  { id: 3, label: 'Argent' },
+  { id: 4, label: 'Quartier & énergie' },
+  { id: 5, label: 'Présentation' },
+] as const;
+type StepId = (typeof STEPS)[number]['id'];
+
 function blankLot(order: number): LotDraft {
   return {
     id: crypto.randomUUID(),
@@ -90,6 +99,14 @@ export default function PropertyForm({
 }: Props) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [currentStep, setCurrentStep] = useState<StepId>(1);
+
+  function goToStep(step: StepId) {
+    setCurrentStep(step);
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  const isFirstStep = currentStep === 1;
+  const isLastStep = currentStep === STEPS.length;
 
   const [property, setProperty] = useState<Partial<Property>>(
     initialProperty ?? {
@@ -249,6 +266,9 @@ export default function PropertyForm({
         </div>
       )}
 
+      <Stepper currentStep={currentStep} onChange={goToStep} />
+
+      {currentStep === 1 && (
       <Section title="Informations générales">
         <Grid2>
           <Field label="Titre">
@@ -338,7 +358,9 @@ export default function PropertyForm({
           />
         </Field>
       </Section>
+      )}
 
+      {currentStep === 2 && (
       <Section title="Photos">
         <PhotoManager
           photos={photos}
@@ -346,7 +368,9 @@ export default function PropertyForm({
           onUpload={handleUploadPhoto}
         />
       </Section>
+      )}
 
+      {currentStep === 3 && (
       <Section title="Données financières">
         <Grid2>
           <Field label="Prix de vente (€)">
@@ -375,15 +399,21 @@ export default function PropertyForm({
           <Stat label="Rendement projet" value={`${financials.project_yield.toFixed(2)} %`} />
         </div>
       </Section>
+      )}
 
+      {currentStep === 3 && (
       <Section title="Lots">
         <LotRepeater lots={lots} onChange={setLots} />
       </Section>
+      )}
 
+      {currentStep === 5 && (
       <Section title="Historique locatif">
         <ReportRepeater reports={reports} onChange={setReports} />
       </Section>
+      )}
 
+      {currentStep === 4 && (
       <Section title="DPE">
         <Grid2>
           <Field label="Classe énergie">
@@ -443,7 +473,9 @@ export default function PropertyForm({
           </Field>
         </Grid2>
       </Section>
+      )}
 
+      {currentStep === 4 && (
       <Section title="Localisation & transports">
         <Grid2>
           <Field label="Latitude">
@@ -467,7 +499,9 @@ export default function PropertyForm({
         </Grid2>
         <TransportRepeater transports={transports} onChange={setTransports} />
       </Section>
+      )}
 
+      {currentStep === 5 && (
       <Section title="Gestion & liens">
         <Field label="Type de mandat">
           <select
@@ -515,7 +549,9 @@ export default function PropertyForm({
           <input className="oq-input" value={property.matterport_url ?? ''} onChange={(e) => set('matterport_url', e.target.value || null)} />
         </Field>
       </Section>
+      )}
 
+      {currentStep === 3 && (
       <Section title="Charges et frais (optionnel)">
         <p className="text-[13px] text-oq-muted">
           Si renseignés, ces montants remplacent les estimations automatiques sur la page bien
@@ -586,7 +622,9 @@ export default function PropertyForm({
           </Field>
         </Grid2>
       </Section>
+      )}
 
+      {currentStep === 4 && (
       <Section title="Marché local (optionnel)">
         <p className="text-[13px] text-oq-muted">
           Indicateurs du quartier. Si vides, des estimations sont calculées automatiquement.
@@ -685,7 +723,9 @@ export default function PropertyForm({
           </Field>
         </Grid2>
       </Section>
+      )}
 
+      {currentStep === 5 && (
       <Section title="Conseiller affecté (optionnel)">
         <p className="text-[13px] text-oq-muted">
           S'affiche dans la carte d'achat à droite de la fiche bien. Sans valeur, Camille Loubet est utilisée par défaut.
@@ -728,7 +768,9 @@ export default function PropertyForm({
           </Field>
         </Grid2>
       </Section>
+      )}
 
+      {currentStep === 5 && (
       <Section title="SEO & publication">
         <Field label="Meta title">
           <input className="oq-input" value={property.meta_title ?? ''} onChange={(e) => set('meta_title', e.target.value || null)} />
@@ -749,25 +791,95 @@ export default function PropertyForm({
           Publié (visible en ligne)
         </label>
       </Section>
+      )}
 
-      <div className="sticky bottom-0 bg-white border-t border-oq-border py-4 -mx-6 px-6 flex items-center justify-end gap-3">
-        <button type="submit" disabled={saving} className="oq-btn-secondary">
-          {saving ? 'Enregistrement…' : 'Enregistrer le brouillon'}
-        </button>
+      <div className="sticky bottom-0 bg-white border-t border-oq-border py-4 -mx-6 px-6 flex items-center justify-between gap-3 flex-wrap">
         <button
           type="button"
-          onClick={(e) => handleSubmit(e as any, true)}
-          disabled={saving}
-          className="oq-btn-dark"
+          disabled={isFirstStep}
+          onClick={() => goToStep((currentStep - 1) as StepId)}
+          className="oq-btn-secondary disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          Publier & rebuild
+          ← Précédent
         </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          <button type="submit" disabled={saving} className="oq-btn-secondary">
+            {saving ? 'Enregistrement…' : 'Enregistrer le brouillon'}
+          </button>
+          {isLastStep ? (
+            <button
+              type="button"
+              onClick={(e) => handleSubmit(e as any, true)}
+              disabled={saving}
+              className="oq-btn-dark"
+            >
+              Publier &amp; rebuild
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => goToStep((currentStep + 1) as StepId)}
+              className="oq-btn-dark"
+            >
+              Suivant →
+            </button>
+          )}
+        </div>
       </div>
     </form>
   );
 }
 
 // ────────── Sub-components ──────────
+
+function Stepper({
+  currentStep,
+  onChange,
+}: {
+  currentStep: StepId;
+  onChange: (step: StepId) => void;
+}) {
+  return (
+    <nav className="flex items-stretch gap-0 border border-oq-border rounded-btn overflow-hidden bg-white">
+      {STEPS.map((step, idx) => {
+        const isActive = currentStep === step.id;
+        const isDone = currentStep > step.id;
+        return (
+          <button
+            key={step.id}
+            type="button"
+            onClick={() => onChange(step.id)}
+            className={[
+              'flex-1 px-4 py-3 text-left transition-colors text-[13px]',
+              isActive
+                ? 'bg-oq-black text-white font-semibold'
+                : isDone
+                  ? 'bg-white text-oq-black hover:bg-oq-bg'
+                  : 'bg-white text-oq-muted hover:bg-oq-bg',
+              idx > 0 ? 'border-l border-oq-border' : '',
+            ].join(' ')}
+          >
+            <div className="flex items-center gap-2">
+              <span
+                className={[
+                  'inline-flex items-center justify-center w-6 h-6 rounded-full text-[12px] font-bold',
+                  isActive
+                    ? 'bg-white text-oq-black'
+                    : isDone
+                      ? 'bg-oq-green-soft text-green-700'
+                      : 'bg-oq-bg text-oq-muted',
+                ].join(' ')}
+              >
+                {isDone ? '✓' : step.id}
+              </span>
+              <span className="truncate">{step.label}</span>
+            </div>
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
