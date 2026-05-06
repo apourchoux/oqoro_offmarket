@@ -5,24 +5,57 @@ interface Props {
 }
 
 const { matterportUrl, bgImage } = Astro.props;
+
+// Reformat Matterport URLs so the embed actually works in an iframe.
+// Common shapes:
+//   https://my.matterport.com/show/?m=XXX
+//   https://my.matterport.com/show?m=XXX&play=1
+//   https://discover.matterport.com/space/XXX
+function buildEmbedUrl(rawUrl: string): string {
+  try {
+    const u = new URL(rawUrl);
+    // Always force play=1 + mobile gyro on, drop branding/help if not specified
+    if (u.hostname.includes('matterport.com')) {
+      if (!u.searchParams.has('play')) u.searchParams.set('play', '1');
+      if (!u.searchParams.has('qs')) u.searchParams.set('qs', '1');
+      return u.toString();
+    }
+    return rawUrl;
+  } catch {
+    return rawUrl;
+  }
+}
+
+const embedUrl = matterportUrl ? buildEmbedUrl(matterportUrl) : null;
 ---
 
-{matterportUrl && (
+{matterportUrl && embedUrl && (
   <section class="s">
     <h2>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
       Visite virtuelle Matterport
     </h2>
-    <a href={matterportUrl} target="_blank" rel="noopener" class="visit3d-card">
-      {bgImage && <img src={bgImage} alt="" />}
-      <div class="visit3d-inner">
-        <div class="play">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+
+    <div class="visit3d-card" data-mp-embed={embedUrl} data-mp-fallback={matterportUrl}>
+      <button type="button" class="visit3d-teaser" aria-label="Lancer la visite virtuelle">
+        {bgImage && <img src={bgImage} alt="" />}
+        <div class="visit3d-overlay"></div>
+        <div class="visit3d-inner">
+          <div class="play">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </div>
+          <h3>Visite 3D Matterport</h3>
+          <p>Cliquez pour explorer chaque pièce à 360°</p>
         </div>
-        <h3>Visite 3D Matterport</h3>
-        <p>Explorez chaque pièce à 360°</p>
-      </div>
-    </a>
+      </button>
+    </div>
+
+    <div class="visit3d-footer">
+      <a href={matterportUrl} target="_blank" rel="noopener" class="open-new">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg>
+        Ouvrir dans un nouvel onglet
+      </a>
+    </div>
   </section>
 )}
 
@@ -42,16 +75,34 @@ const { matterportUrl, bgImage } = Astro.props;
   section.s h2 svg { width: 17px; height: 17px; color: var(--brand-600); }
 
   .visit3d-card {
-    display: block;
+    position: relative;
     background: var(--oqoro-blue);
     border-radius: 14px;
     aspect-ratio: 16 / 8;
-    position: relative;
     overflow: hidden;
     color: #fff;
-    text-decoration: none;
   }
-  .visit3d-card img {
+  .visit3d-card iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+
+  .visit3d-teaser {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+  }
+  .visit3d-teaser img {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -59,8 +110,7 @@ const { matterportUrl, bgImage } = Astro.props;
     object-fit: cover;
     opacity: 0.4;
   }
-  .visit3d-card::before {
-    content: '';
+  .visit3d-overlay {
     position: absolute;
     inset: 0;
     background: linear-gradient(135deg, rgba(34, 26, 91, 0.6), rgba(91, 48, 243, 0.5));
@@ -88,7 +138,7 @@ const { matterportUrl, bgImage } = Astro.props;
     color: var(--brand-700);
     transition: transform .2s;
   }
-  .visit3d-card:hover .visit3d-inner .play { transform: scale(1.05); }
+  .visit3d-teaser:hover .play { transform: scale(1.05); }
   .visit3d-inner .play svg { width: 24px; height: 24px; margin-left: 3px; }
   .visit3d-inner h3 {
     font-family: var(--font-display);
@@ -103,4 +153,36 @@ const { matterportUrl, bgImage } = Astro.props;
     opacity: 0.85;
     margin: 0;
   }
+
+  .visit3d-footer {
+    margin-top: 12px;
+    text-align: right;
+  }
+  .open-new {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--fg-tertiary);
+    text-decoration: none;
+  }
+  .open-new:hover { color: var(--fg-heading); }
 </style>
+
+<script>
+  document.querySelectorAll<HTMLDivElement>('.visit3d-card[data-mp-embed]').forEach((card) => {
+    const teaser = card.querySelector<HTMLButtonElement>('.visit3d-teaser');
+    const embedUrl = card.getAttribute('data-mp-embed');
+    if (!teaser || !embedUrl) return;
+
+    teaser.addEventListener('click', () => {
+      const iframe = document.createElement('iframe');
+      iframe.src = embedUrl;
+      iframe.allow = 'fullscreen; xr-spatial-tracking; gyroscope; accelerometer';
+      iframe.allowFullscreen = true;
+      iframe.loading = 'lazy';
+      teaser.replaceWith(iframe);
+    });
+  });
+</script>
