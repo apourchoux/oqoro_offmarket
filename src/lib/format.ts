@@ -39,10 +39,38 @@ export function formatSurface(value: number | null | undefined): string {
   return `${numberFormatter.format(value)} m²`;
 }
 
+/**
+ * Wrap a Supabase Storage public URL with on-the-fly resize/quality params.
+ * Example: photoUrl(url, 1200, 80) → "<url>?width=1200&quality=80"
+ *
+ * - Only mutates URLs hosted on Supabase Storage (`/storage/v1/object/public/`).
+ * - Falls back to the original URL for external sources (Unsplash, etc.) — they
+ *   handle their own transforms.
+ * - Pass `width: undefined` to skip resizing (only set quality).
+ */
+export function photoUrl(
+  url: string | null | undefined,
+  width?: number,
+  quality = 80,
+): string {
+  if (!url) return '';
+  // Only Supabase Storage URLs benefit from the transform endpoint.
+  if (!url.includes('/storage/v1/object/public/')) return url;
+  const transformed = url.replace(
+    '/storage/v1/object/public/',
+    '/storage/v1/render/image/public/',
+  );
+  const params = new URLSearchParams();
+  if (width) params.set('width', String(width));
+  params.set('quality', String(quality));
+  params.set('resize', 'cover');
+  return `${transformed}?${params.toString()}`;
+}
+
 export function slugify(input: string): string {
   return input
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9\s-]/g, '')

@@ -53,9 +53,11 @@ export const POST: APIRoute = async ({ request, redirect }) => {
   }
 
   const email = (payload.email ?? '').trim();
+  const source = (payload.source ?? '').trim().slice(0, 50) || 'unknown';
+  const fromQs = `&from=${encodeURIComponent(source)}`;
   if (!email || !EMAIL_REGEX.test(email)) {
     return useFormFlow
-      ? redirect('/?lead=error&msg=email#alerte', 303)
+      ? redirect(`/?lead=error&msg=email${fromQs}#alerte`, 303)
       : json({ error: 'Email invalide' }, 400);
   }
 
@@ -66,7 +68,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 
   if (first_name.length > 100 || last_name.length > 100 || phone.length > 50) {
     return useFormFlow
-      ? redirect('/?lead=error&msg=length#alerte', 303)
+      ? redirect(`/?lead=error&msg=length${fromQs}#alerte`, 303)
       : json({ error: 'Champs trop longs' }, 400);
   }
 
@@ -95,11 +97,13 @@ export const POST: APIRoute = async ({ request, redirect }) => {
       sendLeadConfirmation(lead, property),
     ]);
 
-    return useFormFlow ? redirect('/?lead=ok#alerte', 303) : json({ success: true });
+    return useFormFlow
+      ? redirect(`/?lead=ok${fromQs}#alerte`, 303)
+      : json({ success: true });
   } catch (err) {
     console.error('[api/leads] error', err);
     return useFormFlow
-      ? redirect('/?lead=error&msg=server#alerte', 303)
+      ? redirect(`/?lead=error&msg=server${fromQs}#alerte`, 303)
       : json({ error: "Erreur serveur lors de l'enregistrement" }, 500);
   }
 };
