@@ -1,7 +1,7 @@
 ---
 import type { Property, PropertyFinancials, PropertyPhoto } from '../lib/types';
 import { PROPERTY_TYPE_LABELS } from '../lib/types';
-import { formatEur, formatSurface } from '../lib/format';
+import { formatEur, formatSurface, photoUrl } from '../lib/format';
 
 interface Props {
   property: Property;
@@ -53,7 +53,7 @@ const locality = property.city
   <div class="bien-img">
     {primaryPhoto ? (
       <img
-        src={primaryPhoto.url}
+        src={photoUrl(primaryPhoto.url, 600)}
         alt={primaryPhoto.label ?? property.title}
         loading="lazy"
       />

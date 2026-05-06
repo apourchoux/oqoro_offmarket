@@ -8,6 +8,18 @@ interface Props {
 
 const STATUS_ORDER: LeadStatus[] = ['new', 'contacted', 'converted', 'archived'];
 
+const STATUS_TONES: Record<LeadStatus, { bg: string; border: string; label: string; badge: string }> = {
+  new:       { bg: 'bg-blue-50',   border: 'border-blue-300',   label: 'text-blue-700',   badge: 'bg-blue-100 text-blue-800' },
+  contacted: { bg: 'bg-amber-50',  border: 'border-amber-300',  label: 'text-amber-700',  badge: 'bg-amber-100 text-amber-800' },
+  converted: { bg: 'bg-emerald-50',border: 'border-emerald-300',label: 'text-emerald-700',badge: 'bg-emerald-100 text-emerald-800' },
+  archived:  { bg: 'bg-gray-50',   border: 'border-gray-300',   label: 'text-gray-600',   badge: 'bg-gray-100 text-gray-700' },
+};
+
+const QUICK_ACTIONS: Partial<Record<LeadStatus, { next: LeadStatus; label: string }>> = {
+  new: { next: 'contacted', label: 'Marquer contacté' },
+  contacted: { next: 'converted', label: 'Marquer converti' },
+};
+
 export default function LeadsTable({ initialLeads }: Props) {
   const [leads, setLeads] = useState(initialLeads);
   const [statusFilter, setStatusFilter] = useState<LeadStatus | 'all'>('all');
@@ -58,24 +70,49 @@ export default function LeadsTable({ initialLeads }: Props) {
     URL.revokeObjectURL(url);
   }
 
+  const counts: Record<LeadStatus, number> = {
+    new: 0, contacted: 0, converted: 0, archived: 0,
+  };
+  for (const l of leads) counts[l.status] += 1;
+
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-3 mb-6">
-        <select
-          className="oq-input max-w-[200px]"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as LeadStatus | 'all')}
-        >
-          <option value="all">Tous les statuts</option>
-          {STATUS_ORDER.map((s) => (
-            <option key={s} value={s}>
-              {LEAD_STATUS_LABELS[s]}
-            </option>
-          ))}
-        </select>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        {STATUS_ORDER.map((s) => {
+          const isActive = statusFilter === s;
+          const tone = STATUS_TONES[s];
+          return (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setStatusFilter(isActive ? 'all' : s)}
+              className={[
+                'rounded-card border p-4 text-left transition-colors',
+                isActive ? `${tone.bg} ${tone.border}` : 'bg-white border-oq-border hover:bg-oq-bg',
+              ].join(' ')}
+            >
+              <div className={`text-[12px] uppercase tracking-wider font-semibold ${tone.label}`}>
+                {LEAD_STATUS_LABELS[s]}
+              </div>
+              <div className="text-[28px] font-extrabold text-oq-black mt-1">{counts[s]}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        {statusFilter !== 'all' && (
+          <button
+            type="button"
+            onClick={() => setStatusFilter('all')}
+            className="text-[13px] text-oq-muted hover:text-oq-black"
+          >
+            ← Tous les statuts
+          </button>
+        )}
         <div className="flex-1" />
         <button type="button" onClick={exportCsv} className="oq-btn-secondary">
-          Exporter CSV
+          Exporter CSV ({filtered.length})
         </button>
       </div>
 
@@ -117,19 +154,23 @@ export default function LeadsTable({ initialLeads }: Props) {
                     {lead.property_title ?? '—'}
                   </td>
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                    <select
-                      className="text-[13px] border border-oq-border rounded-btn px-2 py-1 bg-white"
-                      value={lead.status}
-                      onChange={(e) => updateLead(lead.id, { status: e.target.value as LeadStatus })}
-                    >
-                      {STATUS_ORDER.map((s) => (
-                        <option key={s} value={s}>
-                          {LEAD_STATUS_LABELS[s]}
-                        </option>
-                      ))}
-                    </select>
+                    <span className={`inline-flex items-center text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${STATUS_TONES[lead.status].badge}`}>
+                      {LEAD_STATUS_LABELS[lead.status]}
+                    </span>
                   </td>
-                  <td className="px-4 py-3 text-right text-oq-muted text-[13px]">→</td>
+                  <td className="px-4 py-3 text-right text-[12px]" onClick={(e) => e.stopPropagation()}>
+                    {QUICK_ACTIONS[lead.status] ? (
+                      <button
+                        type="button"
+                        onClick={() => updateLead(lead.id, { status: QUICK_ACTIONS[lead.status]!.next })}
+                        className="text-brand-700 hover:text-brand-800 font-semibold whitespace-nowrap"
+                      >
+                        {QUICK_ACTIONS[lead.status]!.label} →
+                      </button>
+                    ) : (
+                      <span className="text-oq-muted">—</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -164,6 +205,18 @@ export default function LeadsTable({ initialLeads }: Props) {
               <div>
                 <div className="text-[12px] uppercase tracking-wider text-oq-muted mb-1">Bien</div>
                 <div>{selected.property_title ?? '—'}</div>
+              </div>
+              <div>
+                <div className="text-[12px] uppercase tracking-wider text-oq-muted mb-1">Statut</div>
+                <select
+                  className="oq-input"
+                  value={selected.status}
+                  onChange={(e) => updateLead(selected.id, { status: e.target.value as LeadStatus })}
+                >
+                  {STATUS_ORDER.map((s) => (
+                    <option key={s} value={s}>{LEAD_STATUS_LABELS[s]}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <div className="text-[12px] uppercase tracking-wider text-oq-muted mb-1">Notes</div>
