@@ -1,7 +1,9 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import type {
   Property,
+  PropertyAgent,
   PropertyLot,
+  PropertyMarketData,
   PropertyPhoto,
   PropertyTransport,
   PropertyAnnualReport,
@@ -28,6 +30,15 @@ type TransportDraft = Omit<PropertyTransport, 'property_id'> & { _isNew?: boolea
 type ReportDraft = Omit<PropertyAnnualReport, 'property_id'> & { _isNew?: boolean };
 
 const DPE_CLASSES: DpeClass[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+
+const STEPS = [
+  { id: 1, label: 'Le bien' },
+  { id: 2, label: 'Photos' },
+  { id: 3, label: 'Argent' },
+  { id: 4, label: 'Quartier & énergie' },
+  { id: 5, label: 'Présentation' },
+] as const;
+type StepId = (typeof STEPS)[number]['id'];
 
 function blankLot(order: number): LotDraft {
   return {
@@ -61,6 +72,7 @@ function blankTransport(order: number): TransportDraft {
     transport_type: null,
     destination: null,
     time_label: null,
+    category: null,
     sort_order: order,
     _isNew: true,
   };
@@ -87,6 +99,14 @@ export default function PropertyForm({
 }: Props) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [currentStep, setCurrentStep] = useState<StepId>(1);
+
+  function goToStep(step: StepId) {
+    setCurrentStep(step);
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  const isFirstStep = currentStep === 1;
+  const isLastStep = currentStep === STEPS.length;
 
   const [property, setProperty] = useState<Partial<Property>>(
     initialProperty ?? {
@@ -95,6 +115,7 @@ export default function PropertyForm({
       sale_price: 0,
       title: '',
       slug: '',
+      management_type: 'plus',
     },
   );
   const [lots, setLots] = useState<LotDraft[]>(
@@ -128,6 +149,38 @@ export default function PropertyForm({
 
   function set<K extends keyof Property>(key: K, value: Property[K]) {
     setProperty((p) => ({ ...p, [key]: value }));
+  }
+
+  function setMarket<K extends keyof PropertyMarketData>(
+    key: K,
+    value: PropertyMarketData[K] | undefined,
+  ) {
+    setProperty((p) => {
+      const next: PropertyMarketData = { ...(p.market_data ?? {}) };
+      if (value === undefined || value === '' || (typeof value === 'number' && Number.isNaN(value))) {
+        delete next[key];
+      } else {
+        next[key] = value;
+      }
+      const isEmpty = Object.keys(next).length === 0;
+      return { ...p, market_data: isEmpty ? null : next };
+    });
+  }
+
+  function setAgent<K extends keyof PropertyAgent>(
+    key: K,
+    value: PropertyAgent[K] | undefined,
+  ) {
+    setProperty((p) => {
+      const next: PropertyAgent = { ...(p.agent ?? {}) };
+      if (value === undefined || value === '') {
+        delete next[key];
+      } else {
+        next[key] = value;
+      }
+      const isEmpty = Object.keys(next).length === 0;
+      return { ...p, agent: isEmpty ? null : next };
+    });
   }
 
   function autoSlug() {
@@ -213,6 +266,9 @@ export default function PropertyForm({
         </div>
       )}
 
+      <Stepper currentStep={currentStep} onChange={goToStep} />
+
+      {currentStep === 1 && (
       <Section title="Informations générales">
         <Grid2>
           <Field label="Titre">
@@ -302,7 +358,9 @@ export default function PropertyForm({
           />
         </Field>
       </Section>
+      )}
 
+      {currentStep === 2 && (
       <Section title="Photos">
         <PhotoManager
           photos={photos}
@@ -310,7 +368,9 @@ export default function PropertyForm({
           onUpload={handleUploadPhoto}
         />
       </Section>
+      )}
 
+      {currentStep === 3 && (
       <Section title="Données financières">
         <Grid2>
           <Field label="Prix de vente (€)">
@@ -339,15 +399,21 @@ export default function PropertyForm({
           <Stat label="Rendement projet" value={`${financials.project_yield.toFixed(2)} %`} />
         </div>
       </Section>
+      )}
 
+      {currentStep === 3 && (
       <Section title="Lots">
         <LotRepeater lots={lots} onChange={setLots} />
       </Section>
+      )}
 
+      {currentStep === 5 && (
       <Section title="Historique locatif">
         <ReportRepeater reports={reports} onChange={setReports} />
       </Section>
+      )}
 
+      {currentStep === 4 && (
       <Section title="DPE">
         <Grid2>
           <Field label="Classe énergie">
@@ -407,7 +473,9 @@ export default function PropertyForm({
           </Field>
         </Grid2>
       </Section>
+      )}
 
+      {currentStep === 4 && (
       <Section title="Localisation & transports">
         <Grid2>
           <Field label="Latitude">
@@ -431,7 +499,9 @@ export default function PropertyForm({
         </Grid2>
         <TransportRepeater transports={transports} onChange={setTransports} />
       </Section>
+      )}
 
+      {currentStep === 5 && (
       <Section title="Gestion & liens">
         <Field label="Type de mandat">
           <select
@@ -479,7 +549,228 @@ export default function PropertyForm({
           <input className="oq-input" value={property.matterport_url ?? ''} onChange={(e) => set('matterport_url', e.target.value || null)} />
         </Field>
       </Section>
+      )}
 
+      {currentStep === 3 && (
+      <Section title="Charges et frais (optionnel)">
+        <p className="text-[13px] text-oq-muted">
+          Si renseignés, ces montants remplacent les estimations automatiques sur la page bien
+          (calcul de rentabilité, diagnostic financier).
+        </p>
+        <Grid2>
+          <Field label="Charges de copropriété (€/mois)">
+            <input
+              className="oq-input"
+              type="number"
+              min="0"
+              step="1"
+              value={property.monthly_charges ?? ''}
+              onChange={(e) =>
+                set(
+                  'monthly_charges',
+                  e.target.value === '' ? null : Number(e.target.value),
+                )
+              }
+            />
+          </Field>
+          <Field label="Taxe foncière (€/an)">
+            <input
+              className="oq-input"
+              type="number"
+              min="0"
+              step="1"
+              value={property.yearly_property_tax ?? ''}
+              onChange={(e) =>
+                set(
+                  'yearly_property_tax',
+                  e.target.value === '' ? null : Number(e.target.value),
+                )
+              }
+            />
+          </Field>
+        </Grid2>
+        <Grid2>
+          <Field label="Gestion + assurance (€/mois)">
+            <input
+              className="oq-input"
+              type="number"
+              min="0"
+              step="1"
+              value={property.monthly_management_fee ?? ''}
+              onChange={(e) =>
+                set(
+                  'monthly_management_fee',
+                  e.target.value === '' ? null : Number(e.target.value),
+                )
+              }
+            />
+          </Field>
+          <Field label="Honoraires OQORO (€)">
+            <input
+              className="oq-input"
+              type="number"
+              min="0"
+              step="1"
+              value={property.oqoro_fees ?? ''}
+              onChange={(e) =>
+                set(
+                  'oqoro_fees',
+                  e.target.value === '' ? null : Number(e.target.value),
+                )
+              }
+            />
+          </Field>
+        </Grid2>
+      </Section>
+      )}
+
+      {currentStep === 4 && (
+      <Section title="Marché local (optionnel)">
+        <p className="text-[13px] text-oq-muted">
+          Indicateurs du quartier. Si vides, des estimations sont calculées automatiquement.
+        </p>
+        <Grid2>
+          <Field label="Prix moyen au m² (€/m²)">
+            <input
+              className="oq-input"
+              type="number"
+              min="0"
+              step="1"
+              value={property.market_data?.price_per_m2 ?? ''}
+              onChange={(e) =>
+                setMarket('price_per_m2', e.target.value === '' ? undefined : Number(e.target.value))
+              }
+            />
+          </Field>
+          <Field label="Loyer médian (€/m²/mois)">
+            <input
+              className="oq-input"
+              type="number"
+              min="0"
+              step="0.1"
+              value={property.market_data?.rent_per_m2 ?? ''}
+              onChange={(e) =>
+                setMarket('rent_per_m2', e.target.value === '' ? undefined : Number(e.target.value))
+              }
+            />
+          </Field>
+        </Grid2>
+        <Grid2>
+          <Field label="Rendement médian quartier (%)">
+            <input
+              className="oq-input"
+              type="number"
+              min="0"
+              step="0.1"
+              value={property.market_data?.yield_median ?? ''}
+              onChange={(e) =>
+                setMarket('yield_median', e.target.value === '' ? undefined : Number(e.target.value))
+              }
+            />
+          </Field>
+          <Field label="Évolution prix · 5 ans (%)">
+            <input
+              className="oq-input"
+              type="number"
+              step="0.1"
+              value={property.market_data?.price_evolution_5y ?? ''}
+              onChange={(e) =>
+                setMarket('price_evolution_5y', e.target.value === '' ? undefined : Number(e.target.value))
+              }
+            />
+          </Field>
+        </Grid2>
+        <Grid2>
+          <Field label="Δ prix m² sur 12 mois (%)">
+            <input
+              className="oq-input"
+              type="number"
+              step="0.1"
+              value={property.market_data?.price_delta_12m ?? ''}
+              onChange={(e) =>
+                setMarket('price_delta_12m', e.target.value === '' ? undefined : Number(e.target.value))
+              }
+            />
+          </Field>
+          <Field label="Δ loyer médian sur 12 mois (%)">
+            <input
+              className="oq-input"
+              type="number"
+              step="0.1"
+              value={property.market_data?.rent_delta_12m ?? ''}
+              onChange={(e) =>
+                setMarket('rent_delta_12m', e.target.value === '' ? undefined : Number(e.target.value))
+              }
+            />
+          </Field>
+        </Grid2>
+        <Grid2>
+          <Field label="Tension locative (texte libre)">
+            <input
+              className="oq-input"
+              placeholder="Élevée · 3,2 candidats / annonce"
+              value={property.market_data?.tension ?? ''}
+              onChange={(e) => setMarket('tension', e.target.value || undefined)}
+            />
+          </Field>
+          <Field label="Délai moyen de relocation">
+            <input
+              className="oq-input"
+              placeholder="11 jours"
+              value={property.market_data?.relocation_delay ?? ''}
+              onChange={(e) => setMarket('relocation_delay', e.target.value || undefined)}
+            />
+          </Field>
+        </Grid2>
+      </Section>
+      )}
+
+      {currentStep === 5 && (
+      <Section title="Conseiller affecté (optionnel)">
+        <p className="text-[13px] text-oq-muted">
+          S'affiche dans la carte d'achat à droite de la fiche bien. Sans valeur, Camille Loubet est utilisée par défaut.
+        </p>
+        <Grid2>
+          <Field label="Nom complet">
+            <input
+              className="oq-input"
+              placeholder="Camille Loubet"
+              value={property.agent?.name ?? ''}
+              onChange={(e) => setAgent('name', e.target.value || undefined)}
+            />
+          </Field>
+          <Field label="Initiales (2 lettres)">
+            <input
+              className="oq-input"
+              maxLength={3}
+              placeholder="CL"
+              value={property.agent?.initials ?? ''}
+              onChange={(e) => setAgent('initials', e.target.value.toUpperCase() || undefined)}
+            />
+          </Field>
+        </Grid2>
+        <Grid2>
+          <Field label="Rôle">
+            <input
+              className="oq-input"
+              placeholder="Conseillère Off Market"
+              value={property.agent?.role ?? ''}
+              onChange={(e) => setAgent('role', e.target.value || undefined)}
+            />
+          </Field>
+          <Field label="Téléphone (international, ex. +33180000000)">
+            <input
+              className="oq-input"
+              placeholder="+33180000000"
+              value={property.agent?.phone ?? ''}
+              onChange={(e) => setAgent('phone', e.target.value || undefined)}
+            />
+          </Field>
+        </Grid2>
+      </Section>
+      )}
+
+      {currentStep === 5 && (
       <Section title="SEO & publication">
         <Field label="Meta title">
           <input className="oq-input" value={property.meta_title ?? ''} onChange={(e) => set('meta_title', e.target.value || null)} />
@@ -500,25 +791,95 @@ export default function PropertyForm({
           Publié (visible en ligne)
         </label>
       </Section>
+      )}
 
-      <div className="sticky bottom-0 bg-white border-t border-oq-border py-4 -mx-6 px-6 flex items-center justify-end gap-3">
-        <button type="submit" disabled={saving} className="oq-btn-secondary">
-          {saving ? 'Enregistrement…' : 'Enregistrer le brouillon'}
-        </button>
+      <div className="sticky bottom-0 bg-white border-t border-oq-border py-4 -mx-6 px-6 flex items-center justify-between gap-3 flex-wrap">
         <button
           type="button"
-          onClick={(e) => handleSubmit(e as any, true)}
-          disabled={saving}
-          className="oq-btn-dark"
+          disabled={isFirstStep}
+          onClick={() => goToStep((currentStep - 1) as StepId)}
+          className="oq-btn-secondary disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          Publier & rebuild
+          ← Précédent
         </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          <button type="submit" disabled={saving} className="oq-btn-secondary">
+            {saving ? 'Enregistrement…' : 'Enregistrer le brouillon'}
+          </button>
+          {isLastStep ? (
+            <button
+              type="button"
+              onClick={(e) => handleSubmit(e as any, true)}
+              disabled={saving}
+              className="oq-btn-dark"
+            >
+              Publier &amp; rebuild
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => goToStep((currentStep + 1) as StepId)}
+              className="oq-btn-dark"
+            >
+              Suivant →
+            </button>
+          )}
+        </div>
       </div>
     </form>
   );
 }
 
 // ────────── Sub-components ──────────
+
+function Stepper({
+  currentStep,
+  onChange,
+}: {
+  currentStep: StepId;
+  onChange: (step: StepId) => void;
+}) {
+  return (
+    <nav className="flex items-stretch gap-0 border border-oq-border rounded-btn overflow-hidden bg-white">
+      {STEPS.map((step, idx) => {
+        const isActive = currentStep === step.id;
+        const isDone = currentStep > step.id;
+        return (
+          <button
+            key={step.id}
+            type="button"
+            onClick={() => onChange(step.id)}
+            className={[
+              'flex-1 px-4 py-3 text-left transition-colors text-[13px]',
+              isActive
+                ? 'bg-oq-black text-white font-semibold'
+                : isDone
+                  ? 'bg-white text-oq-black hover:bg-oq-bg'
+                  : 'bg-white text-oq-muted hover:bg-oq-bg',
+              idx > 0 ? 'border-l border-oq-border' : '',
+            ].join(' ')}
+          >
+            <div className="flex items-center gap-2">
+              <span
+                className={[
+                  'inline-flex items-center justify-center w-6 h-6 rounded-full text-[12px] font-bold',
+                  isActive
+                    ? 'bg-white text-oq-black'
+                    : isDone
+                      ? 'bg-oq-green-soft text-green-700'
+                      : 'bg-oq-bg text-oq-muted',
+                ].join(' ')}
+              >
+                {isDone ? '✓' : step.id}
+              </span>
+              <span className="truncate">{step.label}</span>
+            </div>
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -742,12 +1103,27 @@ function TransportRepeater({
   return (
     <div className="space-y-2">
       {transports.map((t, i) => (
-        <div key={t.id} className="border border-oq-border rounded-btn p-3 grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_auto] gap-3 items-end">
+        <div key={t.id} className="border border-oq-border rounded-btn p-3 grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr_auto] gap-3 items-end">
           <Field label="Nom (station, gare)">
             <input className="oq-input" value={t.name} onChange={(e) => update(i, { name: e.target.value })} />
           </Field>
           <Field label="Type">
             <input className="oq-input" value={t.transport_type ?? ''} onChange={(e) => update(i, { transport_type: e.target.value || null })} />
+          </Field>
+          <Field label="Catégorie">
+            <select
+              className="oq-input"
+              value={t.category ?? ''}
+              onChange={(e) => update(i, { category: (e.target.value || null) as TransportDraft['category'] })}
+            >
+              <option value="">—</option>
+              <option value="transport">Transport</option>
+              <option value="education">Éducation</option>
+              <option value="shopping">Commerces</option>
+              <option value="park">Parc / espace vert</option>
+              <option value="health">Santé</option>
+              <option value="other">Autre</option>
+            </select>
           </Field>
           <Field label="Temps">
             <input className="oq-input" value={t.time_label ?? ''} onChange={(e) => update(i, { time_label: e.target.value || null })} />
