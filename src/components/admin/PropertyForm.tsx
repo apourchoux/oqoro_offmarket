@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useRef, useState, type FormEvent } from 'react';
 import type {
   Property,
   PropertyAgent,
@@ -989,7 +989,12 @@ function PhotoManager({
   onChange: (next: PhotoDraft[]) => void;
   onUpload: (file: File) => Promise<string>;
 }) {
-  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+  // Use a ref to access the up-to-date photos list inside the upload loop
+  // (otherwise the closure captures the initial array and overwrites later uploads).
+  const photosRef = useRef(photos);
+  photosRef.current = photos;
 
   function update(index: number, patch: Partial<PhotoDraft>) {
     onChange(photos.map((p, i) => (i === index ? { ...p, ...patch } : p)));
@@ -1007,31 +1012,84 @@ function PhotoManager({
     [next[index], next[target]] = [next[target], next[index]];
     onChange(next.map((p, i) => ({ ...p, sort_order: i })));
   }
-  async function handleFile(file: File) {
-    setUploading(true);
-    try {
-      const url = await onUpload(file);
-      onChange([
-        ...photos,
-        {
+
+  async function handleFiles(files: File[]) {
+    const images = files.filter((f) => f.type.startsWith('image/'));
+    if (images.length === 0) return;
+    setProgress({ done: 0, total: images.length });
+    const failures: string[] = [];
+
+    for (let i = 0; i < images.length; i++) {
+      const file = images[i];
+      try {
+        const url = await onUpload(file);
+        const current = photosRef.current;
+        const newPhoto: PhotoDraft = {
           id: crypto.randomUUID(),
           url,
           source: 'upload',
           label: null,
-          is_primary: photos.length === 0,
-          sort_order: photos.length,
+          is_primary: current.length === 0,
+          sort_order: current.length,
           _isNew: true,
-        },
-      ]);
-    } catch (err) {
-      alert((err as Error).message);
-    } finally {
-      setUploading(false);
+        };
+        const next = [...current, newPhoto];
+        photosRef.current = next;
+        onChange(next);
+      } catch (err) {
+        failures.push(`${file.name} : ${(err as Error).message}`);
+      }
+      setProgress({ done: i + 1, total: images.length });
     }
+
+    setProgress(null);
+    if (failures.length > 0) {
+      alert(`Upload partiel — ${failures.length} échec(s) :\n${failures.join('\n')}`);
+    }
+  }
+
+  function onDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setDragActive(false);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) handleFiles(files);
   }
 
   return (
     <div className="space-y-3">
+      <div
+        onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
+        onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+        onDragLeave={(e) => { e.preventDefault(); setDragActive(false); }}
+        onDrop={onDrop}
+        className={[
+          'rounded-btn border-2 border-dashed p-6 text-center transition-colors',
+          dragActive ? 'border-oq-black bg-oq-bg' : 'border-oq-border bg-white',
+        ].join(' ')}
+      >
+        <div className="text-[14px] text-oq-text mb-3">
+          Glissez vos photos ici, ou
+        </div>
+        <label className="oq-btn-secondary cursor-pointer inline-flex">
+          {progress ? `Envoi ${progress.done}/${progress.total}…` : 'Sélectionner des fichiers'}
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            disabled={progress !== null}
+            onChange={(e) => {
+              const files = e.target.files ? Array.from(e.target.files) : [];
+              if (files.length > 0) handleFiles(files);
+              e.target.value = '';
+            }}
+          />
+        </label>
+        <div className="text-[12px] text-oq-muted mt-3">
+          JPG, PNG, WebP — plusieurs fichiers acceptés
+        </div>
+      </div>
+
       {photos.map((photo, i) => (
         <div key={photo.id} className="border border-oq-border rounded-btn p-3 flex gap-4 items-center">
           <img src={photo.url} alt="" className="w-20 h-20 object-cover rounded-btn bg-oq-bg" />
@@ -1061,28 +1119,14 @@ function PhotoManager({
           </div>
         </div>
       ))}
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => onChange([...photos, blankPhoto(photos.length)])}
-          className="oq-btn-secondary"
-        >
-          + Ajouter une URL
-        </button>
-        <label className="oq-btn-secondary cursor-pointer">
-          {uploading ? 'Envoi…' : '+ Uploader un fichier'}
-          <input
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleFile(file);
-              e.target.value = '';
-            }}
-          />
-        </label>
-      </div>
+
+      <button
+        type="button"
+        onClick={() => onChange([...photos, blankPhoto(photos.length)])}
+        className="oq-btn-secondary"
+      >
+        + Ajouter une URL externe
+      </button>
     </div>
   );
 }
