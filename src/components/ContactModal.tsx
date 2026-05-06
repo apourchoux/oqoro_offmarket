@@ -68,6 +68,14 @@ export default function ContactModal({
         throw new Error(err?.error ?? 'Une erreur est survenue');
       }
       setStatus('success');
+      // GA event lead_submit (contact bien)
+      if (typeof window !== 'undefined' && typeof (window as any).gtag === 'function') {
+        (window as any).gtag('event', 'lead_submit', {
+          source: 'contact_modal',
+          property_id: propertyId,
+          property_title: propertyTitle,
+        });
+      }
     } catch (err) {
       setStatus('error');
       setErrorMessage(

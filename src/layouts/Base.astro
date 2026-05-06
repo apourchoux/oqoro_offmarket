@@ -65,6 +65,17 @@ const ogImage = image || `${siteUrl}/og-default.jpg`;
           function gtag() { dataLayer.push(arguments); }
           gtag('js', new Date());
           gtag('config', gaId);
+
+          // Track lead form success after redirect (?lead=ok&from=...)
+          try {
+            var params = new URLSearchParams(location.search);
+            if (params.get('lead') === 'ok') {
+              gtag('event', 'lead_submit', {
+                source: params.get('from') || 'unknown',
+                page_path: location.pathname,
+              });
+            }
+          } catch (e) {}
         </script>
       </>
     )}

@@ -8,6 +8,15 @@ import HomeTestimonials from '../components/home/HomeTestimonials.astro';
 import HomeCta from '../components/home/HomeCta.astro';
 import { listPublishedProperties } from '../lib/supabase';
 
+export const prerender = false;
+
+// Cache court : la home reflète les nouvelles publications après ~60s sans rebuild,
+// mais reste rapide grâce au CDN + stale-while-revalidate.
+Astro.response.headers.set(
+  'Cache-Control',
+  'public, max-age=60, s-maxage=60, stale-while-revalidate=300',
+);
+
 let items: Awaited<ReturnType<typeof listPublishedProperties>> = [];
 let loadError: string | null = null;
 

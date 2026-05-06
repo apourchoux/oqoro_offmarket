@@ -28,6 +28,13 @@ if (!data) {
   return Astro.redirect('/404');
 }
 
+// Cache fiche bien : 60s sur le navigateur + Netlify edge,
+// 5 min de stale-while-revalidate (les fiches changent rarement, on accepte un peu de retard).
+Astro.response.headers.set(
+  'Cache-Control',
+  'public, max-age=60, s-maxage=60, stale-while-revalidate=300',
+);
+
 const { property, photos, transports, annual_reports, financials } = data;
 
 const typeLabel = property.property_type
