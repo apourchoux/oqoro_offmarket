@@ -1,87 +1,95 @@
 ---
-import type { Property, PropertyFinancials } from '../../lib/types';
+import type { Property } from '../../lib/types';
 import { formatEur } from '../../lib/format';
 
 interface Props {
   property: Property;
-  financials: PropertyFinancials;
 }
 
-const { property, financials } = Astro.props;
+const { property } = Astro.props;
 const market = property.market_data;
 
-const surface = property.total_surface ?? 0;
-const pricePerM = surface > 0 ? Math.round(property.sale_price / surface) : null;
-const monthlyRent = financials.monthly_rent_cc ?? 0;
-const rentPerM = surface > 0 ? Math.round(monthlyRent / surface) : null;
+const marketPricePerM = market?.price_per_m2 ?? null;
+const marketRentPerM = market?.rent_per_m2 ?? null;
+const marketYieldMedian = market?.yield_median ?? null;
+const priceDelta12m = market?.price_delta_12m ?? null;
+const rentDelta12m = market?.rent_delta_12m ?? null;
+const tension = market?.tension ?? null;
+const relocationDelay = market?.relocation_delay ?? null;
+const priceEvolution5y = market?.price_evolution_5y ?? null;
 
-// Phase 3 : utilise market_data si présent, sinon estimations dérivées du bien.
-const marketPricePerM = market?.price_per_m2 ?? (pricePerM ? Math.round(pricePerM * 1.05) : null);
-const marketRentPerM = market?.rent_per_m2 ?? (rentPerM ? Math.round(rentPerM * 1.02) : null);
-const marketYieldMedian =
-  market?.yield_median ?? (financials.gross_yield ? financials.gross_yield - 0.3 : null);
-const priceDelta12m = market?.price_delta_12m ?? 2.1;
-const rentDelta12m = market?.rent_delta_12m ?? 3.4;
-const tension = market?.tension ?? 'Élevée · 3,2 candidats / annonce';
-const relocationDelay = market?.relocation_delay ?? '11 jours';
-const priceEvolution5y = market?.price_evolution_5y ?? 14.2;
+const hasAnyMarketData =
+  marketPricePerM !== null ||
+  marketRentPerM !== null ||
+  marketYieldMedian !== null ||
+  tension !== null ||
+  relocationDelay !== null ||
+  priceEvolution5y !== null;
 
-const hasReal = Boolean(market);
 const areaLabel = [property.neighborhood, property.city].filter(Boolean).join(', ') || property.city || '';
 
 const fmtPct = (v: number) =>
   `${v >= 0 ? '+ ' : ''}${v.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
 ---
 
-{(pricePerM || rentPerM) && (
+{hasAnyMarketData && (
   <section class="s">
     <h2>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 6-6"/></svg>
       Marché local
       {areaLabel && <span class="sub">· {areaLabel}</span>}
     </h2>
-    <div class="market-cards">
-      {marketPricePerM && (
-        <div class="mc">
-          <div class="l">Prix moyen au m²</div>
-          <div class="v">{formatEur(marketPricePerM)}<small>/m²</small></div>
-          <div class:list={['delta', priceDelta12m >= 0 ? 'up' : 'dn']}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-            {fmtPct(priceDelta12m)} sur 12 mois
+    {(marketPricePerM !== null || marketRentPerM !== null) && (
+      <div class="market-cards">
+        {marketPricePerM !== null && (
+          <div class="mc">
+            <div class="l">Prix moyen au m²</div>
+            <div class="v">{formatEur(marketPricePerM)}<small>/m²</small></div>
+            {priceDelta12m !== null && (
+              <div class:list={['delta', priceDelta12m >= 0 ? 'up' : 'dn']}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                {fmtPct(priceDelta12m)} sur 12 mois
+              </div>
+            )}
           </div>
-        </div>
-      )}
-      {marketRentPerM && (
-        <div class="mc">
-          <div class="l">Loyer médian</div>
-          <div class="v">{marketRentPerM} €<small>/m²</small></div>
-          <div class:list={['delta', rentDelta12m >= 0 ? 'up' : 'dn']}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-            {fmtPct(rentDelta12m)} sur 12 mois
+        )}
+        {marketRentPerM !== null && (
+          <div class="mc">
+            <div class="l">Loyer médian</div>
+            <div class="v">{marketRentPerM} €<small>/m²</small></div>
+            {rentDelta12m !== null && (
+              <div class:list={['delta', rentDelta12m >= 0 ? 'up' : 'dn']}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                {fmtPct(rentDelta12m)} sur 12 mois
+              </div>
+            )}
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    )}
     {marketYieldMedian !== null && (
       <div class="market-row">
         <span class="l">Rendement médian dans le quartier</span>
         <span class="v">{marketYieldMedian.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %</span>
       </div>
     )}
-    <div class="market-row">
-      <span class="l">Tension locative</span>
-      <span class="v">{tension}</span>
-    </div>
-    <div class="market-row">
-      <span class="l">Délai moyen de relocation</span>
-      <span class="v">{relocationDelay}</span>
-    </div>
-    <div class="market-row">
-      <span class="l">Évolution prix · 5 ans</span>
-      <span class="v" style={`color:${priceEvolution5y >= 0 ? '#079455' : '#D92D20'};`}>{fmtPct(priceEvolution5y)}</span>
-    </div>
-    {!hasReal && (
-      <p class="market-note">Indicateurs estimés. Données précises de marché disponibles sur demande.</p>
+    {tension !== null && (
+      <div class="market-row">
+        <span class="l">Tension locative</span>
+        <span class="v">{tension}</span>
+      </div>
+    )}
+    {relocationDelay !== null && (
+      <div class="market-row">
+        <span class="l">Délai moyen de relocation</span>
+        <span class="v">{relocationDelay}</span>
+      </div>
+    )}
+    {priceEvolution5y !== null && (
+      <div class="market-row">
+        <span class="l">Évolution prix · 5 ans</span>
+        <span class="v" style={`color:${priceEvolution5y >= 0 ? '#079455' : '#D92D20'};`}>{fmtPct(priceEvolution5y)}</span>
+      </div>
     )}
   </section>
 )}
