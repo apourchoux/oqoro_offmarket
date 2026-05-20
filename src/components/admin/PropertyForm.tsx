@@ -668,6 +668,24 @@ export default function PropertyForm({
               }
             />
           </Field>
+          <Field label="Occupation locative du quartier (%)">
+            <input
+              className="oq-input"
+              type="number"
+              min="0"
+              max="100"
+              step="0.1"
+              value={property.zone_occupancy_rate ?? ''}
+              onChange={(e) =>
+                set(
+                  'zone_occupancy_rate',
+                  e.target.value === '' ? null : Number(e.target.value),
+                )
+              }
+            />
+          </Field>
+        </Grid2>
+        <Grid2>
           <Field label="Évolution prix · 5 ans (%)">
             <input
               className="oq-input"
@@ -677,6 +695,14 @@ export default function PropertyForm({
               onChange={(e) =>
                 setMarket('price_evolution_5y', e.target.value === '' ? undefined : Number(e.target.value))
               }
+            />
+          </Field>
+          <Field label="Délai moyen de relocation">
+            <input
+              className="oq-input"
+              placeholder="11 jours"
+              value={property.market_data?.relocation_delay ?? ''}
+              onChange={(e) => setMarket('relocation_delay', e.target.value || undefined)}
             />
           </Field>
         </Grid2>
@@ -704,24 +730,14 @@ export default function PropertyForm({
             />
           </Field>
         </Grid2>
-        <Grid2>
-          <Field label="Tension locative (texte libre)">
-            <input
-              className="oq-input"
-              placeholder="Élevée · 3,2 candidats / annonce"
-              value={property.market_data?.tension ?? ''}
-              onChange={(e) => setMarket('tension', e.target.value || undefined)}
-            />
-          </Field>
-          <Field label="Délai moyen de relocation">
-            <input
-              className="oq-input"
-              placeholder="11 jours"
-              value={property.market_data?.relocation_delay ?? ''}
-              onChange={(e) => setMarket('relocation_delay', e.target.value || undefined)}
-            />
-          </Field>
-        </Grid2>
+        <Field label="Tension locative (texte libre)">
+          <input
+            className="oq-input"
+            placeholder="Élevée · 3,2 candidats / annonce"
+            value={property.market_data?.tension ?? ''}
+            onChange={(e) => setMarket('tension', e.target.value || undefined)}
+          />
+        </Field>
       </Section>
       )}
 

@@ -4,3 +4,29 @@
 
 [build.environment]
   NODE_VERSION = "20"
+
+# Headers de sécurité globaux. Appliqués par Netlify avant les routes Astro.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Empêche le MIME-sniffing : si on sert un fichier en image/jpeg, le navigateur
+    # ne va pas l'exécuter comme du HTML.
+    X-Content-Type-Options = "nosniff"
+    # Limite ce que les referrers exposent aux sites tiers.
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    # Coupe l'accès aux APIs sensibles depuis le site.
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=()"
+    # Force HTTPS pendant 2 ans (subdomains + preload).
+    Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
+    # Empêche l'embarquement en iframe par défaut.
+    X-Frame-Options = "SAMEORIGIN"
+    # Coupe les cross-origin loads non explicites (mitigation Spectre).
+    Cross-Origin-Opener-Policy = "same-origin"
+
+# Renforce l'admin : no-cache + iframe interdite + clear-site-data sur logout.
+[[headers]]
+  for = "/admin/*"
+  [headers.values]
+    Cache-Control = "private, no-store"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "no-referrer"

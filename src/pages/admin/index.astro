@@ -5,6 +5,12 @@ import Admin from '../../layouts/Admin.astro';
 import { getAdminClient } from '../../lib/supabase';
 import { LEAD_STATUS_LABELS } from '../../lib/types';
 
+// Défense en profondeur : si le middleware était contourné (cf. CVE Astro),
+// chaque page admin re-vérifie la présence d'un user authentifié.
+if (!Astro.locals.user) {
+  return Astro.redirect('/admin/login');
+}
+
 const supabase = getAdminClient();
 
 const [

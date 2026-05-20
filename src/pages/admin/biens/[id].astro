@@ -5,7 +5,16 @@ import Admin from '../../../layouts/Admin.astro';
 import PropertyForm from '../../../components/admin/PropertyForm.tsx';
 import { getAdminClient } from '../../../lib/supabase';
 
+if (!Astro.locals.user) {
+  return Astro.redirect('/admin/login');
+}
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const { id } = Astro.params as { id: string };
+if (!id || !UUID_REGEX.test(id)) {
+  return Astro.redirect('/admin/biens');
+}
 const supabase = getAdminClient();
 
 const [

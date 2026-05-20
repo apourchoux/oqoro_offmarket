@@ -3,6 +3,7 @@ export const prerender = false;
 
 import '../../styles/global.css';
 import { createClient } from '@supabase/supabase-js';
+import { rateLimit } from '../../lib/security';
 
 const url = import.meta.env.PUBLIC_SUPABASE_URL;
 const anonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
@@ -19,19 +20,22 @@ if (Astro.url.searchParams.get('error') === 'forbidden') {
 }
 
 if (Astro.request.method === 'POST') {
-  try {
-    const form = await Astro.request.formData();
-    const email = String(form.get('email') ?? '').trim().toLowerCase();
-    const password = String(form.get('password') ?? '');
+  // Rate-limit par IP pour ralentir le brute-force. 5 tentatives / 5 min.
+  const ip = Astro.clientAddress || 'unknown';
+  const limit = rateLimit(`login:${ip}`, 5, 5 * 60 * 1000);
+  if (!limit.ok) {
+    errorMessage = `Trop de tentatives. Réessayez dans ${Math.ceil(limit.retryAfterSec / 60)} min.`;
+  } else {
+    try {
+      const form = await Astro.request.formData();
+      const email = String(form.get('email') ?? '').trim().toLowerCase();
+      const password = String(form.get('password') ?? '');
 
-    if (!email || !password) {
-      errorMessage = 'Email et mot de passe requis.';
-    } else if (!url || !anonKey) {
-      errorMessage = 'Configuration Supabase manquante.';
-    } else {
-      const allowed = getAdminEmails();
-      if (allowed.length > 0 && !allowed.includes(email)) {
-        errorMessage = "Cet email n'est pas autorisé.";
+      if (!email || !password || email.length > 254 || password.length > 256) {
+        // Message volontairement générique : pas de fuite sur ce qui a échoué.
+        errorMessage = 'Identifiants invalides.';
+      } else if (!url || !anonKey) {
+        errorMessage = 'Configuration Supabase manquante.';
       } else {
         const supabase = createClient(url, anonKey, {
           auth: { persistSession: false },
@@ -40,28 +44,40 @@ if (Astro.request.method === 'POST') {
           email,
           password,
         });
-        if (error || !data.session) {
+        const allowed = getAdminEmails();
+        const isAllowed = allowed.length === 0
+          || (data.user?.email && allowed.includes(data.user.email.toLowerCase()));
+
+        if (error || !data.session || !isAllowed) {
+          // Même message que l'email autorisé soit valide ou pas : empêche
+          // l'énumération des comptes admin.
           errorMessage = 'Identifiants invalides.';
         } else {
-          const maxAge = 60 * 60 * 24 * 7;
+          const maxAge = 60 * 60; // 1 h : aligné sur la durée de vie d'un access token Supabase.
           const common = {
             path: '/',
             httpOnly: true,
             secure: import.meta.env.PROD,
-            sameSite: 'lax' as const,
+            sameSite: 'strict' as const,
             maxAge,
           };
           Astro.cookies.set('sb-access-token', data.session.access_token, common);
-          Astro.cookies.set('sb-refresh-token', data.session.refresh_token, common);
+          Astro.cookies.set('sb-refresh-token', data.session.refresh_token, {
+            ...common,
+            maxAge: 60 * 60 * 24 * 7, // refresh token garde 7 j
+          });
           return Astro.redirect('/admin');
         }
       }
+    } catch (err) {
+      console.error('[admin/login] error');
+      errorMessage = 'Erreur serveur. Réessayez.';
     }
-  } catch (err) {
-    console.error('[admin/login] error', err);
-    errorMessage = 'Erreur serveur. Réessayez.';
   }
 }
+
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+Astro.response.headers.set('X-Frame-Options', 'DENY');
 ---
 
 <!doctype html>
@@ -90,14 +106,14 @@ if (Astro.request.method === 'POST') {
         </div>
       )}
 
-      <form method="POST" class="space-y-4">
+      <form method="POST" class="space-y-4" autocomplete="off">
         <div>
           <label for="email" class="oq-label">Email</label>
-          <input id="email" name="email" type="email" required autocomplete="email" class="oq-input" />
+          <input id="email" name="email" type="email" required maxlength="254" autocomplete="email" class="oq-input" />
         </div>
         <div>
           <label for="password" class="oq-label">Mot de passe</label>
-          <input id="password" name="password" type="password" required autocomplete="current-password" class="oq-input" />
+          <input id="password" name="password" type="password" required maxlength="256" autocomplete="current-password" class="oq-input" />
         </div>
         <button type="submit" class="oq-btn-dark w-full">Se connecter</button>
       </form>

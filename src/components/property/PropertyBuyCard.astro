@@ -13,10 +13,14 @@ const surface = property.total_surface ?? 0;
 const pricePerM = surface > 0 ? Math.round(property.sale_price / surface) : null;
 
 const yieldLabel = `${(financials.gross_yield ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} %`;
-const occupancyLabel =
-  financials.total_lots > 0
-    ? `${Math.round((financials.rented_lots / financials.total_lots) * 100)} %`
-    : '—';
+// Occupation = donnée de marché (taux d'occupation locatif du quartier), pas
+// l'état point-in-time des lots — qui serait à 0 % dès qu'on vide le bien
+// pour la mise en vente. Si non renseigné, on masque la case.
+const zoneOccupancy = property.zone_occupancy_rate;
+const zoneOccupancyLabel =
+  zoneOccupancy !== null && zoneOccupancy !== undefined
+    ? `${Math.round(zoneOccupancy)} %`
+    : null;
 const rentLabel = formatEur(financials.monthly_rent_cc);
 
 const totalProject = property.total_project ?? property.sale_price + (property.notary_fees ?? 0);
@@ -48,10 +52,12 @@ const agentPhone = property.agent?.phone ?? '+33180000000';
         <div class="v">{yieldLabel}</div>
         <div class="l">Rendement brut</div>
       </div>
-      <div class="it">
-        <div class="v">{occupancyLabel}</div>
-        <div class="l">Occupation 12 m</div>
-      </div>
+      {zoneOccupancyLabel && (
+        <div class="it">
+          <div class="v">{zoneOccupancyLabel}</div>
+          <div class="l">Occupation zone</div>
+        </div>
+      )}
       <div class="it">
         <div class="v">{rentLabel}</div>
         <div class="l">Loyer / mois</div>

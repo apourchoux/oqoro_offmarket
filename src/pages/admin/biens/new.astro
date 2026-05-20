@@ -3,6 +3,10 @@ export const prerender = false;
 
 import Admin from '../../../layouts/Admin.astro';
 import PropertyForm from '../../../components/admin/PropertyForm.tsx';
+
+if (!Astro.locals.user) {
+  return Astro.redirect('/admin/login');
+}
 ---
 
 <Admin title="Nouveau bien" activeSection="biens">

@@ -37,11 +37,13 @@ const featuredYieldLabel = featured
     })} %`
   : null;
 
-const featuredOccupancyLabel = featured
-  ? featured.financials.total_lots > 0
-    ? `${Math.round((featured.financials.rented_lots / featured.financials.total_lots) * 100)} %`
-    : '—'
-  : null;
+// Sur la fiche d'appel home, l'occupation = donnée de marché (taux locatif
+// du quartier renseigné en admin). Pas le statut courant des lots, qui chute
+// mécaniquement à 0 % quand le bien est vidé pour la vente.
+const featuredOccupancyLabel =
+  featured && featured.property.zone_occupancy_rate !== null
+    ? `${Math.round(featured.property.zone_occupancy_rate)} %`
+    : null;
 
 const avgYield =
   count > 0
@@ -49,13 +51,15 @@ const avgYield =
     : null;
 
 const avgOccupancy = (() => {
-  const withLots = items.filter((x) => x.financials.total_lots > 0);
-  if (withLots.length === 0) return null;
-  const sum = withLots.reduce(
-    (s, x) => s + x.financials.rented_lots / x.financials.total_lots,
+  const withZone = items.filter(
+    (x) => x.property.zone_occupancy_rate !== null,
+  );
+  if (withZone.length === 0) return null;
+  const sum = withZone.reduce(
+    (s, x) => s + (x.property.zone_occupancy_rate ?? 0),
     0,
   );
-  return Math.round((sum / withLots.length) * 100);
+  return Math.round(sum / withZone.length);
 })();
 
 const heroStats = [
@@ -68,11 +72,11 @@ const heroStats = [
       avgYield !== null
         ? `${avgYield.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`
         : '—',
-    lbl: 'Rendement net moyen',
+    lbl: 'Rendement brut moyen',
   },
   {
     num: avgOccupancy !== null ? `${avgOccupancy} %` : '—',
-    lbl: "Taux d'occupation moyen",
+    lbl: 'Occupation moyenne du marché',
   },
   { num: '7 ans', lbl: "D'historique de gestion" },
 ];

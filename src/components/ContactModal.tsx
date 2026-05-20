@@ -55,6 +55,8 @@ export default function ContactModal({
       last_name: String(formData.get('last_name') ?? '').trim(),
       email: String(formData.get('email') ?? '').trim(),
       phone: String(formData.get('phone') ?? '').trim(),
+      // Honeypot anti-bot — invisible pour l'utilisateur.
+      website: String(formData.get('website') ?? ''),
     };
 
     try {
@@ -143,6 +145,14 @@ export default function ContactModal({
             <p className="text-[13px] text-oq-muted">
               Recevez le dossier complet et les modalités de visite.
             </p>
+            <input
+              type="text"
+              name="website"
+              tabIndex={-1}
+              autoComplete="off"
+              aria-hidden="true"
+              style={{ position: 'absolute', left: '-9999px', width: 1, height: 1 }}
+            />
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label htmlFor="first_name" className="oq-label">

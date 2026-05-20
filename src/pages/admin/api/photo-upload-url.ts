@@ -1,10 +1,10 @@
 import type { APIRoute } from 'astro';
 import { getAdminClient } from '../../../lib/supabase';
+import { isAllowedPhotoExt, isAllowedPhotoMime } from '../../../lib/security';
 
 export const prerender = false;
 
 const BUCKET = 'property-photos';
-const MAX_EXT_LEN = 8;
 
 interface Payload {
   contentType?: string;
@@ -22,8 +22,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
   }
 
   const ext = (payload.ext ?? 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
-  if (!ext || ext.length > MAX_EXT_LEN) {
-    return json({ error: 'Extension invalide' }, 400);
+  if (!isAllowedPhotoExt(ext)) {
+    return json({ error: 'Extension non autorisée' }, 400);
+  }
+
+  const contentType = (payload.contentType ?? '').toLowerCase().trim();
+  if (contentType && !isAllowedPhotoMime(contentType)) {
+    return json({ error: 'Type MIME non autorisé' }, 400);
   }
 
   const path = `${crypto.randomUUID()}.${ext}`;
@@ -33,8 +38,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
     .from(BUCKET)
     .createSignedUploadUrl(path);
   if (error || !data) {
-    console.error('[admin photo-upload-url] error', error);
-    return json({ error: error?.message ?? 'Signed URL failed' }, 500);
+    console.error('[admin photo-upload-url] error');
+    return json({ error: 'Signed URL failed' }, 500);
   }
 
   const { data: publicData } = supabase.storage.from(BUCKET).getPublicUrl(path);

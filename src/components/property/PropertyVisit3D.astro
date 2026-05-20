@@ -11,18 +11,20 @@ const { matterportUrl, bgImage } = Astro.props;
 //   https://my.matterport.com/show/?m=XXX
 //   https://my.matterport.com/show?m=XXX&play=1
 //   https://discover.matterport.com/space/XXX
-function buildEmbedUrl(rawUrl: string): string {
+//
+// Toute URL non-http(s) est refusée : empêche `javascript:` ou `data:` URI
+// d'arriver dans iframe.src (XSS sur l'origine parente).
+function buildEmbedUrl(rawUrl: string): string | null {
   try {
     const u = new URL(rawUrl);
-    // Always force play=1 + mobile gyro on, drop branding/help if not specified
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
     if (u.hostname.includes('matterport.com')) {
       if (!u.searchParams.has('play')) u.searchParams.set('play', '1');
       if (!u.searchParams.has('qs')) u.searchParams.set('qs', '1');
-      return u.toString();
     }
-    return rawUrl;
+    return u.toString();
   } catch {
-    return rawUrl;
+    return null;
   }
 }
 

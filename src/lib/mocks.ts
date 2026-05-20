@@ -46,6 +46,13 @@ export const mockProperty: Property = {
     'Colocation 110m² Lyon 3e à vendre | Rendement 7,2% | OQORO Off Market',
   meta_description:
     "Colocation meublée en gestion OQORO à vendre. 4 chambres louées, revenus locatifs certifiés, rendement brut 7,2%.",
+  monthly_charges: null,
+  yearly_property_tax: null,
+  monthly_management_fee: null,
+  oqoro_fees: null,
+  market_data: null,
+  agent: null,
+  zone_occupancy_rate: 96,
   published_at: new Date().toISOString(),
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
@@ -141,6 +148,7 @@ export const mockTransports: PropertyTransport[] = [
     transport_type: 'Métro D',
     destination: null,
     time_label: '5 min à pied',
+    category: 'transport',
     sort_order: 0,
   },
   {
@@ -150,6 +158,7 @@ export const mockTransports: PropertyTransport[] = [
     transport_type: 'Tramway',
     destination: null,
     time_label: '8 min à pied',
+    category: 'transport',
     sort_order: 1,
   },
   {
@@ -159,6 +168,7 @@ export const mockTransports: PropertyTransport[] = [
     transport_type: 'SNCF',
     destination: null,
     time_label: '12 min en métro',
+    category: 'transport',
     sort_order: 2,
   },
 ];

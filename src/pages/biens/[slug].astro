@@ -18,6 +18,7 @@ import ContactModal from '../../components/ContactModal.tsx';
 import { getPropertyFull } from '../../lib/supabase';
 import { formatEur } from '../../lib/format';
 import { PROPERTY_TYPE_LABELS } from '../../lib/types';
+import { safeHttpUrl } from '../../lib/security';
 
 export const prerender = false;
 
@@ -36,6 +37,13 @@ Astro.response.headers.set(
 );
 
 const { property, photos, transports, annual_reports, financials } = data;
+
+// Toutes les URL externes éditables côté admin passent par safeHttpUrl :
+// neutralise les `javascript:`, `data:`, etc. qui pourraient être injectés
+// via la fiche admin (défense en profondeur, en plus de la contrainte SQL).
+const safeMatterportUrl = safeHttpUrl(property.matterport_url);
+const safeOqoroListingUrl = safeHttpUrl(property.oqoro_listing_url);
+const safeSaleListingUrl = safeHttpUrl(property.sale_listing_url);
 
 const typeLabel = property.property_type
   ? PROPERTY_TYPE_LABELS[property.property_type]
@@ -94,18 +102,18 @@ const jsonLd: Record<string, unknown> = {
         <span class="sep">/</span>
         <b>{property.title}</b>
       </nav>
-      <button type="button" class="share-btn" id="share-btn" aria-label="Partager ce bien">
+      <button type="button" class="share-btn" id="share-btn" aria-label="Partager ce bien" data-share-title={property.title} data-share-url={canonical}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
         <span>Partager</span>
       </button>
     </div>
 
-    <PropertyGallery photos={photos} title={property.title} matterportUrl={property.matterport_url} />
+    <PropertyGallery photos={photos} title={property.title} matterportUrl={safeMatterportUrl} />
 
     <div class="bien-grid">
       <div class="col-left">
         <PropertyTitleBlock property={property} financials={financials} />
-        <PropertyVisit3D matterportUrl={property.matterport_url} bgImage={heroPhoto} />
+        <PropertyVisit3D matterportUrl={safeMatterportUrl} bgImage={heroPhoto} />
         <PropertyDescription description={property.description} />
         <PropertyFeatures property={property} financials={financials} />
         <PropertyProfitability property={property} financials={financials} />
@@ -121,8 +129,8 @@ const jsonLd: Record<string, unknown> = {
         />
         <PropertyLocation property={property} transports={transports} />
         <PropertyExternalLinks
-          oqoroListingUrl={property.oqoro_listing_url}
-          saleListingUrl={property.sale_listing_url}
+          oqoroListingUrl={safeOqoroListingUrl}
+          saleListingUrl={safeSaleListingUrl}
         />
       </div>
       <PropertyBuyCard property={property} financials={financials} />
@@ -211,9 +219,13 @@ const jsonLd: Record<string, unknown> = {
   }
 </style>
 
-<script define:vars={{ shareTitle: property.title, shareUrl: canonical }}>
+<script>
+  // Lecture des données via data-* attributes plutôt que via define:vars :
+  // contourne la CVE Astro GHSA-j687-52p2-xcff (tag fermant script mal échappé).
   const btn = document.getElementById('share-btn');
   if (btn) {
+    const shareTitle = btn.getAttribute('data-share-title') ?? document.title;
+    const shareUrl = btn.getAttribute('data-share-url') ?? location.href;
     btn.addEventListener('click', async () => {
       try {
         if (navigator.share) {

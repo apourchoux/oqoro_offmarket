@@ -43,6 +43,7 @@ const errorMsg = url.searchParams.get('msg') ?? '';
       ) : (
         <form class="cta-form" method="POST" action="/api/leads">
           <input type="hidden" name="source" value="alerte" />
+          <input type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" class="hp" />
           {isError && (
             <div class="cta-error">
               {errorMsg === 'email'
@@ -120,6 +121,14 @@ const errorMsg = url.searchParams.get('msg') ?? '';
     border-radius: 16px;
     padding: 24px;
     box-shadow: var(--shadow-xl);
+  }
+  .cta-form .hp {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
   }
   .cta-form .fine {
     font-size: 12px;
