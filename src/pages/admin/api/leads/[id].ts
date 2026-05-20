@@ -44,8 +44,11 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
   const supabase = getAdminClient();
   const { error } = await supabase.from('leads').update(patch).eq('id', id);
   if (error) {
-    console.error('[admin leads update] error');
-    return json({ error: 'Mise à jour impossible' }, 500);
+    console.error('[admin leads update] error', error);
+    return json(
+      { error: `Mise à jour impossible : ${error.message}` },
+      500,
+    );
   }
   return json({ success: true });
 };

@@ -10,6 +10,15 @@ const { property, financials } = Astro.props;
 
 const monthlyRent = financials.monthly_rent_cc ?? 0;
 
+// Vacance locative = part du loyer perdue à cause du taux d'occupation
+// moyen du quartier (donnée OQORO). Si non renseigné, on n'applique rien.
+const occupancyRate = property.zone_occupancy_rate;
+const vacancyPct =
+  occupancyRate !== null && occupancyRate !== undefined
+    ? Math.max(0, 100 - occupancyRate)
+    : 0;
+const vacancy = (monthlyRent * vacancyPct) / 100;
+
 // Phase 3 : valeurs réelles si renseignées, sinon estimations.
 const charges = property.monthly_charges ?? monthlyRent * 0.088;
 const tax =
@@ -17,11 +26,14 @@ const tax =
     ? property.yearly_property_tax / 12
     : monthlyRent * 0.072;
 const mgmt = property.monthly_management_fee ?? monthlyRent * 0.08;
-const cashflow = Math.max(0, monthlyRent - charges - tax - mgmt);
+const cashflow = Math.max(0, monthlyRent - vacancy - charges - tax - mgmt);
 
 const total = monthlyRent || 1;
 const segs = [
   { label: 'Cashflow net', value: cashflow, color: 'var(--brand-600)' },
+  ...(vacancy > 0
+    ? [{ label: 'Vacance locative', value: vacancy, color: 'var(--oqoro-blue)' }]
+    : []),
   { label: 'Charges copropriété', value: charges, color: 'var(--oqoro-saumon)' },
   { label: 'Taxe foncière', value: tax, color: 'var(--brand-200)' },
   { label: 'Gestion & assurance', value: mgmt, color: 'var(--gray-300)' },
