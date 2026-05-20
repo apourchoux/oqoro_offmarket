@@ -65,6 +65,11 @@ export interface Property {
   market_data: PropertyMarketData | null;
   agent: PropertyAgent | null;
 
+  // Taux d'occupation locatif du quartier (0–100). Donnée de marché renseignée
+  // manuellement côté admin — sert la case "Occupation zone" de la fiche bien
+  // et la moyenne affichée sur la home.
+  zone_occupancy_rate: number | null;
+
   published_at: string | null;
   created_at: string;
   updated_at: string;

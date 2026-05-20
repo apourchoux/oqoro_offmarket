@@ -93,7 +93,9 @@ const heroImage = featured?.primary_photo?.url
             </div>
             <div class="fstats">
               <div class="fstat"><div class="v">{featuredYieldLabel}</div><div class="l">Rendement</div></div>
-              <div class="fstat"><div class="v">{featuredOccupancyLabel}</div><div class="l">Occupation</div></div>
+              {featuredOccupancyLabel && (
+                <div class="fstat"><div class="v">{featuredOccupancyLabel}</div><div class="l">Occupation zone</div></div>
+              )}
               <div class="fstat"><div class="v">{formatEur(featured.financials.monthly_rent_cc)}</div><div class="l">Loyer encaissé</div></div>
             </div>
           </a>
@@ -267,11 +269,11 @@ const heroImage = featured?.primary_photo?.url
     gap: 6px;
   }
   .featured-card .fstats {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    display: flex;
     border-top: 1px solid var(--border-tertiary);
     padding-top: 12px;
   }
+  .featured-card .fstat { flex: 1; min-width: 0; }
   .featured-card .fstat .v {
     font-family: var(--font-display);
     font-size: 18px;

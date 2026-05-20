@@ -18,9 +18,12 @@ const floorLabel =
       ? 'Rez-de-chaussée'
       : `${property.floor}${property.floor === 1 ? 'er' : 'e'} étage`;
 
+// Badge "intégralement loué" : signal positif uniquement. Si certains lots
+// sont vacants (cas fréquent à la mise en vente), on n'affiche rien — la
+// vraie information de marché est dans la case "Occupation zone" à droite.
 const occupancyBadge =
-  financials.total_lots > 0
-    ? `${financials.rented_lots}/${financials.total_lots} loué${financials.rented_lots > 1 ? 's' : ''}`
+  financials.total_lots > 0 && financials.rented_lots === financials.total_lots
+    ? 'Intégralement loué'
     : null;
 
 const publishedAt = property.published_at ? new Date(property.published_at) : null;

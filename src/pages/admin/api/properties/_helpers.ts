@@ -54,6 +54,12 @@ function num(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function pct(v: unknown): number | null {
+  const n = num(v);
+  if (n === null) return null;
+  return Math.max(0, Math.min(100, n));
+}
+
 function numRequired(v: unknown, fallback = 0): number {
   return num(v) ?? fallback;
 }
@@ -144,6 +150,7 @@ export interface SanitizedProperty {
   oqoro_fees: number | null;
   market_data: Record<string, unknown> | null;
   agent: Record<string, unknown> | null;
+  zone_occupancy_rate: number | null;
   published_at?: string | null;
 }
 
@@ -190,6 +197,7 @@ export function sanitizeProperty(input: any): SanitizedProperty {
     oqoro_fees: num(input?.oqoro_fees),
     market_data: jsonObjectOrNull(input?.market_data),
     agent: jsonObjectOrNull(input?.agent, 10),
+    zone_occupancy_rate: pct(input?.zone_occupancy_rate),
   };
 }
 
