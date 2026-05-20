@@ -20,11 +20,14 @@ const yieldLabel = `${financials.gross_yield.toLocaleString('fr-FR', {
   maximumFractionDigits: 2,
 })} %`;
 
-const occupancyPct =
-  financials.total_lots > 0
-    ? Math.round((financials.rented_lots / financials.total_lots) * 100)
+// Occupation = donnée de marché (taux d'occupation locatif du quartier),
+// pas le statut point-in-time des lots — qui passe à 0 % dès qu'on vide le
+// bien pour la vente. Si la donnée n'est pas renseignée, la case disparaît.
+const zoneOccupancy = property.zone_occupancy_rate;
+const zoneOccupancyLabel =
+  zoneOccupancy !== null && zoneOccupancy !== undefined
+    ? `${Math.round(zoneOccupancy)} %`
     : null;
-const occupancyLabel = occupancyPct !== null ? `${occupancyPct} %` : '—';
 
 const rentLabel = formatEur(financials.monthly_rent_cc);
 const pricePerM =
@@ -90,7 +93,9 @@ const locality = property.city
 
     <div class="bien-stats">
       <div class="bstat"><div class="v">{yieldLabel}</div><div class="l">Rendement</div></div>
-      <div class="bstat"><div class="v">{occupancyLabel}</div><div class="l">Occupation</div></div>
+      {zoneOccupancyLabel && (
+        <div class="bstat"><div class="v">{zoneOccupancyLabel}</div><div class="l">Occupation zone</div></div>
+      )}
       <div class="bstat"><div class="v">{rentLabel}</div><div class="l">Loyer/mois</div></div>
     </div>
 
@@ -222,12 +227,12 @@ const locality = property.city
   .bien-stats {
     background: var(--oqoro-cream);
     border-radius: 12px;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    display: flex;
     padding: 14px 0;
     margin-bottom: 18px;
     position: relative;
   }
+  .bien-stats .bstat { flex: 1; min-width: 0; }
   .bien-stats::before {
     content: 'Données certifiées OQORO';
     position: absolute;
