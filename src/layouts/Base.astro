@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import { jsonForScript } from '../lib/security';
 
 interface Props {
   title: string;
@@ -54,7 +55,7 @@ const ogImage = image || `${siteUrl}/og-default.jpg`;
     <meta name="twitter:image" content={ogImage} />
 
     {jsonLd && (
-      <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+      <script is:inline type="application/ld+json" set:html={jsonForScript(jsonLd)} />
     )}
 
     {gaId && (

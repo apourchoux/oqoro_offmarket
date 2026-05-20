@@ -95,6 +95,7 @@ const types = Array.from(typeCounts.entries()).sort((a, b) => b[1] - a[1]);
         </p>
         <form class="biens-empty-form" method="POST" action="/api/leads">
           <input type="hidden" name="source" value="empty-state" />
+          <input type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" class="hp" />
           <input type="email" name="email" required placeholder="votre@email.com" class="oq-input" />
           <button type="submit" class="oq-btn oq-btn-primary">M'alerter</button>
         </form>
@@ -238,6 +239,14 @@ const types = Array.from(typeCounts.entries()).sort((a, b) => b[1] - a[1]);
     flex-wrap: wrap;
   }
   .biens-empty-form .oq-input { flex: 1; min-width: 200px; }
+  .biens-empty-form .hp {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
 
   .biens-empty-filter {
     padding: 32px;

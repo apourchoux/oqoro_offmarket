@@ -6,6 +6,10 @@ import { getAdminClient } from '../../../lib/supabase';
 import { formatEur } from '../../../lib/format';
 import { PROPERTY_TYPE_LABELS } from '../../../lib/types';
 
+if (!Astro.locals.user) {
+  return Astro.redirect('/admin/login');
+}
+
 const supabase = getAdminClient();
 
 const [{ data: properties }, { data: photos }, { data: financials }] =

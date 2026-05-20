@@ -1,12 +1,16 @@
 import type { APIRoute } from 'astro';
 import { getAdminClient } from '../../../../../lib/supabase';
+import { sanitizeProperty, syncChildren } from '../_helpers';
 
 export const prerender = false;
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const POST: APIRoute = async ({ request, params, locals }) => {
   if (!locals.user) return json({ error: 'Non authentifié' }, 401);
   const id = params.id;
-  if (!id) return json({ error: 'ID manquant' }, 400);
+  if (!id || !UUID_REGEX.test(id)) return json({ error: 'ID invalide' }, 400);
 
   let payload: any;
   try {
@@ -16,72 +20,37 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
   }
 
   const { property, lots, photos, transports, reports, publish } = payload ?? {};
-  const supabase = getAdminClient();
-
-  const row = { ...property };
-  delete row.id;
-  delete row.notary_fees;
-  delete row.total_project;
-  delete row.created_at;
-  delete row.updated_at;
-  if (publish) {
-    row.status = 'published';
-    if (!property.published_at) row.published_at = new Date().toISOString();
+  if (!property?.title || !property?.slug) {
+    return json({ error: 'Titre et slug requis' }, 400);
   }
 
+  const sanitized = sanitizeProperty(property);
+  if (publish) {
+    sanitized.status = 'published';
+    if (!property.published_at) {
+      sanitized.published_at = new Date().toISOString();
+    }
+  }
+
+  const supabase = getAdminClient();
   const { error: updateError } = await supabase
     .from('properties')
-    .update(row)
+    .update(sanitized)
     .eq('id', id);
   if (updateError) {
-    console.error('[admin update] update error', updateError);
-    return json({ error: updateError.message }, 500);
+    console.error('[admin update] update error');
+    return json({ error: 'Mise à jour impossible' }, 500);
   }
 
-  await Promise.all([
-    supabase.from('property_lots').delete().eq('property_id', id),
-    supabase.from('property_photos').delete().eq('property_id', id),
-    supabase.from('property_transports').delete().eq('property_id', id),
-    supabase.from('property_annual_reports').delete().eq('property_id', id),
-  ]);
-
-  const lotRows = (lots ?? []).map((l: any, i: number) => ({
-    property_id: id,
-    name: l.name,
-    surface: l.surface,
-    rent_hc: l.rent_hc,
-    charges: l.charges,
-    status: l.status,
-    sort_order: i,
-  }));
-  const photoRows = (photos ?? []).map((p: any, i: number) => ({
-    property_id: id,
-    url: p.url,
-    source: p.source ?? 'url',
-    label: p.label,
-    is_primary: p.is_primary,
-    sort_order: i,
-  }));
-  const transportRows = (transports ?? []).map((t: any, i: number) => ({
-    property_id: id,
-    name: t.name,
-    transport_type: t.transport_type,
-    destination: t.destination,
-    time_label: t.time_label,
-    sort_order: i,
-  }));
-  const reportRows = (reports ?? []).map((r: any) => ({
-    property_id: id,
-    year: r.year,
-    occupancy_rate: r.occupancy_rate,
-    total_rent_collected: r.total_rent_collected,
-    unpaid_amount: r.unpaid_amount ?? 0,
-  }));
-
-  if (lotRows.length) await supabase.from('property_lots').insert(lotRows);
-  if (photoRows.length) await supabase.from('property_photos').insert(photoRows);
-  if (transportRows.length) await supabase.from('property_transports').insert(transportRows);
-  if (reportRows.length) await supabase.from('property_annual_reports').insert(reportRows);
+  const childErr = await syncChildren(
+    supabase,
+    id,
+    lots,
+    photos,
+    transports,
+    reports,
+  );
+  if (childErr) return json({ error: childErr }, 400);
 
   if (publish) {
     const hook = import.meta.env.NETLIFY_BUILD_HOOK;
@@ -89,7 +58,7 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
       try {
         await fetch(hook, { method: 'POST' });
       } catch (err) {
-        console.error('[rebuild] failed', err);
+        console.error('[rebuild] failed');
       }
     }
   }

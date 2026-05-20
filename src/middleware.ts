@@ -1,5 +1,6 @@
 import { defineMiddleware } from 'astro:middleware';
 import { createClient } from '@supabase/supabase-js';
+import { normalizePathname } from './lib/security';
 
 const ADMIN_PATH_PREFIX = '/admin';
 const LOGIN_PATH = '/admin/login';
@@ -13,13 +14,13 @@ function getAdminEmails(): string[] {
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
-  const pathname = context.url.pathname;
+  const normalized = normalizePathname(context.url.pathname);
 
-  if (!pathname.startsWith(ADMIN_PATH_PREFIX)) {
+  if (!normalized.startsWith(ADMIN_PATH_PREFIX)) {
     return next();
   }
 
-  if (pathname === LOGIN_PATH || pathname.startsWith('/admin/logout')) {
+  if (normalized === LOGIN_PATH || normalized.startsWith('/admin/logout')) {
     return next();
   }
 
@@ -61,5 +62,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
     email: data.user.email,
   };
 
-  return next();
+  const response = await next();
+  response.headers.set('Cache-Control', 'private, no-store');
+  response.headers.set('X-Frame-Options', 'DENY');
+  return response;
 });

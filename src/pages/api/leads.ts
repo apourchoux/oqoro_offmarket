@@ -1,11 +1,18 @@
 import type { APIRoute } from 'astro';
 import { getAdminClient, insertLead } from '../../lib/supabase';
 import { sendLeadConfirmation, sendLeadNotification } from '../../lib/resend';
+import { rateLimit } from '../../lib/security';
 import type { Property } from '../../lib/types';
 
 export const prerender = false;
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAX_EMAIL = 254;
+const MAX_NAME = 100;
+const MAX_PHONE = 50;
+const PHONE_REGEX = /^[+0-9 .()\-]{4,50}$/;
 
 interface LeadPayload {
   property_id?: string | null;
@@ -15,6 +22,9 @@ interface LeadPayload {
   phone?: string;
   budget?: string;
   source?: string;
+  // Honeypot — un humain ne le voit pas (display:none), un bot le remplit.
+  website?: string;
+  hp?: string;
 }
 
 function isFormSubmission(request: Request): boolean {
@@ -33,6 +43,8 @@ async function readPayload(request: Request): Promise<LeadPayload | null> {
       phone: (form.get('phone') as string | null) ?? '',
       budget: (form.get('budget') as string | null) ?? '',
       source: (form.get('source') as string | null) ?? '',
+      website: (form.get('website') as string | null) ?? '',
+      hp: (form.get('hp') as string | null) ?? '',
     };
   }
   try {
@@ -42,8 +54,19 @@ async function readPayload(request: Request): Promise<LeadPayload | null> {
   }
 }
 
-export const POST: APIRoute = async ({ request, redirect }) => {
+export const POST: APIRoute = async ({ request, redirect, clientAddress }) => {
   const useFormFlow = isFormSubmission(request);
+  const ip = clientAddress || 'unknown';
+
+  // Rate-limit IP : 10 leads / minute. Largement au-dessus d'un usage humain,
+  // bloque le spam automatisé.
+  const rl = rateLimit(`leads:${ip}`, 10, 60 * 1000);
+  if (!rl.ok) {
+    return useFormFlow
+      ? redirect('/?lead=error&msg=rate#alerte', 303)
+      : json({ error: 'Trop de tentatives, réessayez plus tard.' }, 429);
+  }
+
   const payload = await readPayload(request);
 
   if (!payload) {
@@ -52,25 +75,39 @@ export const POST: APIRoute = async ({ request, redirect }) => {
       : json({ error: 'JSON invalide' }, 400);
   }
 
+  // Honeypot : si un bot remplit un champ caché, on renvoie un succès factice
+  // pour ne pas l'aider à itérer, mais on n'écrit rien.
+  if ((payload.website ?? '').trim() !== '' || (payload.hp ?? '').trim() !== '') {
+    const source = (payload.source ?? '').trim().slice(0, 50) || 'unknown';
+    return useFormFlow
+      ? redirect(`/?lead=ok&from=${encodeURIComponent(source)}#alerte`, 303)
+      : json({ success: true });
+  }
+
   const email = (payload.email ?? '').trim();
   const source = (payload.source ?? '').trim().slice(0, 50) || 'unknown';
   const fromQs = `&from=${encodeURIComponent(source)}`;
-  if (!email || !EMAIL_REGEX.test(email)) {
+  if (!email || email.length > MAX_EMAIL || !EMAIL_REGEX.test(email)) {
     return useFormFlow
       ? redirect(`/?lead=error&msg=email${fromQs}#alerte`, 303)
       : json({ error: 'Email invalide' }, 400);
   }
 
-  const first_name = (payload.first_name ?? '').trim() || '—';
-  const last_name = (payload.last_name ?? '').trim() || '—';
-  const phone = (payload.phone ?? '').trim() || '—';
-  const property_id = payload.property_id ?? null;
-
-  if (first_name.length > 100 || last_name.length > 100 || phone.length > 50) {
+  const first_name = ((payload.first_name ?? '').trim() || '—').slice(0, MAX_NAME);
+  const last_name = ((payload.last_name ?? '').trim() || '—').slice(0, MAX_NAME);
+  const phoneRaw = (payload.phone ?? '').trim();
+  const phone = phoneRaw ? phoneRaw.slice(0, MAX_PHONE) : '—';
+  if (phoneRaw && !PHONE_REGEX.test(phone)) {
     return useFormFlow
-      ? redirect(`/?lead=error&msg=length${fromQs}#alerte`, 303)
-      : json({ error: 'Champs trop longs' }, 400);
+      ? redirect(`/?lead=error&msg=phone${fromQs}#alerte`, 303)
+      : json({ error: 'Téléphone invalide' }, 400);
   }
+
+  const propertyIdRaw = payload.property_id ?? null;
+  const property_id =
+    propertyIdRaw && UUID_REGEX.test(String(propertyIdRaw))
+      ? String(propertyIdRaw)
+      : null;
 
   try {
     const lead = await insertLead({
@@ -101,7 +138,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
       ? redirect(`/?lead=ok${fromQs}#alerte`, 303)
       : json({ success: true });
   } catch (err) {
-    console.error('[api/leads] error', err);
+    console.error('[api/leads] error');
     return useFormFlow
       ? redirect(`/?lead=error&msg=server${fromQs}#alerte`, 303)
       : json({ error: "Erreur serveur lors de l'enregistrement" }, 500);

@@ -1,6 +1,9 @@
 ---
+export const prerender = false;
+
 // Development preview page — renders all components with mock data.
-// Not indexed (excluded from sitemap) and safe to leave in prod behind the URL.
+// Réservée à l'environnement dev : en prod, renvoie un 404 pour ne pas
+// donner d'indice sur les composants/données internes.
 import Base from '../layouts/Base.astro';
 import PropertyCard from '../components/PropertyCard.astro';
 import PhotoGallery from '../components/PhotoGallery.astro';
@@ -13,6 +16,10 @@ import Badge from '../components/Badge.astro';
 import MetricRow from '../components/MetricRow.astro';
 import { mockPropertyFull } from '../lib/mocks';
 import { formatEur } from '../lib/format';
+
+if (import.meta.env.PROD) {
+  return new Response('Not Found', { status: 404 });
+}
 
 const { property, lots, photos, transports, annual_reports, financials } =
   mockPropertyFull;
