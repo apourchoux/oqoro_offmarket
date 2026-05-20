@@ -38,8 +38,11 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
     .update(sanitized)
     .eq('id', id);
   if (updateError) {
-    console.error('[admin update] update error');
-    return json({ error: 'Mise à jour impossible' }, 500);
+    console.error('[admin update] update error', updateError);
+    return json(
+      { error: `Mise à jour impossible : ${updateError.message}` },
+      500,
+    );
   }
 
   const childErr = await syncChildren(

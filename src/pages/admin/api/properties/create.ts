@@ -32,8 +32,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
     .select()
     .single();
   if (error || !inserted) {
-    console.error('[admin create] property insert error');
-    return json({ error: 'Insertion impossible' }, 500);
+    console.error('[admin create] property insert error', error);
+    return json(
+      { error: `Insertion impossible : ${error?.message ?? 'erreur inconnue'}` },
+      500,
+    );
   }
 
   const propertyId = inserted.id;
