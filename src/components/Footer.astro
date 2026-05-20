@@ -1,54 +1,223 @@
 ---
+// Footer aligné sur celui de oqoro.com — mêmes sections, mêmes libellés,
+// mêmes liens (préfixés `https://oqoro.com`). À mettre à jour si le footer
+// principal d'OQORO change.
+
+const OQORO = 'https://oqoro.com';
 const year = new Date().getFullYear();
+
+const seoSections = [
+  {
+    title: 'Location appartement',
+    description: "Partout en France, découvrez nos locations d'appartements",
+    cities: [
+      { name: 'Paris', href: '/locations/paris-75000' },
+      { name: 'Marseille', href: '/locations/marseille-13000' },
+      { name: 'Lyon', href: '/locations/lyon-69000' },
+      { name: 'Toulouse', href: '/locations/toulouse' },
+      { name: 'Nice', href: '/locations/nice' },
+      { name: 'Nantes', href: '/locations/nantes' },
+      { name: 'Montpellier', href: '/locations/montpellier' },
+      { name: 'Strasbourg', href: '/locations/strasbourg' },
+      { name: 'Bordeaux', href: '/locations/bordeaux' },
+      { name: 'Lille', href: '/locations/lille' },
+      { name: 'Rennes', href: '/locations/rennes' },
+      { name: 'Reims', href: '/locations/reims-51100' },
+    ],
+  },
+  {
+    title: 'Appartements meublés',
+    description: 'Partout en France, découvrez nos appartements meublés',
+    cities: [
+      { name: 'Paris', href: '/locations/paris-75000/meubles' },
+      { name: 'Marseille', href: '/locations/marseille-13000/meubles' },
+      { name: 'Lyon', href: '/locations/lyon-69000/meubles' },
+      { name: 'Toulouse', href: '/locations/toulouse/meubles' },
+      { name: 'Nice', href: '/locations/nice/meubles' },
+      { name: 'Nantes', href: '/locations/nantes/meubles' },
+      { name: 'Montpellier', href: '/locations/montpellier/meubles' },
+      { name: 'Strasbourg', href: '/locations/strasbourg/meubles' },
+      { name: 'Bordeaux', href: '/locations/bordeaux/meubles' },
+      { name: 'Lille', href: '/locations/lille/meubles' },
+      { name: 'Rennes', href: '/locations/rennes/meubles' },
+      { name: 'Reims', href: '/locations/reims-51100/meubles' },
+    ],
+  },
+  {
+    title: 'Appartements en colocation',
+    description: 'Partout en France, découvrez nos colocations',
+    cities: [
+      { name: 'Paris', href: '/locations/paris-75000/colocations' },
+      { name: 'Marseille', href: '/locations/marseille-13000/colocations' },
+      { name: 'Lyon', href: '/locations/lyon-69000/colocations' },
+      { name: 'Toulouse', href: '/locations/toulouse/colocations' },
+      { name: 'Nice', href: '/locations/nice/colocations' },
+      { name: 'Nantes', href: '/locations/nantes/colocations' },
+      { name: 'Montpellier', href: '/locations/montpellier/colocations' },
+      { name: 'Strasbourg', href: '/locations/strasbourg/colocations' },
+      { name: 'Bordeaux', href: '/locations/bordeaux/colocations' },
+      { name: 'Lille', href: '/locations/lille/colocations' },
+      { name: 'Rennes', href: '/locations/rennes/colocations' },
+      { name: 'Reims', href: '/locations/reims-51100/colocations' },
+    ],
+  },
+  {
+    title: 'Appartements en coliving',
+    description: 'Partout en France, découvrez nos colivings',
+    cities: [
+      { name: 'Lyon', href: '/locations/lyon-69000/colivings' },
+      { name: 'Nantes', href: '/locations/nantes/colivings' },
+      { name: 'Bordeaux', href: '/locations/bordeaux/colivings' },
+      { name: 'Lille', href: '/locations/lille/colivings' },
+    ],
+  },
+];
+
+const services = [
+  { label: 'Gestion locative', href: '/gestion-locative' },
+  { label: 'Gestion de colocations', href: '/gestion-colocation' },
+  { label: 'Gestion nourrice', href: '/gestion-nourrice-immobilier' },
+  { label: 'Vente immobilière', href: '/vente-immobiliere' },
+  { label: 'OQORO ULTRA', href: '/ultra' },
+  { label: 'Tarifs', href: '/tarifs' },
+];
+
+const tools = [
+  { label: 'Estimation de loyer', href: '/l/estimation-loyer' },
+  { label: "Générateur d'avis d'échéance", href: '/l/generateur-avis-echeance' },
+  { label: 'Générateur de quittance', href: '/l/generateur-quittance' },
+  { label: 'Aide/FAQ', href: 'https://support.oqoro.com/hc/fr', external: true },
+];
+
+const company = [
+  { label: 'Partenaires', href: '/ecoles' },
+  { label: 'Presse', href: '/presse' },
+  {
+    label: 'Recrutement',
+    href: 'https://www.welcometothejungle.com/fr/companies/mon-bel-appart',
+    external: true,
+  },
+  { label: 'Politique cookies', href: '/pages/politique-cookies' },
+  { label: 'Politique confidentialité', href: '/pages/politique-confidentialite' },
+  { label: 'Mentions légales', href: '/pages/mentions-legales' },
+  { label: "Conditions générales d'utilisation", href: '/pages/cgu' },
+];
+
+const gestionCities = [
+  { name: 'Paris', href: '/gestion-locative/paris' },
+  { name: 'Lyon', href: '/gestion-locative/lyon' },
+  { name: 'Lille', href: '/gestion-locative/lille' },
+  { name: 'Bordeaux', href: '/gestion-locative/bordeaux' },
+  { name: 'Toulouse', href: '/gestion-locative/toulouse' },
+  { name: 'Angoulême', href: '/gestion-locative' },
+  { name: 'Caen', href: '/gestion-locative' },
+  { name: 'Tours', href: '/gestion-locative/tours' },
+  { name: 'Angers', href: '/gestion-locative/angers' },
+  { name: 'Grenoble', href: '/gestion-locative/grenoble' },
+  { name: 'Bourgoin-Jallieu', href: '/gestion-locative' },
+  { name: 'Mulhouse', href: '/gestion-locative/mulhouse' },
+  { name: 'Nancy', href: '/gestion-locative/nancy' },
+  { name: 'Brest', href: '/gestion-locative/brest' },
+  { name: 'Rennes', href: '/gestion-locative/rennes' },
+  { name: 'Saint-Étienne', href: '/gestion-locative/saint-etienne' },
+  { name: 'Amiens', href: '/gestion-locative/amiens' },
+  { name: 'Montpellier', href: '/gestion-locative/montpellier' },
+  { name: 'Mâcon', href: '/gestion-locative/' },
+  { name: 'Limoges', href: '/gestion-locative/limoges' },
+  { name: 'Rouen', href: '/gestion-locative/rouen' },
+  { name: 'Le Havre', href: '/gestion-locative/le-havre' },
+  { name: 'Poitiers', href: '/gestion-locative/poitiers' },
+  { name: 'Toulon', href: '/gestion-locative/toulon' },
+  { name: 'Aix-en-Provence', href: '/gestion-locative' },
+  { name: 'Dijon', href: '/gestion-locative/dijon' },
+  { name: 'Besançon', href: '/gestion-locative/besancon' },
+  { name: 'Valence', href: '/gestion-locative' },
+  { name: 'Nantes', href: '/gestion-locative/nantes' },
+  { name: 'Reims', href: '/gestion-locative/reims' },
+  { name: 'Metz', href: '/gestion-locative/metz' },
+  { name: 'Clermont-Ferrand', href: '/gestion-locative/clermont-ferrand' },
+  { name: 'Nîmes', href: '/gestion-locative/nimes' },
+  { name: 'Orléans', href: '/gestion-locative/orleans' },
+  { name: 'Strasbourg', href: '/gestion-locative/strasbourg' },
+  { name: 'La Rochelle', href: '/gestion-locative' },
+  { name: 'Avignon', href: '/gestion-locative/avignon' },
+  { name: 'Chambéry', href: '/gestion-locative/chambery' },
+  { name: 'Pau', href: '/gestion-locative/pau' },
+  { name: 'Nice', href: '/gestion-locative/nice' },
+  { name: 'Marseille', href: '/gestion-locative/marseille' },
+  { name: 'Annemasse', href: '/gestion-locative/annemasse' },
+];
+
+function fullUrl(href: string, external?: boolean): string {
+  if (external) return href;
+  return href.startsWith('http') ? href : `${OQORO}${href}`;
+}
 ---
 
 <footer class="oq-footer">
   <div class="oq-container py-16">
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-10 md:gap-12 mb-12">
-      <div class="md:col-span-1">
-        <img src="/oqoro/logos/oqoro-logo-white.svg" alt="OQORO" class="h-[28px] mb-5" />
-        <p class="text-[14px] leading-[1.6] max-w-[320px] text-white/70">
-          Les biens en gestion OQORO à la vente. Des données locatives réelles,
-          certifiées et vérifiées par nos équipes.
+    {seoSections.map((section) => (
+      <section class="seo-section">
+        <h3>{section.title}</h3>
+        <p class="seo-desc">{section.description}</p>
+        <div class="seo-grid">
+          {section.cities.map((city) => (
+            <a href={fullUrl(city.href)}>{city.name}</a>
+          ))}
+        </div>
+      </section>
+    ))}
+
+    <div class="brand-block">
+      <div class="brand-col">
+        <img src="/oqoro/logos/oqoro-logo-white.svg" alt="OQORO" class="brand-logo" />
+        <p class="carte-pro">
+          Carte professionnelle :<br />
+          n°CPI 6901 2019 000 039 604
         </p>
       </div>
 
       <div>
-        <h4>Découvrir</h4>
+        <h4>Nos services</h4>
         <ul>
-          <li><a href="/#biens">Nos biens</a></li>
-          <li><a href="/#pourquoi">Notre approche</a></li>
-          <li><a href="/#temoignages">Témoignages</a></li>
-          <li><a href="/#alerte">M'alerter</a></li>
+          {services.map((item) => (
+            <li><a href={fullUrl(item.href)}>{item.label}</a></li>
+          ))}
         </ul>
       </div>
 
       <div>
-        <h4>OQORO</h4>
+        <h4>Nos outils</h4>
         <ul>
-          <li><a href="https://oqoro.com">Gestion locative</a></li>
-          <li><a href="https://oqoro.com">Espace propriétaire</a></li>
-          <li><a href="https://oqoro.com">Espace locataire</a></li>
-          <li><a href="https://oqoro.com">Carrières</a></li>
+          {tools.map((item) => (
+            <li><a href={fullUrl(item.href, item.external)}>{item.label}</a></li>
+          ))}
         </ul>
       </div>
 
       <div>
-        <h4>Contact</h4>
+        <h4>Société</h4>
         <ul>
-          <li><a href="mailto:offmarket@oqoro.com">offmarket@oqoro.com</a></li>
-          <li class="text-white/70">107 boulevard Vivier Merle, 69003 Lyon</li>
+          {company.map((item) => (
+            <li><a href={fullUrl(item.href, item.external)}>{item.label}</a></li>
+          ))}
         </ul>
       </div>
     </div>
 
-    <div class="oq-footer-bottom">
-      <span>© {year} OQORO. Tous droits réservés.</span>
-      <div class="flex flex-wrap gap-6">
-        <a href="/mentions-legales">Mentions légales</a>
-        <a href="/confidentialite">Confidentialité</a>
-        <a href="/cgu">CGU</a>
-      </div>
+    <nav class="gestion-cities" aria-label="Gestion locative par ville">
+      {gestionCities.map((city, i) => (
+        <>
+          {i > 0 && <span class="sep" aria-hidden="true">·</span>}
+          <a href={fullUrl(city.href)}>Gestion locative à {city.name}</a>
+        </>
+      ))}
+    </nav>
+
+    <div class="copyright">
+      Copyright<sup>©</sup> {year}. Tous droits réservés. Fait avec
+      <span class="heart" aria-label="amour" role="img">❤️</span>
+      à Lyon &amp; Paris.
     </div>
   </div>
 </footer>
@@ -58,14 +227,62 @@ const year = new Date().getFullYear();
     background: var(--oqoro-blue);
     color: rgba(255, 255, 255, 0.7);
   }
-  .oq-footer h4 {
-    font-family: var(--font-sans);
-    font-size: 13px;
+
+  .seo-section {
+    margin-bottom: 40px;
+  }
+  .seo-section h3 {
+    font-family: var(--font-display);
+    font-size: 18px;
     font-weight: 700;
     color: #fff;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+    margin: 0 0 6px;
+    letter-spacing: -0.2px;
+  }
+  .seo-section .seo-desc {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.55);
     margin: 0 0 16px;
+  }
+  .seo-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px 24px;
+  }
+  .seo-grid a {
+    color: rgba(255, 255, 255, 0.55);
+    text-decoration: none;
+    font-size: 14px;
+    transition: color .2s;
+  }
+  .seo-grid a:hover {
+    color: #fff;
+    text-decoration: none;
+  }
+
+  .brand-block {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1fr 1fr;
+    gap: 32px;
+    padding-top: 24px;
+    margin-bottom: 40px;
+  }
+  .brand-col { display: flex; flex-direction: column; gap: 18px; }
+  .brand-logo { height: 28px; width: auto; }
+  .carte-pro {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  .oq-footer h4 {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    margin: 0 0 14px;
+    letter-spacing: 0;
   }
   .oq-footer ul { list-style: none; padding: 0; margin: 0; }
   .oq-footer li {
@@ -81,14 +298,44 @@ const year = new Date().getFullYear();
     color: #fff;
     text-decoration: none;
   }
-  .oq-footer-bottom {
+
+  .gestion-cities {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.5);
+    line-height: 2;
+    margin-bottom: 32px;
+  }
+  .gestion-cities a {
+    color: rgba(255, 255, 255, 0.5);
+    text-decoration: none;
+  }
+  .gestion-cities a:hover { color: #fff; }
+  .gestion-cities .sep {
+    color: rgba(255, 255, 255, 0.25);
+    margin: 0 8px;
+  }
+
+  .copyright {
     padding-top: 24px;
     border-top: 1px solid rgba(255, 255, 255, 0.12);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 13px;
-    flex-wrap: wrap;
-    gap: 14px;
+    text-align: center;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+  }
+  .copyright sup { font-size: 0.7em; vertical-align: super; }
+  .copyright .heart {
+    display: inline-block;
+    margin: 0 2px;
+    font-size: 14px;
+  }
+
+  @media (max-width: 1024px) {
+    .brand-block { grid-template-columns: 1fr 1fr; gap: 32px 24px; }
+    .seo-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 640px) {
+    .brand-block { grid-template-columns: 1fr; }
+    .seo-grid { grid-template-columns: repeat(2, 1fr); }
+    .gestion-cities { line-height: 1.9; }
   }
 </style>
