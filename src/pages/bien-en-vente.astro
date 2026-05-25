@@ -1,0 +1,147 @@
+---
+import Base from '../layouts/Base.astro';
+import HomeBiens from '../components/home/HomeBiens.astro';
+import HomeCta from '../components/home/HomeCta.astro';
+import { listPublishedProperties } from '../lib/supabase';
+
+export const prerender = false;
+
+Astro.response.headers.set(
+  'Cache-Control',
+  'public, max-age=60, s-maxage=60, stale-while-revalidate=300',
+);
+
+let items: Awaited<ReturnType<typeof listPublishedProperties>> = [];
+let loadError: string | null = null;
+
+try {
+  items = await listPublishedProperties();
+} catch (err) {
+  loadError = err instanceof Error ? err.message : 'Erreur inconnue';
+  console.error('[bien-en-vente] listPublishedProperties failed:', err);
+}
+
+const count = items.length;
+
+const avgYield =
+  count > 0
+    ? items.reduce((s, x) => s + x.financials.gross_yield, 0) / count
+    : null;
+
+const avgOccupancy = (() => {
+  const withZone = items.filter(
+    (x) => x.property.zone_occupancy_rate !== null,
+  );
+  if (withZone.length === 0) return null;
+  const sum = withZone.reduce(
+    (s, x) => s + (x.property.zone_occupancy_rate ?? 0),
+    0,
+  );
+  return Math.round(sum / withZone.length);
+})();
+
+const headerStats = [
+  {
+    num: count > 0 ? String(count) : '—',
+    lbl: count > 1 ? 'Biens disponibles' : 'Bien disponible',
+  },
+  {
+    num:
+      avgYield !== null
+        ? `${avgYield.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`
+        : '—',
+    lbl: 'Rendement brut moyen',
+  },
+  {
+    num: avgOccupancy !== null ? `${avgOccupancy} %` : '—',
+    lbl: 'Occupation moyenne du marché',
+  },
+];
+
+const title = 'Biens en vente — OQORO Off Market';
+const description =
+  "Tous nos biens en vente en exclusivité Off Market : appartements, colocations, immeubles. Loyers réels, taux d'occupation du quartier et gestion OQORO incluse.";
+---
+
+<Base title={title} description={description}>
+  <section class="page-hero">
+    <div class="oq-container">
+      <span class="oq-eyebrow">
+        <span class="dot"></span>
+        Exclusivité OQORO Off Market
+      </span>
+      <h1>Tous nos biens en vente.</h1>
+      <p class="lede">
+        Notre portefeuille en vente, mis à jour quotidiennement. Chaque
+        annonce s'appuie sur nos données terrain : loyers de marché,
+        occupation du quartier et profils locataires issus de 10 000+ lots
+        en gestion.
+      </p>
+      <div class="page-hero-stats">
+        {headerStats.map((s) => (
+          <div class="stat">
+            <div class="num">{s.num}</div>
+            <div class="lbl">{s.lbl}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <HomeBiens items={items} count={count} loadError={loadError} />
+  <HomeCta />
+</Base>
+
+<style>
+  .page-hero {
+    padding: 64px 0 48px;
+    background: linear-gradient(180deg, var(--oqoro-cream) 0%, #fff 100%);
+    border-bottom: 1px solid var(--border-tertiary);
+  }
+  .page-hero h1 {
+    font-family: var(--font-display);
+    font-size: 48px;
+    line-height: 1.05;
+    letter-spacing: -1.5px;
+    color: var(--fg-heading);
+    margin: 16px 0 16px;
+    font-weight: 800;
+  }
+  .page-hero .lede {
+    font-size: 17px;
+    line-height: 1.55;
+    color: var(--fg-secondary);
+    margin: 0 0 32px;
+    max-width: 720px;
+  }
+  .page-hero-stats {
+    display: flex;
+    gap: 48px;
+    flex-wrap: wrap;
+  }
+  .page-hero-stats .stat .num {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--brand-700);
+    letter-spacing: -0.5px;
+    line-height: 1;
+  }
+  .page-hero-stats .stat .lbl {
+    font-size: 13px;
+    color: var(--fg-tertiary);
+    margin-top: 6px;
+  }
+
+  @media (max-width: 1024px) {
+    .page-hero { padding: 48px 0 36px; }
+    .page-hero h1 { font-size: 36px; }
+  }
+  @media (max-width: 640px) {
+    .page-hero { padding: 36px 0 28px; }
+    .page-hero h1 { font-size: 28px; letter-spacing: -1px; }
+    .page-hero .lede { font-size: 15px; }
+    .page-hero-stats { gap: 28px; }
+    .page-hero-stats .stat .num { font-size: 22px; }
+  }
+</style>
