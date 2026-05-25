@@ -22,11 +22,6 @@ const monthlyVacancy = Math.round((monthlyRent * vacancyPct) / 100);
 
 // Phase 3 : valeurs réelles si renseignées par l'admin, sinon estimations
 // (ratios issus du design : 8.8 % charges, 7.2 % taxe, 8 % gestion+assurance).
-const hasReal =
-  property.monthly_charges !== null ||
-  property.yearly_property_tax !== null ||
-  property.monthly_management_fee !== null;
-
 const monthlyCharges =
   property.monthly_charges ?? Math.round(monthlyRent * 0.088);
 const monthlyTax =
@@ -63,7 +58,7 @@ const occupancyLabel = hasOccupancy
     </h2>
     {occupancyLabel && (
       <div class="occ-note">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
         <span>
           Calcul basé sur un taux d'occupation locatif de <b>{occupancyLabel}</b>
           {' '}sur le quartier (moyenne OQORO sur les 10 000+ lots en gestion).
@@ -127,23 +122,6 @@ const occupancyLabel = hasOccupancy
         </tr>
       </tbody>
     </table>
-    <div class="cert-note">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
-      <span>
-        <b>Données OQORO.</b> Loyer = somme des baux en cours sur le bien.
-        {hasOccupancy && (
-          <>
-            {' '}Taux d'occupation = moyenne du quartier issue de nos 10 000+ lots
-            en gestion — l'une des données les plus fiables du marché, en
-            particulier sur la colocation.
-          </>
-        )}
-        {' '}
-        {hasReal
-          ? 'Charges, taxe foncière et gestion : valeurs réelles fournies par le propriétaire.'
-          : 'Charges, taxe foncière et frais de gestion estimés à titre indicatif.'}
-      </span>
-    </div>
   </section>
 )}
 
@@ -207,18 +185,4 @@ const occupancyLabel = hasOccupancy
     padding-top: 16px;
   }
   .rent-table tr.tot td b { font-family: var(--font-display); font-size: 17px; }
-
-  .cert-note {
-    display: flex;
-    gap: 10px;
-    padding: 12px 14px;
-    background: var(--brand-50);
-    border-radius: 10px;
-    margin-top: 16px;
-    font-size: 13px;
-    color: #421CBB;
-    line-height: 1.5;
-  }
-  .cert-note svg { width: 16px; height: 16px; color: var(--brand-600); flex: none; margin-top: 2px; }
-  .cert-note b { color: #3E1C96; font-weight: 700; }
 </style>
