@@ -30,7 +30,7 @@ const cashflow = Math.max(0, monthlyRent - vacancy - charges - tax - mgmt);
 
 const total = monthlyRent || 1;
 const segs = [
-  { label: 'Cashflow net', value: cashflow, color: 'var(--brand-600)' },
+  { label: 'Cashflow', value: cashflow, color: 'var(--brand-600)' },
   ...(vacancy > 0
     ? [{ label: 'Vacance locative', value: vacancy, color: 'var(--oqoro-blue)' }]
     : []),
