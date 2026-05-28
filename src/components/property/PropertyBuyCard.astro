@@ -26,8 +26,8 @@ const rentLabel = formatEur(financials.monthly_rent_cc);
 const totalProject = property.total_project ?? property.sale_price + (property.notary_fees ?? 0);
 
 // Phase 3 : agent depuis property.agent (jsonb), fallback sur défaut.
-const agentName = property.agent?.name ?? 'Camille Loubet';
-const agentRole = property.agent?.role ?? 'Conseillère Off Market';
+const agentName = property.agent?.name ?? 'Baptiste';
+const agentRole = property.agent?.role ?? 'Conseiller Off Market';
 const agentInitials =
   property.agent?.initials ??
   (property.agent?.name
@@ -38,8 +38,8 @@ const agentInitials =
         .join('')
         .slice(0, 2)
         .toUpperCase()
-    : 'CL');
-const agentPhone = property.agent?.phone ?? '+33180000000';
+    : 'BC');
+const agentPhone = property.agent?.phone ?? '+33755524224';
 ---
 
 <aside>

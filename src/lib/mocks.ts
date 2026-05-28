@@ -53,6 +53,7 @@ export const mockProperty: Property = {
   market_data: null,
   agent: null,
   zone_occupancy_rate: 96,
+  is_featured: false,
   published_at: new Date().toISOString(),
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),

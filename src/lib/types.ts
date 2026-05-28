@@ -70,6 +70,10 @@ export interface Property {
   // et la moyenne affichée sur la home.
   zone_occupancy_rate: number | null;
 
+  // Opt-in admin pour l'emplacement « vedette » de la home. Quand plusieurs
+  // biens sont cochés, la home en tire un au hasard à chaque chargement.
+  is_featured: boolean;
+
   published_at: string | null;
   created_at: string;
   updated_at: string;

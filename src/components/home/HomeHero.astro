@@ -16,14 +16,49 @@ interface Props {
   count: number;
   heroStats: HeroStat[];
   featured: HeroFeatured | null;
+  featuredCandidates?: HeroFeatured[];
   featuredYieldLabel: string | null;
   featuredOccupancyLabel: string | null;
 }
 
-const { count, heroStats, featured, featuredYieldLabel, featuredOccupancyLabel } = Astro.props;
+const {
+  count,
+  heroStats,
+  featured,
+  featuredCandidates = [],
+  featuredYieldLabel,
+  featuredOccupancyLabel,
+} = Astro.props;
 
-const heroImage = featured?.primary_photo?.url
-  ?? 'https://images.unsplash.com/photo-1502672023488-70e25813eb80?w=1200&q=80';
+const FALLBACK_IMG = 'https://images.unsplash.com/photo-1502672023488-70e25813eb80?w=1200&q=80';
+const heroImage = featured?.primary_photo?.url ?? FALLBACK_IMG;
+
+// Payload pour la rotation client : on n'envoie que les champs utilisés par
+// le script (slug, image, libellés). Évite d'embarquer tout l'objet Property.
+const candidatesPayload = featuredCandidates.map((c) => ({
+  slug: c.property.slug,
+  title: c.property.title,
+  city: c.property.city ?? c.property.address ?? '',
+  surface: c.property.total_surface,
+  price: formatEur(c.property.sale_price),
+  image: c.primary_photo?.url ?? FALLBACK_IMG,
+  yieldLabel: `${c.financials.gross_yield.toLocaleString('fr-FR', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 2,
+  })} %`,
+  occupancyLabel:
+    c.property.zone_occupancy_rate !== null
+      ? `${Math.round(c.property.zone_occupancy_rate)} %`
+      : null,
+  rentLabel: formatEur(c.financials.monthly_rent_cc),
+}));
+
+// Évite qu'un titre/ville admin contenant `</script>` ne casse le parsing
+// du <script type="application/json"> intégré.
+const candidatesJson = JSON.stringify(candidatesPayload)
+  .replace(/</g, '\\u003c')
+  .replace(/>/g, '\\u003e')
+  .replace(/&/g, '\\u0026');
 ---
 
 <section class="hero">
@@ -62,7 +97,7 @@ const heroImage = featured?.primary_photo?.url
 
       <div class="hero-right">
         <div class="hero-media">
-          <img src={heroImage} alt="Bien parisien" />
+          <img src={heroImage} alt="Bien parisien" data-hero-img />
           <div class="ribbon">
             <span class="oq-pulse-dot"></span>
             Visite 3D disponible
@@ -80,25 +115,45 @@ const heroImage = featured?.primary_photo?.url
         </div>
 
         {featured && (
-          <a href={`/biens/${featured.property.slug}`} class="featured-card">
+          <a
+            href={`/biens/${featured.property.slug}`}
+            class="featured-card"
+            data-featured-link
+          >
             <div class="fh">
               <span class="fh-tag">Bien vedette</span>
-              <span class="fh-price">{formatEur(featured.property.sale_price)}</span>
+              <span class="fh-price" data-featured-price>{formatEur(featured.property.sale_price)}</span>
             </div>
-            <div class="ftitle">{featured.property.title}</div>
+            <div class="ftitle" data-featured-title>{featured.property.title}</div>
             <div class="fsub">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-              {featured.property.city ?? featured.property.address ?? ''}
-              {featured.property.total_surface ? ` · ${featured.property.total_surface} m²` : ''}
+              <span data-featured-sub>
+                {featured.property.city ?? featured.property.address ?? ''}
+                {featured.property.total_surface ? ` · ${featured.property.total_surface} m²` : ''}
+              </span>
             </div>
             <div class="fstats">
-              <div class="fstat"><div class="v">{featuredYieldLabel}</div><div class="l">Rendement</div></div>
-              {featuredOccupancyLabel && (
-                <div class="fstat"><div class="v">{featuredOccupancyLabel}</div><div class="l">Occupation zone</div></div>
-              )}
-              <div class="fstat"><div class="v">{formatEur(featured.financials.monthly_rent_cc)}</div><div class="l">Loyer encaissé</div></div>
+              <div class="fstat"><div class="v" data-stat-yield>{featuredYieldLabel}</div><div class="l">Rendement</div></div>
+              <div
+                class="fstat"
+                data-stat-occupancy-wrap
+                hidden={!featuredOccupancyLabel}
+              >
+                <div class="v" data-stat-occupancy>{featuredOccupancyLabel ?? ''}</div>
+                <div class="l">Occupation zone</div>
+              </div>
+              <div class="fstat"><div class="v" data-stat-rent>{formatEur(featured.financials.monthly_rent_cc)}</div><div class="l">Loyer encaissé</div></div>
             </div>
           </a>
+        )}
+
+        {candidatesPayload.length > 1 && (
+          <script
+            is:inline
+            type="application/json"
+            id="featured-candidates-data"
+            set:html={candidatesJson}
+          />
         )}
       </div>
     </div>
@@ -300,3 +355,64 @@ const heroImage = featured?.primary_photo?.url
     .featured-card { width: calc(100% - 32px); }
   }
 </style>
+
+<script>
+  // Rotation client : quand plusieurs biens sont marqués « vedette » côté
+  // admin, on retire au hasard à chaque chargement pour que la home varie
+  // même quand la page est servie depuis le cache CDN (max-age=60s).
+  // Sans JS, l'utilisateur voit le tirage serveur déjà rendu.
+  type Candidate = {
+    slug: string;
+    title: string;
+    city: string;
+    surface: number | null;
+    price: string;
+    image: string;
+    yieldLabel: string;
+    occupancyLabel: string | null;
+    rentLabel: string;
+  };
+
+  const dataEl = document.getElementById('featured-candidates-data');
+  if (dataEl?.textContent) {
+    let candidates: Candidate[] = [];
+    try {
+      candidates = JSON.parse(dataEl.textContent) as Candidate[];
+    } catch {
+      candidates = [];
+    }
+
+    if (candidates.length > 1) {
+      const pick = candidates[Math.floor(Math.random() * candidates.length)];
+
+      const img = document.querySelector<HTMLImageElement>('[data-hero-img]');
+      const link = document.querySelector<HTMLAnchorElement>('[data-featured-link]');
+      const price = document.querySelector<HTMLElement>('[data-featured-price]');
+      const title = document.querySelector<HTMLElement>('[data-featured-title]');
+      const sub = document.querySelector<HTMLElement>('[data-featured-sub]');
+      const yieldEl = document.querySelector<HTMLElement>('[data-stat-yield]');
+      const occupancyWrap = document.querySelector<HTMLElement>('[data-stat-occupancy-wrap]');
+      const occupancyEl = document.querySelector<HTMLElement>('[data-stat-occupancy]');
+      const rentEl = document.querySelector<HTMLElement>('[data-stat-rent]');
+
+      if (img) img.src = pick.image;
+      if (link) link.href = `/biens/${pick.slug}`;
+      if (price) price.textContent = pick.price;
+      if (title) title.textContent = pick.title;
+      if (sub) {
+        sub.textContent =
+          pick.city + (pick.surface ? ` · ${pick.surface} m²` : '');
+      }
+      if (yieldEl) yieldEl.textContent = pick.yieldLabel;
+      if (rentEl) rentEl.textContent = pick.rentLabel;
+      if (occupancyWrap && occupancyEl) {
+        if (pick.occupancyLabel) {
+          occupancyEl.textContent = pick.occupancyLabel;
+          occupancyWrap.hidden = false;
+        } else {
+          occupancyWrap.hidden = true;
+        }
+      }
+    }
+  }
+</script>
