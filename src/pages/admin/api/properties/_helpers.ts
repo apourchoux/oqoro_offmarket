@@ -151,6 +151,7 @@ export interface SanitizedProperty {
   market_data: Record<string, unknown> | null;
   agent: Record<string, unknown> | null;
   zone_occupancy_rate: number | null;
+  is_featured: boolean;
   published_at?: string | null;
 }
 
@@ -198,6 +199,7 @@ export function sanitizeProperty(input: any): SanitizedProperty {
     market_data: jsonObjectOrNull(input?.market_data),
     agent: jsonObjectOrNull(input?.agent, 10),
     zone_occupancy_rate: pct(input?.zone_occupancy_rate),
+    is_featured: input?.is_featured === true,
   };
 }
 

@@ -25,10 +25,10 @@ alter table properties
 
 -- agent est un objet :
 --   {
---     "name": "Camille Loubet",
---     "role": "Conseillère Off Market",
---     "initials": "CL",
---     "phone": "+33180000000"
+--     "name": "Baptiste",
+--     "role": "Conseiller Off Market",
+--     "initials": "BC",
+--     "phone": "+33755524224"
 --   }
 
 alter table property_transports

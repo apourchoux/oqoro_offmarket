@@ -757,13 +757,13 @@ export default function PropertyForm({
       {currentStep === 5 && (
       <Section title="Conseiller affecté (optionnel)">
         <p className="text-[13px] text-oq-muted">
-          S'affiche dans la carte d'achat à droite de la fiche bien. Sans valeur, Camille Loubet est utilisée par défaut.
+          S'affiche dans la carte d'achat à droite de la fiche bien. Sans valeur, Baptiste est utilisé par défaut.
         </p>
         <Grid2>
           <Field label="Nom complet">
             <input
               className="oq-input"
-              placeholder="Camille Loubet"
+              placeholder="Baptiste"
               value={property.agent?.name ?? ''}
               onChange={(e) => setAgent('name', e.target.value || undefined)}
             />
@@ -772,7 +772,7 @@ export default function PropertyForm({
             <input
               className="oq-input"
               maxLength={3}
-              placeholder="CL"
+              placeholder="BC"
               value={property.agent?.initials ?? ''}
               onChange={(e) => setAgent('initials', e.target.value.toUpperCase() || undefined)}
             />
@@ -782,7 +782,7 @@ export default function PropertyForm({
           <Field label="Rôle">
             <input
               className="oq-input"
-              placeholder="Conseillère Off Market"
+              placeholder="Conseiller Off Market"
               value={property.agent?.role ?? ''}
               onChange={(e) => setAgent('role', e.target.value || undefined)}
             />
@@ -818,6 +818,21 @@ export default function PropertyForm({
             onChange={(e) => set('status', e.target.checked ? 'published' : 'draft')}
           />
           Publié (visible en ligne)
+        </label>
+        <label className="flex items-start gap-3 text-[14px]">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={property.is_featured === true}
+            onChange={(e) => set('is_featured', e.target.checked)}
+          />
+          <span>
+            Mettre en avant sur la home
+            <span className="block text-[12px] text-oq-muted mt-0.5">
+              Affiché dans l'emplacement « vedette ». Si plusieurs biens sont cochés,
+              la home en tire un au hasard à chaque chargement.
+            </span>
+          </span>
         </label>
       </Section>
       )}

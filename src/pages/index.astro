@@ -28,7 +28,18 @@ try {
 }
 
 const count = items.length;
-const featured = items[0] ?? null;
+
+// Biens cochés « Mettre en avant » côté admin. Fallback : dernier bien publié
+// (équivalent au comportement historique) si personne n'a coché la case.
+const featuredCandidates = items.filter((x) => x.property.is_featured);
+const heroCandidates = featuredCandidates.length > 0 ? featuredCandidates : items.slice(0, 1);
+
+// Choix initial côté serveur : aléatoire si plusieurs vedettes, pour que la
+// première peinture varie même quand JS n'est pas exécuté. Le client refait
+// un tirage au chargement pour casser le cache CDN (cf. HomeHero).
+const featured = heroCandidates.length > 0
+  ? heroCandidates[Math.floor(Math.random() * heroCandidates.length)]
+  : null;
 
 const featuredYieldLabel = featured
   ? `${featured.financials.gross_yield.toLocaleString('fr-FR', {
@@ -39,7 +50,7 @@ const featuredYieldLabel = featured
 
 // Sur la fiche d'appel home, l'occupation = donnée de marché (taux locatif
 // du quartier renseigné en admin). Pas le statut courant des lots, qui chute
-// mécaniquement à 0 % quand le bien est vidé pour la vente.
+// mécaniquement à 0 % quand le bien est vidé pour la mise en vente.
 const featuredOccupancyLabel =
   featured && featured.property.zone_occupancy_rate !== null
     ? `${Math.round(featured.property.zone_occupancy_rate)} %`
@@ -91,6 +102,7 @@ const description =
     count={count}
     heroStats={heroStats}
     featured={featured}
+    featuredCandidates={heroCandidates}
     featuredYieldLabel={featuredYieldLabel}
     featuredOccupancyLabel={featuredOccupancyLabel}
   />
