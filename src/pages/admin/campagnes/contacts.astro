@@ -2,6 +2,7 @@
 export const prerender = false;
 
 import Admin from '../../../layouts/Admin.astro';
+import CampaignsNav from '../../../components/admin/CampaignsNav.astro';
 import ContactsTable from '../../../components/admin/ContactsTable.tsx';
 import { getAdminClient } from '../../../lib/supabase';
 import type { Contact } from '../../../lib/types';
@@ -11,10 +12,10 @@ if (!Astro.locals.user) {
 }
 
 const supabase = getAdminClient();
-const { data: contacts } = await supabase
-  .from('contacts')
-  .select('*')
-  .order('created_at', { ascending: false });
+const [{ data: contacts }, { data: lists }] = await Promise.all([
+  supabase.from('contacts').select('*').order('created_at', { ascending: false }),
+  supabase.from('contact_lists').select('id, name').order('name'),
+]);
 ---
 
 <Admin title="Contacts" activeSection="campagnes">
@@ -25,14 +26,11 @@ const { data: contacts } = await supabase
         {(contacts ?? []).length} au total
       </p>
     </div>
-    <nav class="flex gap-1 bg-white border border-oq-border rounded-btn p-1">
-      <a href="/admin/campagnes" class="px-3 py-1.5 rounded-btn text-[14px] no-underline text-oq-text hover:bg-oq-bg">
-        Campagnes
-      </a>
-      <a href="/admin/campagnes/contacts" class="px-3 py-1.5 rounded-btn text-[14px] no-underline bg-oq-black text-white">
-        Contacts
-      </a>
-    </nav>
+    <CampaignsNav active="contacts" />
   </div>
-  <ContactsTable client:load initialContacts={(contacts ?? []) as Contact[]} />
+  <ContactsTable
+    client:load
+    initialContacts={(contacts ?? []) as Contact[]}
+    lists={(lists ?? []) as Array<{ id: string; name: string }>}
+  />
 </Admin>

@@ -1,0 +1,35 @@
+---
+export const prerender = false;
+
+import Admin from '../../../layouts/Admin.astro';
+import CampaignsNav from '../../../components/admin/CampaignsNav.astro';
+import TemplatesGrid from '../../../components/admin/TemplatesGrid.tsx';
+import { getAdminClient } from '../../../lib/supabase';
+import type { EmailTemplate } from '../../../lib/types';
+
+if (!Astro.locals.user) {
+  return Astro.redirect('/admin/login');
+}
+
+const supabase = getAdminClient();
+const { data: templates } = await supabase
+  .from('email_templates')
+  .select('*')
+  .order('updated_at', { ascending: false });
+---
+
+<Admin title="Templates" activeSection="campagnes">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-[28px] font-extrabold text-oq-black">Templates</h1>
+      <p class="text-oq-muted text-[14px] mt-1">
+        Bibliothèque de modèles d'email réutilisables
+      </p>
+    </div>
+    <div class="flex items-center gap-4">
+      <CampaignsNav active="templates" />
+      <a href="/admin/campagnes/templates/new" class="oq-btn-dark whitespace-nowrap">Nouveau template</a>
+    </div>
+  </div>
+  <TemplatesGrid client:load initialTemplates={(templates ?? []) as EmailTemplate[]} />
+</Admin>

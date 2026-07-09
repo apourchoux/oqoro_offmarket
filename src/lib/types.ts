@@ -164,7 +164,9 @@ export type ContactType = 'proprietaire' | 'investisseur' | 'mixte';
 
 export type ContactSource = 'manuel' | 'import_csv' | 'lead';
 
-export type CampaignStatus = 'draft' | 'sending' | 'sent' | 'failed';
+export type CampaignStatus = 'draft' | 'scheduled' | 'sending' | 'sent' | 'failed';
+
+export type CampaignContentMode = 'property' | 'custom';
 
 export type CampaignTargetType = 'tous' | 'proprietaire' | 'investisseur';
 
@@ -206,11 +208,39 @@ export interface Campaign {
   target_contact_type: CampaignTargetType;
   // null = toute la France ; sinon codes département ciblés.
   target_zones: string[] | null;
+  // null = ciblage segment (type × zones) ; sinon audience = union des listes.
+  target_list_ids: string[] | null;
   status: CampaignStatus;
   total_recipients: number;
   error: string | null;
   sent_at: string | null;
+  // Expéditeur nommé (défaut : RESEND_FROM) + reply-to optionnel.
+  from_name: string | null;
+  from_email: string | null;
+  reply_to: string | null;
+  // Preheader affiché dans la boîte de réception.
+  preview_text: string | null;
+  // Envoi programmé (statut 'scheduled').
+  scheduled_at: string | null;
+  // 'property' = template bien généré ; 'custom' = HTML libre (variables).
+  content_mode: CampaignContentMode;
+  custom_html: string | null;
   created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContactList {
+  id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  html: string;
   created_at: string;
   updated_at: string;
 }
@@ -307,6 +337,7 @@ export const CONTACT_SOURCE_LABELS: Record<ContactSource, string> = {
 
 export const CAMPAIGN_STATUS_LABELS: Record<CampaignStatus, string> = {
   draft: 'Brouillon',
+  scheduled: 'Programmée',
   sending: 'Envoi en cours',
   sent: 'Envoyée',
   failed: 'Échec',

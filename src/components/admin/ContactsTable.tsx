@@ -9,6 +9,7 @@ import ZonesPicker from './ZonesPicker';
 
 interface Props {
   initialContacts: Contact[];
+  lists?: Array<{ id: string; name: string }>;
 }
 
 const TYPE_ORDER: ContactType[] = ['proprietaire', 'investisseur', 'mixte'];
@@ -29,8 +30,11 @@ const EMPTY_FORM = {
   notes: '',
 };
 
-export default function ContactsTable({ initialContacts }: Props) {
+export default function ContactsTable({ initialContacts, lists = [] }: Props) {
   const [contacts, setContacts] = useState(initialContacts);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [targetList, setTargetList] = useState('');
+  const [addingToList, setAddingToList] = useState(false);
   const [typeFilter, setTypeFilter] = useState<ContactType | 'unsubscribed' | 'all'>('all');
   const [regionFilter, setRegionFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
@@ -166,6 +170,48 @@ export default function ContactsTable({ initialContacts }: Props) {
     }
   }
 
+  function toggleSelect(id: string) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    setSelectedIds((current) => {
+      const allSelected = filtered.every((c) => current.has(c.id));
+      if (allSelected) return new Set();
+      return new Set(filtered.map((c) => c.id));
+    });
+  }
+
+  async function addSelectionToList() {
+    if (!targetList || selectedIds.size === 0) return;
+    setAddingToList(true);
+    try {
+      const res = await fetch(`/admin/api/listes/${targetList}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ add: [...selectedIds] }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error ?? "Échec de l'ajout à la liste");
+        return;
+      }
+      const listName = lists.find((l) => l.id === targetList)?.name ?? 'la liste';
+      alert(`${data.added} contact(s) ajouté(s) à « ${listName} ».`);
+      setSelectedIds(new Set());
+    } catch (err) {
+      alert("Échec de l'ajout à la liste");
+      console.error(err);
+    } finally {
+      setAddingToList(false);
+    }
+  }
+
   function exportCsv() {
     const headers = ['prenom', 'nom', 'email', 'telephone', 'type', 'zones', 'abonne', 'source'];
     const rows = filtered.map((c) => [
@@ -270,6 +316,39 @@ export default function ContactsTable({ initialContacts }: Props) {
         </button>
       </div>
 
+      {selectedIds.size > 0 && lists.length > 0 && (
+        <div className="mb-4 px-4 py-3 bg-brand-600/5 border border-brand-600/30 rounded-btn flex flex-wrap items-center gap-3 text-[13px]">
+          <span className="font-semibold text-oq-black">
+            {selectedIds.size} contact{selectedIds.size > 1 ? 's' : ''} sélectionné{selectedIds.size > 1 ? 's' : ''}
+          </span>
+          <select
+            className="oq-input w-auto"
+            value={targetList}
+            onChange={(e) => setTargetList(e.target.value)}
+          >
+            <option value="">Choisir une liste…</option>
+            {lists.map((l) => (
+              <option key={l.id} value={l.id}>{l.name}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="oq-btn-dark oq-btn-sm"
+            disabled={!targetList || addingToList}
+            onClick={addSelectionToList}
+          >
+            {addingToList ? 'Ajout…' : 'Ajouter à la liste'}
+          </button>
+          <button
+            type="button"
+            className="text-oq-muted hover:text-oq-black"
+            onClick={() => setSelectedIds(new Set())}
+          >
+            Tout désélectionner
+          </button>
+        </div>
+      )}
+
       {importReport && (
         <div className="mb-4 px-4 py-3 bg-oq-bg border border-oq-border rounded-btn text-[13px] text-oq-text">
           {importReport}
@@ -290,6 +369,13 @@ export default function ContactsTable({ initialContacts }: Props) {
           <table className="w-full text-[14px]">
             <thead>
               <tr className="text-left text-[12px] uppercase tracking-wider text-oq-muted bg-oq-bg">
+                <th className="px-4 py-3 w-10">
+                  <input
+                    type="checkbox"
+                    checked={filtered.length > 0 && filtered.every((c) => selectedIds.has(c.id))}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
                 <th className="px-4 py-3 font-semibold">Nom</th>
                 <th className="px-4 py-3 font-semibold">Email</th>
                 <th className="px-4 py-3 font-semibold">Type</th>
@@ -307,6 +393,13 @@ export default function ContactsTable({ initialContacts }: Props) {
                   }`}
                   onClick={() => setSelectedId(contact.id)}
                 >
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(contact.id)}
+                      onChange={() => toggleSelect(contact.id)}
+                    />
+                  </td>
                   <td className="px-4 py-3 font-medium text-oq-black">
                     {contact.first_name} {contact.last_name}
                   </td>

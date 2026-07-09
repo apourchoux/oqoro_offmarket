@@ -2,7 +2,10 @@ import type { APIRoute } from 'astro';
 import { Resend } from 'resend';
 import { getAdminClient } from '../../../../../lib/supabase';
 import { loadCampaignPropertyData } from '../../../../../lib/campaigns';
-import { renderCampaignEmail } from '../../../../../lib/campaign-email';
+import {
+  renderCampaignEmail,
+  renderCustomEmail,
+} from '../../../../../lib/campaign-email';
 import { isSameOrigin } from '../../../../../lib/security';
 import { UUID_REGEX, json } from '../_helpers';
 
@@ -31,32 +34,55 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
     .eq('id', id)
     .maybeSingle();
   if (!campaign) return json({ error: 'Campagne introuvable' }, 404);
-  if (!campaign.property_id) {
-    return json({ error: 'Sélectionnez un bien avant le test' }, 400);
+
+  let rendered: { html: string; text: string };
+  if (campaign.content_mode === 'custom') {
+    if (!campaign.custom_html?.trim()) {
+      return json({ error: 'Le contenu HTML est vide' }, 400);
+    }
+    rendered = renderCustomEmail({
+      html: campaign.custom_html,
+      previewText: campaign.preview_text,
+      contact: { first_name: 'Test', last_name: 'OQORO', email: locals.user.email },
+      unsubscribeUrl: `${SITE_URL}/desabonnement`,
+    });
+  } else {
+    if (!campaign.property_id) {
+      return json({ error: 'Sélectionnez un bien avant le test' }, 400);
+    }
+    const data = await loadCampaignPropertyData(supabase, campaign.property_id);
+    if (!data) return json({ error: 'Bien introuvable' }, 404);
+    rendered = renderCampaignEmail({
+      campaign: {
+        subject: campaign.subject,
+        intro_text: campaign.intro_text,
+        preview_text: campaign.preview_text,
+      },
+      property: data.property,
+      financials: data.financials,
+      photoUrl: data.photoUrl,
+      contact: { first_name: 'Test' },
+      siteUrl: SITE_URL,
+      unsubscribeUrl: `${SITE_URL}/desabonnement`,
+    });
   }
 
-  const data = await loadCampaignPropertyData(supabase, campaign.property_id);
-  if (!data) return json({ error: 'Bien introuvable' }, 404);
-
-  const { html, text } = renderCampaignEmail({
-    campaign: { subject: campaign.subject, intro_text: campaign.intro_text },
-    property: data.property,
-    financials: data.financials,
-    photoUrl: data.photoUrl,
-    contact: { first_name: 'Test' },
-    siteUrl: SITE_URL,
-    unsubscribeUrl: `${SITE_URL}/desabonnement`,
-  });
-
   const resend = new Resend(apiKey);
-  const from =
+  const defaultFrom =
     import.meta.env.RESEND_FROM || 'OQORO Off Market <offmarket@oqoro.com>';
+  const from = campaign.from_email
+    ? campaign.from_name
+      ? `${campaign.from_name} <${campaign.from_email}>`
+      : campaign.from_email
+    : defaultFrom;
+
   const { error } = await resend.emails.send({
     from,
     to: locals.user.email,
+    ...(campaign.reply_to ? { replyTo: campaign.reply_to } : {}),
     subject: `[TEST] ${campaign.subject || campaign.name}`,
-    html,
-    text,
+    html: rendered.html,
+    text: rendered.text,
   });
   if (error) {
     console.error('[admin campagnes test] resend error', error);

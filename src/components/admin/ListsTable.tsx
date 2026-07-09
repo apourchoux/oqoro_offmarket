@@ -1,0 +1,289 @@
+import { useState } from 'react';
+import type { ContactList } from '../../lib/types';
+
+interface ListWithCount extends ContactList {
+  member_count: number;
+}
+
+interface MemberRow {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  subscribed: boolean;
+}
+
+interface Props {
+  initialLists: ListWithCount[];
+}
+
+export default function ListsTable({ initialLists }: Props) {
+  const [lists, setLists] = useState(initialLists);
+  const [search, setSearch] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [openListId, setOpenListId] = useState<string | null>(null);
+  const [members, setMembers] = useState<MemberRow[] | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  const filtered = search.trim()
+    ? lists.filter((l) => l.name.toLowerCase().includes(search.trim().toLowerCase()))
+    : lists;
+
+  const openList = lists.find((l) => l.id === openListId) ?? null;
+
+  async function createList() {
+    if (!newName.trim()) return;
+    try {
+      const res = await fetch('/admin/api/listes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error ?? 'Échec de la création');
+        return;
+      }
+      setLists((current) => [{ ...data.list, member_count: 0 }, ...current]);
+      setNewName('');
+      setCreating(false);
+    } catch (err) {
+      alert('Échec de la création');
+      console.error(err);
+    }
+  }
+
+  async function renameList(id: string) {
+    const name = renameValue.trim();
+    if (!name) return;
+    setRenamingId(null);
+    setLists((current) => current.map((l) => (l.id === id ? { ...l, name } : l)));
+    try {
+      const res = await fetch(`/admin/api/listes/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) throw new Error('rename failed');
+    } catch (err) {
+      alert('Échec du renommage');
+      console.error(err);
+    }
+  }
+
+  async function deleteList(id: string) {
+    if (!confirm('Supprimer cette liste ? Les contacts eux-mêmes ne sont pas supprimés.')) return;
+    try {
+      const res = await fetch(`/admin/api/listes/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('delete failed');
+      setLists((current) => current.filter((l) => l.id !== id));
+      if (openListId === id) setOpenListId(null);
+    } catch (err) {
+      alert('Échec de la suppression');
+      console.error(err);
+    }
+  }
+
+  async function openMembers(id: string) {
+    setOpenListId(id);
+    setMembers(null);
+    try {
+      const res = await fetch(`/admin/api/listes/${id}/members`);
+      const data = await res.json();
+      setMembers(res.ok ? data.members : []);
+    } catch {
+      setMembers([]);
+    }
+  }
+
+  async function removeMember(contactId: string) {
+    if (!openListId) return;
+    setMembers((current) => (current ?? []).filter((m) => m.id !== contactId));
+    setLists((current) =>
+      current.map((l) =>
+        l.id === openListId ? { ...l, member_count: Math.max(0, l.member_count - 1) } : l,
+      ),
+    );
+    try {
+      const res = await fetch(`/admin/api/listes/${openListId}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ remove: [contactId] }),
+      });
+      if (!res.ok) throw new Error('remove failed');
+    } catch (err) {
+      alert('Échec du retrait');
+      console.error(err);
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <input
+          type="search"
+          className="oq-input max-w-xs"
+          placeholder="Rechercher une liste…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <div className="flex-1" />
+        <button type="button" className="oq-btn-dark" onClick={() => setCreating(true)}>
+          Créer une liste
+        </button>
+      </div>
+
+      {creating && (
+        <form
+          className="mb-4 flex gap-3 items-center bg-white border border-oq-border rounded-card p-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            createList();
+          }}
+        >
+          <input
+            className="oq-input max-w-sm"
+            placeholder="Nom de la liste (ex : Investisseurs Lyon)"
+            value={newName}
+            autoFocus
+            onChange={(e) => setNewName(e.target.value)}
+          />
+          <button type="submit" className="oq-btn-dark">Créer</button>
+          <button type="button" className="oq-btn-secondary" onClick={() => setCreating(false)}>
+            Annuler
+          </button>
+        </form>
+      )}
+
+      <div className="bg-white border border-oq-border rounded-card overflow-hidden">
+        {filtered.length === 0 ? (
+          <div className="p-10 text-center text-oq-muted">
+            Aucune liste. Créez-en une puis ajoutez-y des contacts depuis
+            l'onglet Contacts (sélection multiple).
+          </div>
+        ) : (
+          <table className="w-full text-[14px]">
+            <thead>
+              <tr className="text-left text-[12px] uppercase tracking-wider text-oq-muted bg-oq-bg">
+                <th className="px-4 py-3 font-semibold">Nom</th>
+                <th className="px-4 py-3 font-semibold text-right">Contacts</th>
+                <th className="px-4 py-3 font-semibold">Créée le</th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((list) => (
+                <tr key={list.id} className="border-t border-oq-border hover:bg-oq-bg/50">
+                  <td className="px-4 py-3 font-medium text-oq-black">
+                    {renamingId === list.id ? (
+                      <form
+                        className="flex gap-2"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          renameList(list.id);
+                        }}
+                      >
+                        <input
+                          className="oq-input max-w-xs"
+                          value={renameValue}
+                          autoFocus
+                          onChange={(e) => setRenameValue(e.target.value)}
+                        />
+                        <button type="submit" className="oq-btn-secondary oq-btn-sm">OK</button>
+                      </form>
+                    ) : (
+                      <button
+                        type="button"
+                        className="text-oq-black hover:text-brand-700"
+                        onClick={() => openMembers(list.id)}
+                      >
+                        {list.name}
+                      </button>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right text-oq-text">{list.member_count}</td>
+                  <td className="px-4 py-3 text-oq-muted text-[13px]">
+                    {new Date(list.created_at).toLocaleDateString('fr-FR')}
+                  </td>
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    <button
+                      type="button"
+                      className="text-[13px] text-oq-muted hover:text-oq-black mr-3"
+                      onClick={() => {
+                        setRenamingId(list.id);
+                        setRenameValue(list.name);
+                      }}
+                    >
+                      Renommer
+                    </button>
+                    <button
+                      type="button"
+                      className="text-[13px] text-red-600 hover:text-red-700"
+                      onClick={() => deleteList(list.id)}
+                    >
+                      Supprimer
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {openList && (
+        <div className="fixed inset-0 z-40 bg-black/30" onClick={() => setOpenListId(null)}>
+          <aside
+            className="fixed top-0 right-0 h-full w-full max-w-md bg-white border-l border-oq-border overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 border-b border-oq-border flex items-center justify-between">
+              <div>
+                <h2 className="text-[18px] font-bold text-oq-black">{openList.name}</h2>
+                <p className="text-[13px] text-oq-muted mt-0.5">
+                  {openList.member_count} contact{openList.member_count > 1 ? 's' : ''}
+                </p>
+              </div>
+              <button onClick={() => setOpenListId(null)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-oq-bg text-oq-muted">×</button>
+            </div>
+            <div className="p-6">
+              {members === null ? (
+                <p className="text-oq-muted text-[14px]">Chargement…</p>
+              ) : members.length === 0 ? (
+                <p className="text-oq-muted text-[14px]">
+                  Liste vide. Ajoutez des contacts depuis l'onglet Contacts :
+                  cochez-les puis « Ajouter à une liste ».
+                </p>
+              ) : (
+                <ul className="divide-y divide-oq-border">
+                  {members.map((m) => (
+                    <li key={m.id} className="py-2.5 flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[14px] font-medium text-oq-black truncate">
+                          {m.first_name} {m.last_name}
+                          {!m.subscribed && (
+                            <span className="ml-2 text-[11px] text-oq-muted">(désabonné)</span>
+                          )}
+                        </div>
+                        <div className="text-[12px] text-oq-muted truncate">{m.email}</div>
+                      </div>
+                      <button
+                        type="button"
+                        className="text-[12px] text-red-600 hover:text-red-700 whitespace-nowrap"
+                        onClick={() => removeMember(m.id)}
+                      >
+                        Retirer
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </aside>
+        </div>
+      )}
+    </div>
+  );
+}

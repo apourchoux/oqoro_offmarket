@@ -7,6 +7,8 @@ export const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const TARGET_TYPES = ['tous', 'proprietaire', 'investisseur'] as const;
+const CONTENT_MODES = ['property', 'custom'] as const;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -60,6 +62,83 @@ export function validateCampaignFields(
       return { error: 'Type de ciblage invalide' };
     }
     fields.target_contact_type = body.target_contact_type;
+  }
+  if ('target_list_ids' in body) {
+    if (body.target_list_ids === null) {
+      fields.target_list_ids = null;
+    } else if (
+      !Array.isArray(body.target_list_ids) ||
+      body.target_list_ids.some(
+        (id) => typeof id !== 'string' || !UUID_REGEX.test(id),
+      )
+    ) {
+      return { error: 'Listes de ciblage invalides' };
+    } else {
+      const ids = [...new Set(body.target_list_ids as string[])];
+      fields.target_list_ids = ids.length > 0 ? ids : null;
+    }
+  }
+  if ('from_name' in body) {
+    if (body.from_name !== null && (typeof body.from_name !== 'string' || body.from_name.length > 100)) {
+      return { error: "Nom d'expéditeur invalide" };
+    }
+    fields.from_name =
+      typeof body.from_name === 'string' && body.from_name.trim()
+        ? body.from_name.trim()
+        : null;
+  }
+  if ('from_email' in body) {
+    if (body.from_email === null || body.from_email === '') {
+      fields.from_email = null;
+    } else if (
+      typeof body.from_email !== 'string' ||
+      body.from_email.length > 254 ||
+      !EMAIL_REGEX.test(body.from_email.trim())
+    ) {
+      return { error: "Email d'expéditeur invalide" };
+    } else {
+      fields.from_email = body.from_email.trim().toLowerCase();
+    }
+  }
+  if ('reply_to' in body) {
+    if (body.reply_to === null || body.reply_to === '') {
+      fields.reply_to = null;
+    } else if (
+      typeof body.reply_to !== 'string' ||
+      body.reply_to.length > 254 ||
+      !EMAIL_REGEX.test(body.reply_to.trim())
+    ) {
+      return { error: 'Reply-to invalide' };
+    } else {
+      fields.reply_to = body.reply_to.trim().toLowerCase();
+    }
+  }
+  if ('preview_text' in body) {
+    if (body.preview_text !== null && typeof body.preview_text !== 'string') {
+      return { error: "Texte d'aperçu invalide" };
+    }
+    fields.preview_text =
+      typeof body.preview_text === 'string' && body.preview_text.trim()
+        ? body.preview_text.slice(0, 300)
+        : null;
+  }
+  if ('content_mode' in body) {
+    if (
+      typeof body.content_mode !== 'string' ||
+      !(CONTENT_MODES as readonly string[]).includes(body.content_mode)
+    ) {
+      return { error: 'Mode de contenu invalide' };
+    }
+    fields.content_mode = body.content_mode;
+  }
+  if ('custom_html' in body) {
+    if (body.custom_html !== null && typeof body.custom_html !== 'string') {
+      return { error: 'HTML invalide' };
+    }
+    fields.custom_html =
+      typeof body.custom_html === 'string' && body.custom_html.trim()
+        ? body.custom_html.slice(0, 500000)
+        : null;
   }
   if ('target_zones' in body) {
     if (body.target_zones === null) {

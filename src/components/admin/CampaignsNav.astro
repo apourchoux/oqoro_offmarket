@@ -1,0 +1,32 @@
+---
+// Sous-navigation de la section Campagnes (pills), partagée par toutes les
+// pages /admin/campagnes/*.
+interface Props {
+  active: 'campagnes' | 'contacts' | 'listes' | 'templates' | 'configuration';
+}
+const { active } = Astro.props;
+
+const items = [
+  { key: 'campagnes', label: 'Campagnes', href: '/admin/campagnes' },
+  { key: 'contacts', label: 'Contacts', href: '/admin/campagnes/contacts' },
+  { key: 'listes', label: 'Listes', href: '/admin/campagnes/listes' },
+  { key: 'templates', label: 'Templates', href: '/admin/campagnes/templates' },
+  { key: 'configuration', label: 'Configuration', href: '/admin/campagnes/configuration' },
+] as const;
+---
+
+<nav class="flex gap-1 bg-white border border-oq-border rounded-btn p-1 overflow-x-auto">
+  {items.map((item) => (
+    <a
+      href={item.href}
+      class:list={[
+        'px-3 py-1.5 rounded-btn text-[14px] no-underline whitespace-nowrap',
+        active === item.key
+          ? 'bg-oq-black text-white'
+          : 'text-oq-text hover:bg-oq-bg',
+      ]}
+    >
+      {item.label}
+    </a>
+  ))}
+</nav>

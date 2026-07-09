@@ -1,0 +1,43 @@
+---
+export const prerender = false;
+
+import Admin from '../../../../layouts/Admin.astro';
+import TemplateEditor from '../../../../components/admin/TemplateEditor.tsx';
+import { getAdminClient } from '../../../../lib/supabase';
+import type { EmailTemplate } from '../../../../lib/types';
+
+if (!Astro.locals.user) {
+  return Astro.redirect('/admin/login');
+}
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const id = Astro.params.id;
+
+let template: EmailTemplate | null = null;
+if (id !== 'new') {
+  if (!id || !UUID_REGEX.test(id)) {
+    return Astro.redirect('/admin/campagnes/templates');
+  }
+  const supabase = getAdminClient();
+  const { data } = await supabase
+    .from('email_templates')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+  if (!data) {
+    return Astro.redirect('/admin/campagnes/templates');
+  }
+  template = data as EmailTemplate;
+}
+---
+
+<Admin title={template ? template.name : 'Nouveau template'} activeSection="campagnes">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-[24px] font-extrabold text-oq-black">
+      {template ? 'Éditer le template' : 'Nouveau template'}
+    </h1>
+    <a href="/admin/campagnes/templates" class="oq-btn-secondary">← Retour aux templates</a>
+  </div>
+  <TemplateEditor client:load initialTemplate={template} />
+</Admin>
