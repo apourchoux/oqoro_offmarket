@@ -1,9 +1,11 @@
 import { defineMiddleware } from 'astro:middleware';
 import { createClient } from '@supabase/supabase-js';
-import { normalizePathname } from './lib/security';
+import { isSameOrigin, normalizePathname } from './lib/security';
 
 const ADMIN_PATH_PREFIX = '/admin';
+const ADMIN_API_PREFIX = '/admin/api/';
 const LOGIN_PATH = '/admin/login';
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 function getAdminEmails(): string[] {
   const raw = import.meta.env.ADMIN_EMAILS ?? '';
@@ -22,6 +24,24 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   if (normalized === LOGIN_PATH || normalized.startsWith('/admin/logout')) {
     return next();
+  }
+
+  // Garde CSRF centralisée sur TOUTE écriture de l'API admin. Ne dépend pas
+  // du préflight CORS (request.json() ignore le Content-Type : un POST
+  // cross-origin en text/plain porteur de JSON ne déclenche aucun préflight)
+  // ni du seul cookie SameSite=Strict (un sous-domaine *.oqoro.com compromis
+  // est « same-site »). On exige une origine same-host sur les méthodes non
+  // sûres. Les endpoints publics (/api/*) restent hors de cette garde.
+  if (
+    normalized.startsWith(ADMIN_API_PREFIX) &&
+    !SAFE_METHODS.has(context.request.method)
+  ) {
+    if (!isSameOrigin(context.request, context.request.headers.get('host'))) {
+      return new Response(JSON.stringify({ error: 'Origine invalide' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
   }
 
   const accessToken = context.cookies.get('sb-access-token')?.value;
@@ -50,8 +70,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return context.redirect(LOGIN_PATH);
   }
 
+  // Fail-closed : une allowlist vide refuse tout accès (voir login.astro).
   const allowed = getAdminEmails();
-  if (allowed.length > 0 && !allowed.includes(data.user.email.toLowerCase())) {
+  if (allowed.length === 0 || !allowed.includes(data.user.email.toLowerCase())) {
     context.cookies.delete('sb-access-token', { path: '/' });
     context.cookies.delete('sb-refresh-token', { path: '/' });
     return context.redirect(`${LOGIN_PATH}?error=forbidden`);

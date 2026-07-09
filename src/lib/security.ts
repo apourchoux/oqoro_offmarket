@@ -79,6 +79,23 @@ export function isSameOrigin(request: Request, host: string | null): boolean {
  * niveau d'un cluster il faut un backend partagé (Upstash KV, Netlify Blobs).
  */
 const buckets = new Map<string, { count: number; resetAt: number }>();
+// Plafond dur : borne la mémoire face à des IP tournantes (l'entrée la plus
+// ancienne est évincée). Chaque écriture purge aussi les buckets expirés.
+const MAX_BUCKETS = 10_000;
+
+function pruneBuckets(now: number): void {
+  for (const [key, bucket] of buckets) {
+    if (bucket.resetAt < now) buckets.delete(key);
+  }
+  if (buckets.size > MAX_BUCKETS) {
+    const excess = buckets.size - MAX_BUCKETS;
+    let i = 0;
+    for (const key of buckets.keys()) {
+      if (i++ >= excess) break;
+      buckets.delete(key);
+    }
+  }
+}
 
 export function rateLimit(
   key: string,
@@ -88,6 +105,7 @@ export function rateLimit(
   const now = Date.now();
   const bucket = buckets.get(key);
   if (!bucket || bucket.resetAt < now) {
+    pruneBuckets(now);
     buckets.set(key, { count: 1, resetAt: now + windowMs });
     return { ok: true, retryAfterSec: 0 };
   }

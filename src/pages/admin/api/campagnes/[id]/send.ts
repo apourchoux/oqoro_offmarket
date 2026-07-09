@@ -68,9 +68,15 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
     }
   }
 
-  // Déclenche la background function (répond 202 immédiatement) sur l'origine
-  // du déploiement courant (fonctionne aussi en deploy preview et netlify dev).
-  const origin = new URL(request.url).origin;
+  // Origine de CONFIANCE pour l'appel interne : jamais dérivée de la requête
+  // (un `Host`/`X-Forwarded-Host` usurpé enverrait le CAMPAIGN_FUNCTION_SECRET
+  // à un hôte attaquant). `process.env.URL` est l'adresse réelle du déploiement
+  // fournie par Netlify (couvre aussi les deploy previews) ; PUBLIC_SITE_URL en
+  // repli. Aligné sur campaign-scheduler.mts.
+  const origin =
+    process.env.URL ||
+    import.meta.env.PUBLIC_SITE_URL ||
+    'https://offmarket.oqoro.com';
   try {
     const res = await fetch(
       `${origin}/.netlify/functions/send-campaign-background`,

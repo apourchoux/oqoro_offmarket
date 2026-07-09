@@ -47,7 +47,9 @@ export default async function handler(req: Request): Promise<Response> {
   }
   if (
     typeof campaignId !== 'string' ||
-    !/^[0-9a-f-]{36}$/i.test(campaignId)
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      campaignId,
+    )
   ) {
     return new Response('Bad Request', { status: 400 });
   }
@@ -162,8 +164,21 @@ export default async function handler(req: Request): Promise<Response> {
     // Chaque ligne traitée quitte le statut pending (sent ou failed), donc la
     // requête suivante renvoie la suite — pas de troncature à la limite
     // PostgREST, et une reprise après crash repart où l'envoi s'était arrêté.
+    //
+    // Invariant critique : toute transition HORS de pending doit réussir. Si
+    // une mise à jour échoue et qu'une ligne reste pending, la boucle la
+    // re-sélectionne et RE-ENVERRAIT l'email → doublons en boucle. Chaque
+    // update est donc vérifiée et fatale (throw → catch → failed, reprise
+    // possible), et un garde anti-stagnation borne le nombre d'itérations.
+    let iterations = 0;
+    const maxIterations = Math.ceil(totalRecipients / BATCH_SIZE) + 5;
     for (;;) {
-      const { data: recipients } = await supabase
+      if (++iterations > maxIterations) {
+        throw new Error(
+          `Boucle d'envoi anormale (${iterations} itérations pour ${totalRecipients} destinataires) — arrêt de sécurité`,
+        );
+      }
+      const { data: recipients, error: fetchError } = await supabase
         .from('campaign_recipients')
         .select(
           'id, email, contacts(first_name, last_name, email, unsubscribe_token, subscribed)',
@@ -172,6 +187,7 @@ export default async function handler(req: Request): Promise<Response> {
         .eq('status', 'pending')
         .order('created_at', { ascending: true })
         .limit(BATCH_SIZE);
+      if (fetchError) throw fetchError;
 
       const chunk = (recipients ?? []) as unknown as Array<{
         id: string;
@@ -189,10 +205,11 @@ export default async function handler(req: Request): Promise<Response> {
       const skipped = chunk.filter((r) => !r.contacts?.subscribed);
       if (skipped.length > 0) {
         failedCount += skipped.length;
-        await supabase
+        const { error: skipError } = await supabase
           .from('campaign_recipients')
           .update({ status: 'failed', error: 'Contact désabonné' })
           .in('id', skipped.map((r) => r.id));
+        if (skipError) throw skipError; // sinon ces lignes restent pending
       }
       if (sendable.length === 0) continue;
 
@@ -247,18 +264,23 @@ export default async function handler(req: Request): Promise<Response> {
       if (error || !data) {
         failedCount += sendable.length;
         console.error('[send-campaign] batch error', error);
-        await supabase
+        const { error: failError } = await supabase
           .from('campaign_recipients')
           .update({
             status: 'failed',
-            error: error?.message ?? 'Erreur batch Resend',
+            error: (error?.message ?? 'Erreur batch Resend').slice(0, 1000),
           })
           .in('id', sendable.map((r) => r.id));
+        if (failError) throw failError; // sinon ces lignes restent pending
       } else {
-        // La réponse est alignée sur l'ordre du payload.
+        // Les emails SONT partis : ces lignes doivent impérativement quitter
+        // `pending`, sinon la boucle les renvoie. On enregistre le statut
+        // (avec resend_email_id pour la corrélation webhook), on réessaie une
+        // fois les échecs, et si ça persiste on abandonne (throw) plutôt que
+        // de risquer un renvoi.
         sentCount += sendable.length;
         const now = new Date().toISOString();
-        await Promise.all(
+        const updates = await Promise.all(
           sendable.map((r, idx) =>
             supabase
               .from('campaign_recipients')
@@ -267,9 +289,34 @@ export default async function handler(req: Request): Promise<Response> {
                 sent_at: now,
                 resend_email_id: data.data[idx]?.id ?? null,
               })
-              .eq('id', r.id),
+              .eq('id', r.id)
+              .then(({ error: e }) => ({ r, idx, e })),
           ),
         );
+        let stillFailing = updates.filter((u) => u.e);
+        if (stillFailing.length > 0) {
+          await sleep(500);
+          stillFailing = (
+            await Promise.all(
+              stillFailing.map(({ r, idx }) =>
+                supabase
+                  .from('campaign_recipients')
+                  .update({
+                    status: 'sent',
+                    sent_at: now,
+                    resend_email_id: data.data[idx]?.id ?? null,
+                  })
+                  .eq('id', r.id)
+                  .then(({ error: e }) => ({ r, idx, e })),
+              ),
+            )
+          ).filter((u) => u.e);
+        }
+        if (stillFailing.length > 0) {
+          throw new Error(
+            `Emails envoyés mais statut non enregistré pour ${stillFailing.length} destinataire(s) — arrêt pour éviter un renvoi`,
+          );
+        }
       }
 
       await sleep(BATCH_DELAY_MS);

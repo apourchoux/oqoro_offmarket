@@ -136,7 +136,10 @@ create index if not exists idx_recipients_resend_id
   on campaign_recipients(resend_email_id);
 
 -- ─────────── VUE STATS ───────────
-create or replace view campaign_stats as
+-- security_invoker : la vue s'exécute avec les droits de l'appelant, donc la
+-- RLS de campaign_recipients s'applique (sinon anon pourrait lire les agrégats
+-- via la vue, qui contournerait la RLS par défaut). Seul le service role lit.
+create or replace view campaign_stats with (security_invoker = on) as
 select
   campaign_id,
   count(*) as total,
@@ -150,6 +153,9 @@ select
   count(*) filter (where status = 'failed') as failed
 from campaign_recipients
 group by campaign_id;
+
+-- Ceinture + bretelles : retire l'accès des rôles non privilégiés à la vue.
+revoke all on campaign_stats from anon, authenticated;
 
 -- ─────────── RLS : service role uniquement ───────────
 alter table contacts enable row level security;

@@ -103,10 +103,14 @@ export const POST: APIRoute = async ({ request }) => {
     .eq('resend_email_id', emailId)
     .maybeSingle();
 
-  // Course possible : un événement (bounce quasi immédiat) peut arriver avant
-  // que le worker ait persisté le resend_email_id du batch. Une courte
-  // attente + relecture couvre cette fenêtre.
-  if (!recipient) {
+  // Course possible : delivered/bounced/complained peuvent arriver avant que
+  // le worker ait persisté le resend_email_id du batch. Une courte attente +
+  // relecture couvre cette fenêtre — seulement pour ces événements précoces
+  // (opened/clicked arrivent bien plus tard, la ligne existe forcément), pour
+  // ne pas immobiliser une exécution serverless sur chaque événement
+  // transactionnel sans rapport.
+  const RACE_PRONE = new Set(['email.delivered', 'email.bounced', 'email.complained']);
+  if (!recipient && RACE_PRONE.has(type)) {
     await new Promise((resolve) => setTimeout(resolve, 1500));
     ({ data: recipient } = await supabase
       .from('campaign_recipients')
@@ -123,6 +127,11 @@ export const POST: APIRoute = async ({ request }) => {
   const occurredAt =
     event.created_at ?? event.data?.created_at ?? new Date().toISOString();
 
+  // Une écriture échouée ne doit PAS être acquittée en 200 : Resend ne rejoue
+  // que sur réponse non-2xx. Les handlers sont idempotents, donc un rejeu est
+  // sûr. On suit les erreurs et on répond 500 en fin de traitement.
+  let writeError = false;
+
   // Timestamp : première occurrence seulement (ex. ouvertures multiples).
   if (!row[timestampColumn]) {
     const patch: Record<string, unknown> = { [timestampColumn]: occurredAt };
@@ -136,6 +145,7 @@ export const POST: APIRoute = async ({ request }) => {
       .is(timestampColumn, null);
     if (error) {
       console.error('[resend-webhook] timestamp update error', error);
+      writeError = true;
     }
   }
 
@@ -151,15 +161,24 @@ export const POST: APIRoute = async ({ request }) => {
     .in('status', below);
   if (statusError) {
     console.error('[resend-webhook] status update error', statusError);
+    writeError = true;
   }
 
   // Suppression list : une plainte spam désabonne définitivement le contact.
+  // Conformité critique — un échec ici DOIT provoquer un rejeu.
   if (type === 'email.complained' && row.contact_id) {
-    await supabase
+    const { error: unsubError } = await supabase
       .from('contacts')
       .update({ subscribed: false, unsubscribed_at: occurredAt })
       .eq('id', row.contact_id);
+    if (unsubError) {
+      console.error('[resend-webhook] complaint unsubscribe error', unsubError);
+      writeError = true;
+    }
   }
 
+  if (writeError) {
+    return new Response('Write error, please retry', { status: 500 });
+  }
   return new Response('OK', { status: 200 });
 };

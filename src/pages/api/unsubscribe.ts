@@ -47,12 +47,29 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
       .from('contacts')
       .update({ subscribed: false, unsubscribed_at: new Date().toISOString() })
       .eq('unsubscribe_token', token);
+    // Échec RÉEL d'écriture : ne PAS annoncer un succès mensonger (RGPD/
+    // délivrabilité). On répond 500 pour que l'utilisateur/le client réessaie.
+    // Sans révéler la validité du token (un token inconnu = 0 ligne, pas
+    // d'erreur → succès, donc pas d'oracle).
     if (error) {
       console.error('[unsubscribe] error', error);
+      const wantsHtml = (request.headers.get('accept') ?? '').includes('text/html');
+      return new Response(
+        wantsHtml
+          ? 'Une erreur est survenue, merci de réessayer dans quelques minutes.'
+          : JSON.stringify({ error: 'temporary_error' }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': wantsHtml ? 'text/plain; charset=utf-8' : 'application/json',
+          },
+        },
+      );
     }
   }
 
-  // Toujours succès : formulaire → redirection confirmation, one-click → 200.
+  // Succès (token traité, inconnu ou absent — pas d'oracle) : formulaire →
+  // redirection confirmation, one-click → 200.
   const accept = request.headers.get('accept') ?? '';
   if (accept.includes('text/html')) {
     return new Response(null, {

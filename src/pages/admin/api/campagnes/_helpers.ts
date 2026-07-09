@@ -37,7 +37,9 @@ export function validateCampaignFields(
     if (typeof body.subject !== 'string' || body.subject.length > 300) {
       return { error: 'Objet invalide' };
     }
-    fields.subject = body.subject.trim();
+    // Neutralise les retours ligne (défense en profondeur contre une éventuelle
+    // injection d'en-tête, en plus de la ré-encodage côté API Resend).
+    fields.subject = body.subject.replace(/[\r\n]+/g, ' ').trim();
   }
   if ('intro_text' in body) {
     if (body.intro_text !== null && typeof body.intro_text !== 'string') {
@@ -81,6 +83,11 @@ export function validateCampaignFields(
   if ('from_name' in body) {
     if (body.from_name !== null && (typeof body.from_name !== 'string' || body.from_name.length > 100)) {
       return { error: "Nom d'expéditeur invalide" };
+    }
+    // Interdit CRLF et chevrons : le nom est interpolé dans `Nom <email>`, un
+    // `<`/`>` ou un saut de ligne pourrait falsifier l'affichage de l'expéditeur.
+    if (typeof body.from_name === 'string' && /[\r\n<>]/.test(body.from_name)) {
+      return { error: "Le nom d'expéditeur contient des caractères interdits (< > retour ligne)" };
     }
     fields.from_name =
       typeof body.from_name === 'string' && body.from_name.trim()
