@@ -1,0 +1,38 @@
+---
+export const prerender = false;
+
+import Admin from '../../../layouts/Admin.astro';
+import ContactsTable from '../../../components/admin/ContactsTable.tsx';
+import { getAdminClient } from '../../../lib/supabase';
+import type { Contact } from '../../../lib/types';
+
+if (!Astro.locals.user) {
+  return Astro.redirect('/admin/login');
+}
+
+const supabase = getAdminClient();
+const { data: contacts } = await supabase
+  .from('contacts')
+  .select('*')
+  .order('created_at', { ascending: false });
+---
+
+<Admin title="Contacts" activeSection="campagnes">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-[28px] font-extrabold text-oq-black">Contacts</h1>
+      <p class="text-oq-muted text-[14px] mt-1">
+        {(contacts ?? []).length} au total
+      </p>
+    </div>
+    <nav class="flex gap-1 bg-white border border-oq-border rounded-btn p-1">
+      <a href="/admin/campagnes" class="px-3 py-1.5 rounded-btn text-[14px] no-underline text-oq-text hover:bg-oq-bg">
+        Campagnes
+      </a>
+      <a href="/admin/campagnes/contacts" class="px-3 py-1.5 rounded-btn text-[14px] no-underline bg-oq-black text-white">
+        Contacts
+      </a>
+    </nav>
+  </div>
+  <ContactsTable client:load initialContacts={(contacts ?? []) as Contact[]} />
+</Admin>

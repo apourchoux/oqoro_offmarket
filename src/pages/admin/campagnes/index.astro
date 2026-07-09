@@ -1,0 +1,138 @@
+---
+export const prerender = false;
+
+import Admin from '../../../layouts/Admin.astro';
+import { getAdminClient } from '../../../lib/supabase';
+import { zonesSummary } from '../../../lib/zones';
+import {
+  CAMPAIGN_STATUS_LABELS,
+  CAMPAIGN_TARGET_TYPE_LABELS,
+} from '../../../lib/types';
+import type { Campaign, CampaignStats, CampaignStatus } from '../../../lib/types';
+
+if (!Astro.locals.user) {
+  return Astro.redirect('/admin/login');
+}
+
+const supabase = getAdminClient();
+const { data: campaigns } = await supabase
+  .from('campaigns')
+  .select('*, properties(title)')
+  .order('created_at', { ascending: false });
+
+const ids = (campaigns ?? []).map((c: any) => c.id);
+const { data: statsRows } = ids.length
+  ? await supabase.from('campaign_stats').select('*').in('campaign_id', ids)
+  : { data: [] };
+
+const statsByCampaign = new Map<string, CampaignStats>(
+  ((statsRows ?? []) as CampaignStats[]).map((s) => [s.campaign_id, s]),
+);
+
+const STATUS_TONES: Record<CampaignStatus, string> = {
+  draft: 'bg-gray-100 text-gray-700',
+  sending: 'bg-amber-100 text-amber-800',
+  sent: 'bg-emerald-100 text-emerald-800',
+  failed: 'bg-red-100 text-red-800',
+};
+
+function pct(part: number, whole: number): string {
+  if (!whole) return '—';
+  return `${Math.round((part / whole) * 100)} %`;
+}
+---
+
+<Admin title="Campagnes" activeSection="campagnes">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-[28px] font-extrabold text-oq-black">Campagnes email</h1>
+      <p class="text-oq-muted text-[14px] mt-1">
+        {(campaigns ?? []).length} au total
+      </p>
+    </div>
+    <div class="flex items-center gap-4">
+      <nav class="flex gap-1 bg-white border border-oq-border rounded-btn p-1">
+        <a href="/admin/campagnes" class="px-3 py-1.5 rounded-btn text-[14px] no-underline bg-oq-black text-white">
+          Campagnes
+        </a>
+        <a href="/admin/campagnes/contacts" class="px-3 py-1.5 rounded-btn text-[14px] no-underline text-oq-text hover:bg-oq-bg">
+          Contacts
+        </a>
+      </nav>
+      <a href="/admin/campagnes/new" class="oq-btn-dark">Nouvelle campagne</a>
+    </div>
+  </div>
+
+  <div class="bg-white border border-oq-border rounded-card overflow-hidden">
+    {campaigns && campaigns.length > 0 ? (
+      <table class="w-full text-[14px]">
+        <thead>
+          <tr class="text-left text-[12px] uppercase tracking-wider text-oq-muted bg-oq-bg">
+            <th class="px-4 py-3 font-semibold">Nom</th>
+            <th class="px-4 py-3 font-semibold">Bien</th>
+            <th class="px-4 py-3 font-semibold">Ciblage</th>
+            <th class="px-4 py-3 font-semibold">Statut</th>
+            <th class="px-4 py-3 font-semibold text-right">Dest.</th>
+            <th class="px-4 py-3 font-semibold text-right">Délivrés</th>
+            <th class="px-4 py-3 font-semibold text-right">Ouverts</th>
+            <th class="px-4 py-3 font-semibold text-right">Cliqués</th>
+            <th class="px-4 py-3 font-semibold">Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(campaigns as any[]).map((c) => {
+            const stats = statsByCampaign.get(c.id);
+            const campaign = c as Campaign & { properties: { title: string } | null };
+            return (
+              <tr
+                class="border-t border-oq-border hover:bg-oq-bg/50 cursor-pointer"
+                onclick={`window.location.href='/admin/campagnes/${c.id}'`}
+              >
+                <td class="px-4 py-3 font-medium text-oq-black">{campaign.name}</td>
+                <td class="px-4 py-3 text-oq-text text-[13px]">
+                  {campaign.properties?.title ?? '—'}
+                </td>
+                <td class="px-4 py-3 text-oq-text text-[13px]">
+                  {CAMPAIGN_TARGET_TYPE_LABELS[campaign.target_contact_type]}
+                  <div class="text-[12px] text-oq-muted">{zonesSummary(campaign.target_zones)}</div>
+                </td>
+                <td class="px-4 py-3">
+                  <span class:list={[
+                    'inline-flex items-center text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded-full',
+                    STATUS_TONES[campaign.status],
+                  ]}>
+                    {CAMPAIGN_STATUS_LABELS[campaign.status]}
+                  </span>
+                </td>
+                <td class="px-4 py-3 text-right text-oq-text">
+                  {campaign.status === 'draft' ? '—' : campaign.total_recipients}
+                </td>
+                <td class="px-4 py-3 text-right text-oq-text">
+                  {stats ? stats.delivered : '—'}
+                </td>
+                <td class="px-4 py-3 text-right text-oq-text">
+                  {stats ? `${stats.opened} (${pct(stats.opened, stats.delivered)})` : '—'}
+                </td>
+                <td class="px-4 py-3 text-right text-oq-text">
+                  {stats ? `${stats.clicked} (${pct(stats.clicked, stats.delivered)})` : '—'}
+                </td>
+                <td class="px-4 py-3 text-oq-muted text-[13px] whitespace-nowrap">
+                  {new Date(campaign.sent_at ?? campaign.created_at).toLocaleDateString('fr-FR')}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    ) : (
+      <div class="p-16 text-center">
+        <p class="text-oq-muted mb-2">Aucune campagne pour le moment.</p>
+        <p class="text-oq-muted text-[13px] mb-6">
+          Ajoutez d'abord des contacts (Campagnes → Contacts), puis créez votre
+          première campagne pour mettre un bien en avant.
+        </p>
+        <a href="/admin/campagnes/new" class="oq-btn-dark">Créer la première campagne</a>
+      </div>
+    )}
+  </div>
+</Admin>

@@ -1,0 +1,58 @@
+---
+export const prerender = false;
+
+import Base from '../layouts/Base.astro';
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const token = Astro.url.searchParams.get('token');
+const validToken = token && UUID_REGEX.test(token) ? token : null;
+const done = Astro.url.searchParams.get('done') === '1';
+---
+
+<Base title="Se désabonner" noindex>
+  <main class="max-w-container mx-auto px-6 py-24">
+    <div class="max-w-md mx-auto bg-white border border-oq-border rounded-card p-8 text-center">
+      {done ? (
+        <>
+          <h1 class="text-[24px] font-extrabold text-oq-black mb-3">
+            Vous êtes désabonné
+          </h1>
+          <p class="text-oq-text text-[15px]">
+            Vous ne recevrez plus nos emails d'opportunités off-market.
+            Si c'était une erreur, contactez-nous à
+            <a href="mailto:offmarket@oqoro.com">offmarket@oqoro.com</a>.
+          </p>
+        </>
+      ) : validToken ? (
+        <>
+          <h1 class="text-[24px] font-extrabold text-oq-black mb-3">
+            Se désabonner
+          </h1>
+          <p class="text-oq-text text-[15px] mb-6">
+            Vous ne recevrez plus les emails d'opportunités off-market
+            d'OQORO. Confirmez votre désabonnement ci-dessous.
+          </p>
+          <form method="POST" action="/api/unsubscribe">
+            <input type="hidden" name="token" value={validToken} />
+            <button type="submit" class="oq-btn-dark w-full">
+              Confirmer le désabonnement
+            </button>
+          </form>
+        </>
+      ) : (
+        <>
+          <h1 class="text-[24px] font-extrabold text-oq-black mb-3">
+            Lien invalide
+          </h1>
+          <p class="text-oq-text text-[15px]">
+            Ce lien de désabonnement est incomplet ou expiré. Utilisez le lien
+            présent en bas de nos emails, ou écrivez-nous à
+            <a href="mailto:offmarket@oqoro.com">offmarket@oqoro.com</a>.
+          </p>
+        </>
+      )}
+    </div>
+  </main>
+</Base>

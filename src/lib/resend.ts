@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 import type { Lead, Property } from './types';
 import { formatEur } from './format';
+import { escapeHtml } from './campaign-email';
 
 function getResend(): Resend | null {
   const key = import.meta.env.RESEND_API_KEY;
@@ -12,15 +13,6 @@ const FROM = import.meta.env.RESEND_FROM || 'OQORO Off Market <offmarket@oqoro.c
 const TO = import.meta.env.LEAD_NOTIFICATION_TO || 'offmarket@oqoro.com';
 const CC = import.meta.env.LEAD_NOTIFICATION_CC || '';
 const SITE_URL = import.meta.env.PUBLIC_SITE_URL || 'https://offmarket.oqoro.com';
-
-function escapeHtml(input: string): string {
-  return input
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
 
 export async function sendLeadNotification(
   lead: Lead,

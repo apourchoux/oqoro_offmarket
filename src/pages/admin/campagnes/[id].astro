@@ -1,0 +1,224 @@
+---
+export const prerender = false;
+
+import Admin from '../../../layouts/Admin.astro';
+import CampaignComposer from '../../../components/admin/CampaignComposer.tsx';
+import { getAdminClient } from '../../../lib/supabase';
+import { listComposerProperties } from '../../../lib/campaigns';
+import { zonesSummary } from '../../../lib/zones';
+import {
+  CAMPAIGN_STATUS_LABELS,
+  CAMPAIGN_TARGET_TYPE_LABELS,
+  RECIPIENT_STATUS_LABELS,
+} from '../../../lib/types';
+import type {
+  Campaign,
+  CampaignRecipient,
+  CampaignStats,
+  RecipientStatus,
+} from '../../../lib/types';
+
+if (!Astro.locals.user) {
+  return Astro.redirect('/admin/login');
+}
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const id = Astro.params.id;
+if (!id || !UUID_REGEX.test(id)) {
+  return Astro.redirect('/admin/campagnes');
+}
+
+const supabase = getAdminClient();
+const { data: campaignRow } = await supabase
+  .from('campaigns')
+  .select('*, properties(title, slug)')
+  .eq('id', id)
+  .maybeSingle();
+if (!campaignRow) {
+  return Astro.redirect('/admin/campagnes');
+}
+const campaign = campaignRow as Campaign & {
+  properties: { title: string; slug: string } | null;
+};
+const isDraft = campaign.status === 'draft';
+
+let composerProperties: Awaited<ReturnType<typeof listComposerProperties>> = [];
+let recipients: Array<CampaignRecipient & { contacts: { first_name: string; last_name: string } | null }> = [];
+let stats: CampaignStats | null = null;
+
+if (isDraft) {
+  composerProperties = await listComposerProperties(supabase);
+} else {
+  const [{ data: recipientRows }, { data: statsRows }] = await Promise.all([
+    supabase
+      .from('campaign_recipients')
+      .select('*, contacts(first_name, last_name)')
+      .eq('campaign_id', id)
+      .order('created_at', { ascending: true }),
+    supabase.from('campaign_stats').select('*').eq('campaign_id', id),
+  ]);
+  recipients = (recipientRows ?? []) as typeof recipients;
+  stats = ((statsRows ?? [])[0] as CampaignStats) ?? null;
+}
+
+const RECIPIENT_TONES: Record<RecipientStatus, string> = {
+  pending: 'bg-gray-100 text-gray-700',
+  sent: 'bg-blue-100 text-blue-800',
+  delivered: 'bg-sky-100 text-sky-800',
+  opened: 'bg-emerald-100 text-emerald-800',
+  clicked: 'bg-violet-100 text-violet-800',
+  bounced: 'bg-red-100 text-red-800',
+  complained: 'bg-red-100 text-red-800',
+  failed: 'bg-red-100 text-red-800',
+};
+
+function pct(part: number, whole: number): string {
+  if (!whole) return '';
+  return `${Math.round((part / whole) * 100)} %`;
+}
+
+const tiles = stats
+  ? [
+      { label: 'Destinataires', value: stats.total, sub: '' },
+      { label: 'Délivrés', value: stats.delivered, sub: pct(stats.delivered, stats.total) },
+      { label: 'Ouverts', value: stats.opened, sub: pct(stats.opened, stats.delivered) },
+      { label: 'Cliqués', value: stats.clicked, sub: pct(stats.clicked, stats.delivered) },
+      { label: 'Rejetés', value: stats.bounced + stats.failed, sub: '' },
+    ]
+  : [];
+---
+
+<Admin title={campaign.name} activeSection="campagnes">
+  {campaign.status === 'sending' && (
+    <meta http-equiv="refresh" content="10" />
+  )}
+
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <div class="flex items-center gap-3">
+        <h1 class="text-[28px] font-extrabold text-oq-black">{campaign.name}</h1>
+        <span class:list={[
+          'inline-flex items-center text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded-full',
+          campaign.status === 'draft' ? 'bg-gray-100 text-gray-700' :
+          campaign.status === 'sending' ? 'bg-amber-100 text-amber-800' :
+          campaign.status === 'sent' ? 'bg-emerald-100 text-emerald-800' :
+          'bg-red-100 text-red-800',
+        ]}>
+          {CAMPAIGN_STATUS_LABELS[campaign.status]}
+        </span>
+      </div>
+      <p class="text-oq-muted text-[14px] mt-1">
+        {CAMPAIGN_TARGET_TYPE_LABELS[campaign.target_contact_type]} · {zonesSummary(campaign.target_zones)}
+        {campaign.sent_at && ` · envoyée le ${new Date(campaign.sent_at).toLocaleString('fr-FR')}`}
+      </p>
+    </div>
+    <div class="flex items-center gap-3">
+      {isDraft && (
+        <form method="POST" action={`/admin/api/campagnes/${campaign.id}/update`} id="delete-form">
+          <button
+            type="button"
+            class="text-[13px] text-red-600 hover:text-red-700"
+            onclick={`if(confirm('Supprimer ce brouillon ?')){fetch('/admin/api/campagnes/${campaign.id}/update',{method:'DELETE'}).then(()=>window.location.href='/admin/campagnes')}`}
+          >
+            Supprimer le brouillon
+          </button>
+        </form>
+      )}
+      <a href="/admin/campagnes" class="oq-btn-secondary">← Retour</a>
+    </div>
+  </div>
+
+  {campaign.status === 'sending' && (
+    <div class="mb-6 px-4 py-3 bg-amber-50 border border-amber-200 rounded-btn text-[13px] text-amber-800">
+      Envoi en cours — cette page se rafraîchit automatiquement toutes les 10 secondes.
+    </div>
+  )}
+  {campaign.status === 'failed' && campaign.error && (
+    <div class="mb-6 px-4 py-3 bg-red-50 border border-red-200 rounded-btn text-[13px] text-red-800">
+      Échec de l'envoi : {campaign.error}
+    </div>
+  )}
+
+  {isDraft ? (
+    <CampaignComposer
+      client:load
+      properties={composerProperties}
+      initialCampaign={campaign}
+    />
+  ) : (
+    <div>
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
+        {tiles.map((t) => (
+          <div class="bg-white border border-oq-border rounded-card p-6">
+            <div class="text-[12px] uppercase tracking-wider text-oq-muted font-semibold">
+              {t.label}
+            </div>
+            <div class="text-[28px] font-extrabold text-oq-black mt-1">{t.value}</div>
+            {t.sub && <div class="text-[13px] text-oq-muted">{t.sub}</div>}
+          </div>
+        ))}
+      </div>
+
+      <div class="bg-white border border-oq-border rounded-card p-6 mb-8">
+        <h2 class="text-[16px] font-bold text-oq-black mb-3">Contenu envoyé</h2>
+        <div class="text-[14px] text-oq-text space-y-1">
+          <div><span class="text-oq-muted">Bien :</span> {campaign.properties?.title ?? '—'}
+            {campaign.properties?.slug && (
+              <a href={`/biens/${campaign.properties.slug}`} target="_blank" class="text-[13px] ml-2">Voir la fiche</a>
+            )}
+          </div>
+          <div><span class="text-oq-muted">Objet :</span> {campaign.subject || '—'}</div>
+          {campaign.intro_text && (
+            <div><span class="text-oq-muted">Introduction :</span> {campaign.intro_text}</div>
+          )}
+        </div>
+      </div>
+
+      <div class="bg-white border border-oq-border rounded-card overflow-hidden">
+        <div class="px-4 py-3 border-b border-oq-border text-[12px] uppercase tracking-wider text-oq-muted font-semibold">
+          Destinataires ({recipients.length})
+        </div>
+        {recipients.length === 0 ? (
+          <div class="p-10 text-center text-oq-muted">Aucun destinataire.</div>
+        ) : (
+          <table class="w-full text-[14px]">
+            <thead>
+              <tr class="text-left text-[12px] uppercase tracking-wider text-oq-muted bg-oq-bg">
+                <th class="px-4 py-3 font-semibold">Contact</th>
+                <th class="px-4 py-3 font-semibold">Email</th>
+                <th class="px-4 py-3 font-semibold">Statut</th>
+                <th class="px-4 py-3 font-semibold">Détail</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recipients.map((r) => (
+                <tr class="border-t border-oq-border">
+                  <td class="px-4 py-3 font-medium text-oq-black">
+                    {r.contacts ? `${r.contacts.first_name} ${r.contacts.last_name}` : '—'}
+                  </td>
+                  <td class="px-4 py-3 text-oq-text">{r.email}</td>
+                  <td class="px-4 py-3">
+                    <span class:list={[
+                      'inline-flex items-center text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded-full',
+                      RECIPIENT_TONES[r.status],
+                    ]}>
+                      {RECIPIENT_STATUS_LABELS[r.status]}
+                    </span>
+                  </td>
+                  <td class="px-4 py-3 text-[13px] text-oq-muted">
+                    {r.error ??
+                      (r.clicked_at ? `cliqué le ${new Date(r.clicked_at).toLocaleString('fr-FR')}` :
+                       r.opened_at ? `ouvert le ${new Date(r.opened_at).toLocaleString('fr-FR')}` :
+                       r.delivered_at ? `délivré le ${new Date(r.delivered_at).toLocaleString('fr-FR')}` :
+                       r.sent_at ? `envoyé le ${new Date(r.sent_at).toLocaleString('fr-FR')}` : '—')}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  )}
+</Admin>
