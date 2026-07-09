@@ -3,7 +3,7 @@ import '../styles/global.css';
 
 interface Props {
   title: string;
-  activeSection?: 'dashboard' | 'biens' | 'leads';
+  activeSection?: 'dashboard' | 'biens' | 'leads' | 'campagnes';
 }
 
 const { title, activeSection = 'dashboard' } = Astro.props;
@@ -13,6 +13,7 @@ const navItems = [
   { href: '/admin', label: 'Tableau de bord', key: 'dashboard' },
   { href: '/admin/biens', label: 'Biens', key: 'biens' },
   { href: '/admin/leads', label: 'Leads', key: 'leads' },
+  { href: '/admin/campagnes', label: 'Campagnes', key: 'campagnes' },
 ] as const;
 ---
 

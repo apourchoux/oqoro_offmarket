@@ -5,6 +5,11 @@
 [build.environment]
   NODE_VERSION = "20"
 
+# Fonctions utilisateur (en plus de celles générées par l'adapter Astro).
+# `send-campaign-background` : envoi des campagnes email (jusqu'à 15 min).
+[functions]
+  directory = "netlify/functions"
+
 # Headers de sécurité globaux. Appliqués par Netlify avant les routes Astro.
 [[headers]]
   for = "/*"

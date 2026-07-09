@@ -9,6 +9,8 @@ interface ImportMetaEnv {
   readonly RESEND_FROM: string;
   readonly LEAD_NOTIFICATION_TO: string;
   readonly LEAD_NOTIFICATION_CC: string;
+  readonly RESEND_WEBHOOK_SECRET: string;
+  readonly CAMPAIGN_FUNCTION_SECRET: string;
   readonly ADMIN_EMAILS: string;
   readonly NETLIFY_BUILD_HOOK: string;
   readonly PUBLIC_GA_MEASUREMENT_ID: string;

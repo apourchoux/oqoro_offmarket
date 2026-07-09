@@ -24,6 +24,7 @@ export default function LeadsTable({ initialLeads }: Props) {
   const [leads, setLeads] = useState(initialLeads);
   const [statusFilter, setStatusFilter] = useState<LeadStatus | 'all'>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [converting, setConverting] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     if (statusFilter === 'all') return leads;
@@ -44,6 +45,34 @@ export default function LeadsTable({ initialLeads }: Props) {
     } catch (err) {
       alert('Échec de la mise à jour');
       console.error(err);
+    }
+  }
+
+  async function convertToContact(lead: Lead) {
+    setConverting(lead.id);
+    try {
+      const res = await fetch('/admin/api/contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          first_name: lead.first_name,
+          last_name: lead.last_name,
+          email: lead.email,
+          phone: lead.phone,
+          lead_id: lead.id,
+        }),
+      });
+      if (res.status === 409) {
+        alert('Ce lead est déjà dans les contacts (email en double).');
+        return;
+      }
+      if (!res.ok) throw new Error('Create failed');
+      alert('Contact créé — retrouvez-le dans Campagnes → Contacts.');
+    } catch (err) {
+      alert('Échec de la conversion en contact');
+      console.error(err);
+    } finally {
+      setConverting(null);
     }
   }
 
@@ -229,6 +258,19 @@ export default function LeadsTable({ initialLeads }: Props) {
                     }
                   }}
                 />
+              </div>
+              <div className="pt-2 border-t border-oq-border">
+                <button
+                  type="button"
+                  className="oq-btn-secondary w-full"
+                  disabled={converting === selected.id}
+                  onClick={() => convertToContact(selected)}
+                >
+                  {converting === selected.id ? 'Conversion…' : 'Convertir en contact'}
+                </button>
+                <p className="text-[12px] text-oq-muted mt-2">
+                  Ajoute ce lead à la base de contacts des campagnes email.
+                </p>
               </div>
             </div>
           </aside>

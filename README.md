@@ -42,6 +42,12 @@ Chaque workstream du PRD est mappé sur des fichiers dédiés :
   `src/pages/biens/[slug].astro`
 - **WS5 — Leads & emails** : `src/components/ContactModal.tsx`,
   `src/pages/api/leads.ts`, `src/lib/resend.ts`
+- **WS6 — Campagnes email** : `src/pages/admin/campagnes/**`,
+  `src/pages/admin/api/{contacts,campagnes}/**`,
+  `src/components/admin/{CampaignComposer,ContactsTable,ZonesPicker}.tsx`,
+  `src/lib/{campaigns,campaign-email,zones,resend-webhook}.ts`,
+  `netlify/functions/send-campaign-background.mts`,
+  `src/pages/api/{resend-webhook,unsubscribe}.ts`, `src/pages/desabonnement.astro`
 
 ## Scripts
 
@@ -59,6 +65,39 @@ npm run typecheck  # astro check
 3. Cocher *Publié* puis *Publier & rebuild* → déclenche le build hook Netlify
    et régénère les pages statiques
 4. Les leads arrivent dans `/admin/leads`
+
+## Campagnes email
+
+Onglet **Campagnes** de l'admin : envoi d'un bien mis en avant à un segment de
+contacts (propriétaires / investisseurs), via l'API Resend.
+
+- **Contacts** (`/admin/campagnes/contacts`) : saisie manuelle, import CSV
+  (colonnes `prenom,nom,email,telephone,type,zones` — zones = codes département
+  séparés par `|`, type ∈ `proprietaire|investisseur|mixte`), ou conversion
+  d'un lead. Un contact sans zone cherche dans toute la France.
+- **Composer** (`/admin/campagnes/new`) : bien publié → audience (type × zones,
+  compteur live) → objet + intro → aperçu → brouillon / test / envoi.
+- **Envoi** : snapshot des destinataires puis batchs Resend de 100 via la
+  background function Netlify `send-campaign-background` (jusqu'à 15 min).
+  Chaque email porte un lien de désabonnement + header `List-Unsubscribe`
+  (one-click RFC 8058).
+- **Stats** : délivrés / ouverts / cliqués / bounces / plaintes via webhook
+  Resend ; une plainte spam désabonne le contact.
+
+### Mise en service
+
+1. Appliquer `supabase/migrations/0006_email_campaigns.sql` dans le SQL editor.
+2. Renseigner `CAMPAIGN_FUNCTION_SECRET` (longue chaîne aléatoire) dans les
+   variables d'environnement Netlify.
+3. Dans Resend : activer le tracking **opens & clicks** sur le domaine
+   d'envoi, puis créer un webhook vers
+   `https://offmarket.oqoro.com/api/resend-webhook` avec les événements
+   `delivered`, `opened`, `clicked`, `bounced`, `complained`, et copier le
+   signing secret dans `RESEND_WEBHOOK_SECRET`.
+4. Les background functions Netlify nécessitent un plan qui les supporte
+   (elles sont exécutées en synchrone par `netlify dev` en local).
+5. Premier envoi : tester sur un segment ne contenant que les adresses de
+   l'équipe.
 
 ## Déploiement Netlify
 

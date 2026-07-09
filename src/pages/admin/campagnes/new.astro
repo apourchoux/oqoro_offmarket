@@ -1,0 +1,28 @@
+---
+export const prerender = false;
+
+import Admin from '../../../layouts/Admin.astro';
+import CampaignComposer from '../../../components/admin/CampaignComposer.tsx';
+import { getAdminClient } from '../../../lib/supabase';
+import { listComposerProperties } from '../../../lib/campaigns';
+
+if (!Astro.locals.user) {
+  return Astro.redirect('/admin/login');
+}
+
+const supabase = getAdminClient();
+const properties = await listComposerProperties(supabase);
+---
+
+<Admin title="Nouvelle campagne" activeSection="campagnes">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-[28px] font-extrabold text-oq-black">Nouvelle campagne</h1>
+      <p class="text-oq-muted text-[14px] mt-1">
+        Mettez un bien en avant auprès d'un segment de contacts.
+      </p>
+    </div>
+    <a href="/admin/campagnes" class="oq-btn-secondary">← Retour</a>
+  </div>
+  <CampaignComposer client:load properties={properties} />
+</Admin>

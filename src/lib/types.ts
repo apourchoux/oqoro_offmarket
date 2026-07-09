@@ -158,6 +158,93 @@ export interface Lead {
   created_at: string;
 }
 
+// ─────────── Campagnes email ───────────
+
+export type ContactType = 'proprietaire' | 'investisseur' | 'mixte';
+
+export type ContactSource = 'manuel' | 'import_csv' | 'lead';
+
+export type CampaignStatus = 'draft' | 'sending' | 'sent' | 'failed';
+
+export type CampaignTargetType = 'tous' | 'proprietaire' | 'investisseur';
+
+export type RecipientStatus =
+  | 'pending'
+  | 'sent'
+  | 'delivered'
+  | 'opened'
+  | 'clicked'
+  | 'bounced'
+  | 'complained'
+  | 'failed';
+
+export interface Contact {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string | null;
+  contact_type: ContactType;
+  // Codes département ('69', '2A', '971'...). Vide = toute la France.
+  zones: string[];
+  notes: string | null;
+  source: ContactSource;
+  lead_id: string | null;
+  subscribed: boolean;
+  unsubscribed_at: string | null;
+  unsubscribe_token: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Campaign {
+  id: string;
+  name: string;
+  subject: string;
+  intro_text: string | null;
+  property_id: string | null;
+  target_contact_type: CampaignTargetType;
+  // null = toute la France ; sinon codes département ciblés.
+  target_zones: string[] | null;
+  status: CampaignStatus;
+  total_recipients: number;
+  error: string | null;
+  sent_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CampaignRecipient {
+  id: string;
+  campaign_id: string;
+  contact_id: string;
+  email: string;
+  status: RecipientStatus;
+  resend_email_id: string | null;
+  error: string | null;
+  sent_at: string | null;
+  delivered_at: string | null;
+  opened_at: string | null;
+  clicked_at: string | null;
+  bounced_at: string | null;
+  complained_at: string | null;
+  created_at: string;
+}
+
+export interface CampaignStats {
+  campaign_id: string;
+  total: number;
+  pending: number;
+  sent: number;
+  delivered: number;
+  opened: number;
+  clicked: number;
+  bounced: number;
+  complained: number;
+  failed: number;
+}
+
 export interface PropertyFinancials {
   id: string;
   sale_price: number;
@@ -204,6 +291,42 @@ export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   contacted: 'Contacté',
   converted: 'Converti',
   archived: 'Archivé',
+};
+
+export const CONTACT_TYPE_LABELS: Record<ContactType, string> = {
+  proprietaire: 'Propriétaire',
+  investisseur: 'Investisseur',
+  mixte: 'Les deux',
+};
+
+export const CONTACT_SOURCE_LABELS: Record<ContactSource, string> = {
+  manuel: 'Manuel',
+  import_csv: 'Import CSV',
+  lead: 'Lead',
+};
+
+export const CAMPAIGN_STATUS_LABELS: Record<CampaignStatus, string> = {
+  draft: 'Brouillon',
+  sending: 'Envoi en cours',
+  sent: 'Envoyée',
+  failed: 'Échec',
+};
+
+export const CAMPAIGN_TARGET_TYPE_LABELS: Record<CampaignTargetType, string> = {
+  tous: 'Tous les contacts',
+  proprietaire: 'Propriétaires',
+  investisseur: 'Investisseurs',
+};
+
+export const RECIPIENT_STATUS_LABELS: Record<RecipientStatus, string> = {
+  pending: 'En attente',
+  sent: 'Envoyé',
+  delivered: 'Délivré',
+  opened: 'Ouvert',
+  clicked: 'Cliqué',
+  bounced: 'Rejeté',
+  complained: 'Plainte',
+  failed: 'Échec',
 };
 
 export const CHARGES_OPTIONS: { value: string; label: string }[] = [
