@@ -5,25 +5,14 @@ import Admin from '../../../layouts/Admin.astro';
 import CampaignsNav from '../../../components/admin/CampaignsNav.astro';
 import ListsTable from '../../../components/admin/ListsTable.tsx';
 import { getAdminClient } from '../../../lib/supabase';
+import { listContactListsWithCounts } from '../../../lib/campaigns';
 
 if (!Astro.locals.user) {
   return Astro.redirect('/admin/login');
 }
 
 const supabase = getAdminClient();
-const [{ data: lists }, { data: memberships }] = await Promise.all([
-  supabase.from('contact_lists').select('*').order('created_at', { ascending: false }),
-  supabase.from('contact_list_members').select('list_id'),
-]);
-
-const counts = new Map<string, number>();
-for (const m of memberships ?? []) {
-  counts.set((m as any).list_id, (counts.get((m as any).list_id) ?? 0) + 1);
-}
-const withCounts = (lists ?? []).map((l: any) => ({
-  ...l,
-  member_count: counts.get(l.id) ?? 0,
-}));
+const withCounts = await listContactListsWithCounts(supabase);
 ---
 
 <Admin title="Listes" activeSection="campagnes">

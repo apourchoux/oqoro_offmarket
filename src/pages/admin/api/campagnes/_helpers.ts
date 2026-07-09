@@ -157,7 +157,25 @@ export function validateCampaignFields(
   return { fields };
 }
 
-/** Le bien d'une campagne doit exister et être publié pour un envoi/preview. */
+/**
+ * À la création/édition d'un brouillon, le bien doit simplement exister —
+ * la publication n'est exigée qu'au moment de l'envoi (send + worker), pour
+ * ne pas bloquer la duplication de vieilles campagnes dont le bien a été
+ * dépublié entre-temps.
+ */
+export async function assertPropertyExists(
+  supabase: SupabaseClient,
+  propertyId: string,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from('properties')
+    .select('id')
+    .eq('id', propertyId)
+    .maybeSingle();
+  return data ? null : 'Bien introuvable';
+}
+
+/** Le bien d'une campagne doit exister et être publié pour un envoi. */
 export async function assertPublishedProperty(
   supabase: SupabaseClient,
   propertyId: string,

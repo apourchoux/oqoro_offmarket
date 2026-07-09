@@ -180,10 +180,16 @@ export default function ContactsTable({ initialContacts, lists = [] }: Props) {
   }
 
   function toggleSelectAll() {
+    // N'agit que sur les lignes visibles : une sélection faite sous un autre
+    // filtre est conservée.
     setSelectedIds((current) => {
-      const allSelected = filtered.every((c) => current.has(c.id));
-      if (allSelected) return new Set();
-      return new Set(filtered.map((c) => c.id));
+      const next = new Set(current);
+      const allSelected = filtered.every((c) => next.has(c.id));
+      for (const c of filtered) {
+        if (allSelected) next.delete(c.id);
+        else next.add(c.id);
+      }
+      return next;
     });
   }
 

@@ -343,6 +343,15 @@ export const CAMPAIGN_STATUS_LABELS: Record<CampaignStatus, string> = {
   failed: 'Échec',
 };
 
+// Couleurs des badges de statut campagne (partagé liste + détail).
+export const CAMPAIGN_STATUS_TONES: Record<CampaignStatus, string> = {
+  draft: 'bg-gray-100 text-gray-700',
+  scheduled: 'bg-blue-100 text-blue-800',
+  sending: 'bg-amber-100 text-amber-800',
+  sent: 'bg-emerald-100 text-emerald-800',
+  failed: 'bg-red-100 text-red-800',
+};
+
 export const CAMPAIGN_TARGET_TYPE_LABELS: Record<CampaignTargetType, string> = {
   tous: 'Tous les contacts',
   proprietaire: 'Propriétaires',

@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getAdminClient } from '../../../../lib/supabase';
+import { json } from '../_helpers';
 
 export const prerender = false;
 
@@ -32,9 +33,3 @@ export const POST: APIRoute = async ({ request, locals }) => {
   return json({ success: true, template: data });
 };
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}

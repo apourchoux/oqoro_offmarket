@@ -65,15 +65,20 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
     return json({ error: 'Sélectionnez un bien avant de programmer' }, 400);
   }
 
+  // Programmable depuis draft (cas normal), scheduled (re-programmation) et
+  // failed (relance différée — cohérent avec send.ts qui re-claim les failed).
   const { data, error } = await supabase
     .from('campaigns')
     .update({ status: 'scheduled', scheduled_at: when.toISOString(), error: null })
     .eq('id', id)
-    .in('status', ['draft', 'scheduled'])
+    .in('status', ['draft', 'scheduled', 'failed'])
     .select();
   if (error) return json({ error: error.message }, 500);
   if (!data || data.length === 0) {
-    return json({ error: 'Seuls les brouillons peuvent être programmés' }, 409);
+    return json(
+      { error: 'Cette campagne est en cours d’envoi ou déjà envoyée' },
+      409,
+    );
   }
   return json({ success: true, campaign: data[0] });
 };

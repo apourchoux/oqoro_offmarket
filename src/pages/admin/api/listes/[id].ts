@@ -1,11 +1,9 @@
 import type { APIRoute } from 'astro';
 import { getAdminClient } from '../../../../lib/supabase';
 import { isSameOrigin } from '../../../../lib/security';
+import { UUID_REGEX, json } from '../_helpers';
 
 export const prerender = false;
-
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const POST: APIRoute = async ({ request, params, locals }) => {
   if (!locals.user) return json({ error: 'Non authentifié' }, 401);
@@ -52,9 +50,3 @@ export const DELETE: APIRoute = async ({ request, params, locals }) => {
   return json({ success: true });
 };
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}

@@ -8,9 +8,11 @@ import { loadComposerData } from '../../../lib/campaigns';
 import { zonesSummary } from '../../../lib/zones';
 import {
   CAMPAIGN_STATUS_LABELS,
+  CAMPAIGN_STATUS_TONES,
   CAMPAIGN_TARGET_TYPE_LABELS,
   RECIPIENT_STATUS_LABELS,
 } from '../../../lib/types';
+import { formatRate } from '../../../lib/format';
 import type {
   Campaign,
   CampaignRecipient,
@@ -77,17 +79,12 @@ const RECIPIENT_TONES: Record<RecipientStatus, string> = {
   failed: 'bg-red-100 text-red-800',
 };
 
-function pct(part: number, whole: number): string {
-  if (!whole) return '';
-  return `${Math.round((part / whole) * 100)} %`;
-}
-
 const tiles = stats
   ? [
       { label: 'Destinataires', value: stats.total, sub: '' },
-      { label: 'Délivrés', value: stats.delivered, sub: pct(stats.delivered, stats.total) },
-      { label: 'Ouverts', value: stats.opened, sub: pct(stats.opened, stats.delivered) },
-      { label: 'Cliqués', value: stats.clicked, sub: pct(stats.clicked, stats.delivered) },
+      { label: 'Délivrés', value: stats.delivered, sub: formatRate(stats.delivered, stats.total) },
+      { label: 'Ouverts', value: stats.opened, sub: formatRate(stats.opened, stats.delivered) },
+      { label: 'Cliqués', value: stats.clicked, sub: formatRate(stats.clicked, stats.delivered) },
       { label: 'Rejetés', value: stats.bounced + stats.failed, sub: '' },
     ]
   : [];
@@ -108,11 +105,7 @@ const audienceLine =
       <h1 class="text-[24px] font-extrabold text-oq-black">{campaign.name}</h1>
       <span class:list={[
         'inline-flex items-center text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded-full',
-        campaign.status === 'draft' ? 'bg-gray-100 text-gray-700' :
-        campaign.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
-        campaign.status === 'sending' ? 'bg-amber-100 text-amber-800' :
-        campaign.status === 'sent' ? 'bg-emerald-100 text-emerald-800' :
-        'bg-red-100 text-red-800',
+        CAMPAIGN_STATUS_TONES[campaign.status],
       ]}>
         {CAMPAIGN_STATUS_LABELS[campaign.status]}
       </span>

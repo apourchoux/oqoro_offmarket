@@ -123,6 +123,26 @@ export function audienceQuery(
 }
 
 /**
+ * Listes de contacts avec compteur exact de membres — l'agrégat `count` de
+ * PostgREST est calculé en SQL, donc jamais tronqué par la limite de lignes.
+ */
+export async function listContactListsWithCounts(
+  supabase: SupabaseClient<any, any, any, any, any>,
+): Promise<Array<{ id: string; name: string; member_count: number; created_at: string; updated_at: string }>> {
+  const { data } = await supabase
+    .from('contact_lists')
+    .select('id, name, created_at, updated_at, contact_list_members(count)')
+    .order('created_at', { ascending: false });
+  return (data ?? []).map((l: any) => ({
+    id: l.id,
+    name: l.name,
+    created_at: l.created_at,
+    updated_at: l.updated_at,
+    member_count: l.contact_list_members?.[0]?.count ?? 0,
+  }));
+}
+
+/**
  * Données du composer : biens publiés, listes (avec compteurs) et templates.
  * Utilisé par /admin/campagnes/new et /admin/campagnes/[id] (mode brouillon).
  */
@@ -133,30 +153,20 @@ export async function loadComposerData(
   lists: Array<{ id: string; name: string; member_count: number }>;
   templates: Array<{ id: string; name: string; html: string }>;
 }> {
-  const [properties, { data: lists }, { data: memberships }, { data: templates }] =
-    await Promise.all([
-      listComposerProperties(supabase),
-      supabase.from('contact_lists').select('id, name').order('name'),
-      supabase.from('contact_list_members').select('list_id'),
-      supabase
-        .from('email_templates')
-        .select('id, name, html')
-        .order('updated_at', { ascending: false }),
-    ]);
-
-  const counts = new Map<string, number>();
-  for (const m of memberships ?? []) {
-    const listId = (m as any).list_id as string;
-    counts.set(listId, (counts.get(listId) ?? 0) + 1);
-  }
+  const [properties, lists, { data: templates }] = await Promise.all([
+    listComposerProperties(supabase),
+    listContactListsWithCounts(supabase),
+    supabase
+      .from('email_templates')
+      .select('id, name, html')
+      .order('updated_at', { ascending: false }),
+  ]);
 
   return {
     properties,
-    lists: (lists ?? []).map((l: any) => ({
-      id: l.id,
-      name: l.name,
-      member_count: counts.get(l.id) ?? 0,
-    })),
+    lists: lists
+      .map(({ id, name, member_count }) => ({ id, name, member_count }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr')),
     templates: (templates ?? []) as Array<{ id: string; name: string; html: string }>,
   };
 }

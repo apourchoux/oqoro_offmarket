@@ -249,11 +249,12 @@ export function renderCustomEmail(input: CustomEmailInput): {
       .replace(/<br\s*\/?>/gi, '\n')
       .replace(/<\/(p|div|tr|h[1-6]|li)>/gi, '\n')
       .replace(/<[^>]+>/g, '')
-      .replace(/&amp;/g, '&')
+      // &amp; décodé en DERNIER : sinon « &amp;lt; » deviendrait « < ».
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'")
+      .replace(/&amp;/g, '&')
       .replace(/\n{3,}/g, '\n\n')
       .trim() + `\n\nSe désabonner : ${unsubscribeUrl}`;
 

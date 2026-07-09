@@ -40,6 +40,35 @@ interface Props {
 
 const TARGET_TYPES: CampaignTargetType[] = ['tous', 'proprietaire', 'investisseur'];
 
+function PillToggle<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: Array<{ value: T; label: string }>;
+  value: T;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div className="flex gap-2 flex-wrap">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          onClick={() => onChange(o.value)}
+          className={`px-3 py-1.5 rounded-btn text-[13px] border transition-colors ${
+            value === o.value
+              ? 'bg-oq-black text-white border-oq-black'
+              : 'bg-white text-oq-text border-oq-border hover:bg-oq-bg'
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function StepIcon({ done, index }: { done: boolean; index: number }) {
   return done ? (
     <span className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[13px] font-bold shrink-0">
@@ -97,6 +126,14 @@ export default function CampaignComposer({
   const effectiveListIds = audienceMode === 'listes' ? targetListIds : [];
   const effectiveZones = audienceMode === 'segment' ? targetZones : [];
   const effectiveType = audienceMode === 'segment' ? targetType : 'tous';
+  // Mode listes sans liste cochée = audience VIDE (surtout pas toute la base).
+  const emptyListAudience = audienceMode === 'listes' && targetListIds.length === 0;
+  const audienceKey = JSON.stringify({
+    type: effectiveType,
+    zones: effectiveZones,
+    listIds: effectiveListIds,
+    empty: emptyListAudience,
+  });
 
   // ─── Étapes du wizard ───
   const steps = useMemo(() => {
@@ -114,6 +151,10 @@ export default function CampaignComposer({
 
   // ─── Compteur de destinataires live (debounce 400 ms sur le ciblage) ───
   useEffect(() => {
+    if (emptyListAudience) {
+      setRecipientCount(0);
+      return;
+    }
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
@@ -140,7 +181,7 @@ export default function CampaignComposer({
       controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [audienceMode, targetType, targetZones, targetListIds]);
+  }, [audienceKey]);
 
   // ─── Aperçu live (debounce 600 ms sur le contenu) ───
   useEffect(() => {
@@ -486,35 +527,18 @@ export default function CampaignComposer({
               </span>
             </div>
 
-            <div className="flex gap-2 mb-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setAudienceMode('listes');
+            <div className="mb-4">
+              <PillToggle
+                options={[
+                  { value: 'listes', label: 'Par listes' },
+                  { value: 'segment', label: 'Par segment (type × zones)' },
+                ]}
+                value={audienceMode}
+                onChange={(mode) => {
+                  setAudienceMode(mode);
                   markDirty();
                 }}
-                className={`px-3 py-1.5 rounded-btn text-[13px] border transition-colors ${
-                  audienceMode === 'listes'
-                    ? 'bg-oq-black text-white border-oq-black'
-                    : 'bg-white text-oq-text border-oq-border hover:bg-oq-bg'
-                }`}
-              >
-                Par listes
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAudienceMode('segment');
-                  markDirty();
-                }}
-                className={`px-3 py-1.5 rounded-btn text-[13px] border transition-colors ${
-                  audienceMode === 'segment'
-                    ? 'bg-oq-black text-white border-oq-black'
-                    : 'bg-white text-oq-text border-oq-border hover:bg-oq-bg'
-                }`}
-              >
-                Par segment (type × zones)
-              </button>
+              />
             </div>
 
             {audienceMode === 'listes' ? (
@@ -552,24 +576,18 @@ export default function CampaignComposer({
               )
             ) : (
               <div>
-                <div className="flex gap-2 mb-4">
-                  {TARGET_TYPES.map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => {
-                        setTargetType(t);
-                        markDirty();
-                      }}
-                      className={`px-3 py-1.5 rounded-btn text-[13px] border transition-colors ${
-                        targetType === t
-                          ? 'bg-oq-black text-white border-oq-black'
-                          : 'bg-white text-oq-text border-oq-border hover:bg-oq-bg'
-                      }`}
-                    >
-                      {CAMPAIGN_TARGET_TYPE_LABELS[t]}
-                    </button>
-                  ))}
+                <div className="mb-4">
+                  <PillToggle
+                    options={TARGET_TYPES.map((t) => ({
+                      value: t,
+                      label: CAMPAIGN_TARGET_TYPE_LABELS[t],
+                    }))}
+                    value={targetType}
+                    onChange={(t) => {
+                      setTargetType(t);
+                      markDirty();
+                    }}
+                  />
                 </div>
                 <div className="text-[12px] uppercase tracking-wider text-oq-muted mb-2">
                   Zone géographique
@@ -625,35 +643,18 @@ export default function CampaignComposer({
               <h2 className="text-[16px] font-bold text-oq-black">Design</h2>
             </div>
 
-            <div className="flex gap-2 mb-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setContentMode('property');
+            <div className="mb-4">
+              <PillToggle
+                options={[
+                  { value: 'property', label: 'Bien mis en avant' },
+                  { value: 'custom', label: 'HTML personnalisé' },
+                ]}
+                value={contentMode}
+                onChange={(mode) => {
+                  setContentMode(mode);
                   markDirty();
                 }}
-                className={`px-3 py-1.5 rounded-btn text-[13px] border transition-colors ${
-                  contentMode === 'property'
-                    ? 'bg-oq-black text-white border-oq-black'
-                    : 'bg-white text-oq-text border-oq-border hover:bg-oq-bg'
-                }`}
-              >
-                Bien mis en avant
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setContentMode('custom');
-                  markDirty();
-                }}
-                className={`px-3 py-1.5 rounded-btn text-[13px] border transition-colors ${
-                  contentMode === 'custom'
-                    ? 'bg-oq-black text-white border-oq-black'
-                    : 'bg-white text-oq-text border-oq-border hover:bg-oq-bg'
-                }`}
-              >
-                HTML personnalisé
-              </button>
+              />
             </div>
 
             {contentMode === 'property' ? (

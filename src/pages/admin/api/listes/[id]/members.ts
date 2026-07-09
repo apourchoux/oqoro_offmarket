@@ -1,10 +1,9 @@
 import type { APIRoute } from 'astro';
 import { getAdminClient } from '../../../../../lib/supabase';
+import { UUID_REGEX, json } from '../../_helpers';
 
 export const prerender = false;
 
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_BATCH = 2000;
 
 // GET : membres de la liste (500 premiers, pour le drawer d'édition).
@@ -89,9 +88,3 @@ function validateIds(value: unknown): string[] | null {
   return [...new Set(value as string[])];
 }
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}

@@ -2,8 +2,10 @@ import { useMemo, useState } from 'react';
 import type { Campaign, CampaignStatus } from '../../lib/types';
 import {
   CAMPAIGN_STATUS_LABELS,
+  CAMPAIGN_STATUS_TONES,
   CAMPAIGN_TARGET_TYPE_LABELS,
 } from '../../lib/types';
+import { formatRate } from '../../lib/format';
 import { zonesSummary } from '../../lib/zones';
 
 export interface CampaignRow extends Campaign {
@@ -21,14 +23,6 @@ interface Props {
   initialCampaigns: CampaignRow[];
 }
 
-const STATUS_TONES: Record<CampaignStatus, string> = {
-  draft: 'bg-gray-100 text-gray-700',
-  scheduled: 'bg-blue-100 text-blue-800',
-  sending: 'bg-amber-100 text-amber-800',
-  sent: 'bg-emerald-100 text-emerald-800',
-  failed: 'bg-red-100 text-red-800',
-};
-
 const STATUS_FILTERS: Array<CampaignStatus | 'all'> = [
   'all',
   'draft',
@@ -37,11 +31,6 @@ const STATUS_FILTERS: Array<CampaignStatus | 'all'> = [
   'sent',
   'failed',
 ];
-
-function pct(part: number, whole: number): string {
-  if (!whole) return '—';
-  return `${((part / whole) * 100).toFixed(1).replace('.', ',')} %`;
-}
 
 export default function CampaignsTable({ initialCampaigns }: Props) {
   const [campaigns, setCampaigns] = useState(initialCampaigns);
@@ -101,7 +90,7 @@ export default function CampaignsTable({ initialCampaigns }: Props) {
   }
 
   async function deleteCampaign(id: string) {
-    if (!confirm('Supprimer ce brouillon ?')) return;
+    if (!confirm('Supprimer cette campagne ?')) return;
     setBusy(id);
     try {
       const res = await fetch(`/admin/api/campagnes/${id}/update`, { method: 'DELETE' });
@@ -208,7 +197,7 @@ export default function CampaignsTable({ initialCampaigns }: Props) {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${STATUS_TONES[c.status]}`}>
+                      <span className={`inline-flex items-center text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${CAMPAIGN_STATUS_TONES[c.status]}`}>
                         {CAMPAIGN_STATUS_LABELS[c.status]}
                       </span>
                     </td>
@@ -228,10 +217,10 @@ export default function CampaignsTable({ initialCampaigns }: Props) {
                       {c.status === 'draft' || c.status === 'scheduled' ? '—' : c.total_recipients}
                     </td>
                     <td className="px-4 py-3 text-right text-oq-text whitespace-nowrap">
-                      {c.stats ? `${c.stats.opened} (${pct(c.stats.opened, c.stats.delivered)})` : '—'}
+                      {c.stats ? `${c.stats.opened} (${formatRate(c.stats.opened, c.stats.delivered)})` : '—'}
                     </td>
                     <td className="px-4 py-3 text-right text-oq-text whitespace-nowrap">
-                      {c.stats ? `${c.stats.clicked} (${pct(c.stats.clicked, c.stats.delivered)})` : '—'}
+                      {c.stats ? `${c.stats.clicked} (${formatRate(c.stats.clicked, c.stats.delivered)})` : '—'}
                     </td>
                     <td className="px-4 py-3 text-right text-oq-text">
                       {c.stats ? c.stats.bounced : '—'}
@@ -246,7 +235,7 @@ export default function CampaignsTable({ initialCampaigns }: Props) {
                       >
                         Dupliquer
                       </button>
-                      {c.status === 'draft' && (
+                      {(c.status === 'draft' || c.status === 'failed') && (
                         <button
                           type="button"
                           className="text-[13px] text-red-600 hover:text-red-700"

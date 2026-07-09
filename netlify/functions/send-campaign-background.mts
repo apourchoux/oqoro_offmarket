@@ -103,6 +103,12 @@ export default async function handler(req: Request): Promise<Response> {
         await markFailed(supabase, campaignId, 'Bien introuvable');
         return new Response('OK', { status: 200 });
       }
+      // Revérifié au moment RÉEL de l'envoi : un bien peut avoir été dépublié
+      // entre la programmation et l'échéance du cron.
+      if (propertyData.property.status !== 'published') {
+        await markFailed(supabase, campaignId, "Le bien n'est plus publié");
+        return new Response('OK', { status: 200 });
+      }
     } else if (!typedCampaign.custom_html?.trim()) {
       await markFailed(supabase, campaignId, 'Contenu HTML vide');
       return new Response('OK', { status: 200 });
@@ -133,10 +139,13 @@ export default async function handler(req: Request): Promise<Response> {
       if (!page || page.length < SNAPSHOT_PAGE) break;
     }
 
-    const { count: totalRecipients } = await supabase
+    const { count: totalRecipients, error: countError } = await supabase
       .from('campaign_recipients')
       .select('id', { count: 'exact', head: true })
       .eq('campaign_id', campaignId);
+    // Un échec du count n'est PAS une audience vide : on remonte la vraie
+    // erreur (catch global → failed + relance possible).
+    if (countError) throw countError;
     if (!totalRecipients) {
       await markFailed(supabase, campaignId, 'Aucun destinataire dans ce segment');
       return new Response('OK', { status: 200 });

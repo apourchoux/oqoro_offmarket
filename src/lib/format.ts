@@ -34,6 +34,15 @@ export function formatPercent(
   return percentFormatter.format(alreadyPercent ? value / 100 : value);
 }
 
+/**
+ * Taux « part / whole » pour les stats de campagne (« 12,3 % », '—' si le
+ * dénominateur est nul). Partagé par la liste, le détail et les tuiles.
+ */
+export function formatRate(part: number, whole: number): string {
+  if (!whole) return '—';
+  return `${((part / whole) * 100).toFixed(1).replace('.', ',')} %`;
+}
+
 export function formatSurface(value: number | null | undefined): string {
   if (value === null || value === undefined) return '—';
   return `${numberFormatter.format(value)} m²`;

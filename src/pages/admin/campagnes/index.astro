@@ -6,6 +6,7 @@ import CampaignsNav from '../../../components/admin/CampaignsNav.astro';
 import CampaignsTable from '../../../components/admin/CampaignsTable.tsx';
 import type { CampaignRow } from '../../../components/admin/CampaignsTable.tsx';
 import { getAdminClient } from '../../../lib/supabase';
+import { formatRate } from '../../../lib/format';
 import type { CampaignStats } from '../../../lib/types';
 
 if (!Astro.locals.user) {
@@ -62,16 +63,12 @@ const totals = ((statsRows ?? []) as CampaignStats[]).reduce(
   { sent: 0, delivered: 0, opened: 0, clicked: 0 },
 );
 
-function pct(part: number, whole: number): string {
-  if (!whole) return '—';
-  return `${((part / whole) * 100).toFixed(1).replace('.', ',')} %`;
-}
-
+const deliveredRate = formatRate(totals.delivered, totals.sent);
 const tiles = [
   { label: 'Envoyés', value: totals.sent.toLocaleString('fr-FR'), sub: 'emails', accent: 'bg-brand-600' },
-  { label: 'Délivrés', value: totals.delivered.toLocaleString('fr-FR'), sub: pct(totals.delivered, totals.sent) === '—' ? '' : `${pct(totals.delivered, totals.sent)} de taux`, accent: 'bg-violet-500' },
-  { label: 'Ouverts', value: pct(totals.opened, totals.delivered), sub: `${totals.opened.toLocaleString('fr-FR')} ouvertures`, accent: 'bg-emerald-500' },
-  { label: 'Cliqués', value: pct(totals.clicked, totals.delivered), sub: `${totals.clicked.toLocaleString('fr-FR')} clics`, accent: 'bg-sky-500' },
+  { label: 'Délivrés', value: totals.delivered.toLocaleString('fr-FR'), sub: deliveredRate === '—' ? '' : `${deliveredRate} de taux`, accent: 'bg-violet-500' },
+  { label: 'Ouverts', value: formatRate(totals.opened, totals.delivered), sub: `${totals.opened.toLocaleString('fr-FR')} ouvertures`, accent: 'bg-emerald-500' },
+  { label: 'Cliqués', value: formatRate(totals.clicked, totals.delivered), sub: `${totals.clicked.toLocaleString('fr-FR')} clics`, accent: 'bg-sky-500' },
 ];
 ---
 
