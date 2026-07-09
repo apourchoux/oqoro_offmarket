@@ -134,9 +134,16 @@ const tiles = stats
       Envoi en cours — cette page se rafraîchit automatiquement toutes les 10 secondes.
     </div>
   )}
-  {campaign.status === 'failed' && campaign.error && (
-    <div class="mb-6 px-4 py-3 bg-red-50 border border-red-200 rounded-btn text-[13px] text-red-800">
-      Échec de l'envoi : {campaign.error}
+  {campaign.status === 'failed' && (
+    <div class="mb-6 px-4 py-3 bg-red-50 border border-red-200 rounded-btn text-[13px] text-red-800 flex items-center justify-between gap-4">
+      <span>Échec de l'envoi{campaign.error ? ` : ${campaign.error}` : ''}. Seuls les destinataires encore en attente seront traités lors d'une relance.</span>
+      <button
+        type="button"
+        class="oq-btn-dark whitespace-nowrap"
+        onclick={`if(confirm('Relancer l\\'envoi de cette campagne ?')){fetch('/admin/api/campagnes/${campaign.id}/send',{method:'POST'}).then(r=>r.json()).then(d=>{if(d.error){alert(d.error)}else{window.location.reload()}})}`}
+      >
+        Relancer l'envoi
+      </button>
     </div>
   )}
 

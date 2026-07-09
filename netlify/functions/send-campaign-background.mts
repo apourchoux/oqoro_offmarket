@@ -84,24 +84,29 @@ export default async function handler(req: Request): Promise<Response> {
       return new Response('OK', { status: 200 });
     }
 
-    const { data: recipients } = await supabase
-      .from('campaign_recipients')
-      .select('id, email, contacts(first_name, unsubscribe_token, subscribed)')
-      .eq('campaign_id', campaignId)
-      .eq('status', 'pending')
-      .order('created_at', { ascending: true });
-
     let sentCount = 0;
     let failedCount = 0;
 
-    const pending = (recipients ?? []) as unknown as Array<{
-      id: string;
-      email: string;
-      contacts: Pick<Contact, 'first_name' | 'unsubscribe_token' | 'subscribed'> | null;
-    }>;
+    // Boucle page par page sur les destinataires `pending` : chaque ligne
+    // traitée quitte le statut pending (sent ou failed), donc la requête
+    // suivante renvoie la suite — pas de troncature à la limite PostgREST
+    // de 1000 lignes, et une reprise après crash repart où l'envoi s'était
+    // arrêté.
+    for (;;) {
+      const { data: recipients } = await supabase
+        .from('campaign_recipients')
+        .select('id, email, contacts(first_name, unsubscribe_token, subscribed)')
+        .eq('campaign_id', campaignId)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: true })
+        .limit(BATCH_SIZE);
 
-    for (let i = 0; i < pending.length; i += BATCH_SIZE) {
-      const chunk = pending.slice(i, i + BATCH_SIZE);
+      const chunk = (recipients ?? []) as unknown as Array<{
+        id: string;
+        email: string;
+        contacts: Pick<Contact, 'first_name' | 'unsubscribe_token' | 'subscribed'> | null;
+      }>;
+      if (chunk.length === 0) break;
 
       // Revérifie l'abonnement à l'instant de l'envoi (un contact a pu se
       // désabonner entre le snapshot et l'envoi effectif).
@@ -109,19 +114,20 @@ export default async function handler(req: Request): Promise<Response> {
       const skipped = chunk.filter((r) => !r.contacts?.subscribed);
       if (skipped.length > 0) {
         failedCount += skipped.length;
-        await Promise.all(
-          skipped.map((r) =>
-            supabase
-              .from('campaign_recipients')
-              .update({ status: 'failed', error: 'Contact désabonné' })
-              .eq('id', r.id),
-          ),
-        );
+        await supabase
+          .from('campaign_recipients')
+          .update({ status: 'failed', error: 'Contact désabonné' })
+          .in('id', skipped.map((r) => r.id));
       }
       if (sendable.length === 0) continue;
 
       const payload = sendable.map((r) => {
-        const unsubscribeUrl = `${siteUrl}/desabonnement?token=${r.contacts!.unsubscribe_token}`;
+        const token = r.contacts!.unsubscribe_token;
+        // Lien visible (footer) : page de confirmation. Header one-click
+        // RFC 8058 : le endpoint POST directement (les clients email y font
+        // un POST `List-Unsubscribe=One-Click` sans afficher de page).
+        const unsubscribeUrl = `${siteUrl}/desabonnement?token=${token}`;
+        const oneClickUrl = `${siteUrl}/api/unsubscribe?token=${token}`;
         const { html, text } = renderCampaignEmail({
           campaign: {
             subject: typedCampaign.subject,
@@ -141,7 +147,7 @@ export default async function handler(req: Request): Promise<Response> {
           html,
           text,
           headers: {
-            'List-Unsubscribe': `<${unsubscribeUrl}>, <mailto:offmarket@oqoro.com?subject=unsubscribe>`,
+            'List-Unsubscribe': `<${oneClickUrl}>, <mailto:offmarket@oqoro.com?subject=unsubscribe>`,
             'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
           },
         };
@@ -151,17 +157,13 @@ export default async function handler(req: Request): Promise<Response> {
       if (error || !data) {
         failedCount += sendable.length;
         console.error('[send-campaign] batch error', error);
-        await Promise.all(
-          sendable.map((r) =>
-            supabase
-              .from('campaign_recipients')
-              .update({
-                status: 'failed',
-                error: error?.message ?? 'Erreur batch Resend',
-              })
-              .eq('id', r.id),
-          ),
-        );
+        await supabase
+          .from('campaign_recipients')
+          .update({
+            status: 'failed',
+            error: error?.message ?? 'Erreur batch Resend',
+          })
+          .in('id', sendable.map((r) => r.id));
       } else {
         // La réponse est alignée sur l'ordre du payload.
         sentCount += sendable.length;
@@ -180,9 +182,7 @@ export default async function handler(req: Request): Promise<Response> {
         );
       }
 
-      if (i + BATCH_SIZE < pending.length) {
-        await sleep(BATCH_DELAY_MS);
-      }
+      await sleep(BATCH_DELAY_MS);
     }
 
     if (sentCount > 0) {

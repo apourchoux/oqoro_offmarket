@@ -10,7 +10,7 @@ import type {
   PropertyFinancials,
 } from './types';
 import { PROPERTY_TYPE_LABELS } from './types';
-import { formatEur } from './format';
+import { formatEur, formatPercent } from './format';
 
 export function escapeHtml(input: string): string {
   return input
@@ -79,10 +79,7 @@ export function renderCampaignEmail(input: CampaignEmailInput): {
   if (financials && financials.gross_yield > 0) {
     figures.push({
       label: 'Rentabilité brute',
-      value: `${financials.gross_yield.toLocaleString('fr-FR', {
-        minimumFractionDigits: 1,
-        maximumFractionDigits: 2,
-      })} %`,
+      value: formatPercent(financials.gross_yield),
     });
   }
 

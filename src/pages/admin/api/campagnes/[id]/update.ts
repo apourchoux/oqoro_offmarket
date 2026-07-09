@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getAdminClient } from '../../../../../lib/supabase';
+import { isSameOrigin } from '../../../../../lib/security';
 import {
   UUID_REGEX,
   assertPublishedProperty,
@@ -52,8 +53,12 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
   return json({ success: true, campaign: data[0] });
 };
 
-export const DELETE: APIRoute = async ({ params, locals }) => {
+export const DELETE: APIRoute = async ({ request, params, locals }) => {
   if (!locals.user) return json({ error: 'Non authentifié' }, 401);
+  // Garde CSRF : requête sans body JSON, donc sans préflight CORS.
+  if (!isSameOrigin(request, request.headers.get('host'))) {
+    return json({ error: 'Origine invalide' }, 403);
+  }
   const id = params.id;
   if (!id || !UUID_REGEX.test(id)) return json({ error: 'ID invalide' }, 400);
 

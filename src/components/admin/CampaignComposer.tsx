@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Campaign, CampaignTargetType } from '../../lib/types';
 import { CAMPAIGN_TARGET_TYPE_LABELS } from '../../lib/types';
-import { formatEur } from '../../lib/format';
+import { formatEur, formatPercent } from '../../lib/format';
 import ZonesPicker from './ZonesPicker';
 
 export interface ComposerProperty {
@@ -244,7 +244,7 @@ export default function CampaignComposer({ properties, initialCampaign = null }:
                       {p.city ?? '—'} · {formatEur(p.sale_price)}
                       {p.gross_yield > 0 && (
                         <span className="text-oq-orange font-semibold">
-                          {' '}· {p.gross_yield.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} %
+                          {' '}· {formatPercent(p.gross_yield)}
                         </span>
                       )}
                     </div>

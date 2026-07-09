@@ -3,6 +3,7 @@ import { Resend } from 'resend';
 import { getAdminClient } from '../../../../../lib/supabase';
 import { loadCampaignPropertyData } from '../../../../../lib/campaigns';
 import { renderCampaignEmail } from '../../../../../lib/campaign-email';
+import { isSameOrigin } from '../../../../../lib/security';
 import { UUID_REGEX, json } from '../_helpers';
 
 export const prerender = false;
@@ -11,8 +12,12 @@ const SITE_URL = import.meta.env.PUBLIC_SITE_URL || 'https://offmarket.oqoro.com
 
 // Envoie un email de test de la campagne à l'admin connecté. Aucun effet sur
 // le statut de la campagne ni sur les destinataires.
-export const POST: APIRoute = async ({ params, locals }) => {
+export const POST: APIRoute = async ({ request, params, locals }) => {
   if (!locals.user) return json({ error: 'Non authentifié' }, 401);
+  // Garde CSRF : POST sans body JSON, donc sans préflight CORS.
+  if (!isSameOrigin(request, request.headers.get('host'))) {
+    return json({ error: 'Origine invalide' }, 403);
+  }
   const id = params.id;
   if (!id || !UUID_REGEX.test(id)) return json({ error: 'ID invalide' }, 400);
 
