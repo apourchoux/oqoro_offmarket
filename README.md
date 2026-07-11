@@ -68,25 +68,39 @@ npm run typecheck  # astro check
 
 ## Campagnes email
 
-Onglet **Campagnes** de l'admin : envoi d'un bien mis en avant à un segment de
-contacts (propriétaires / investisseurs), via l'API Resend.
+Onglet **Campagnes** de l'admin : mini-mailer complet (façon Brevo) branché sur
+l'API Resend. Sous-sections : Campagnes · Contacts · Listes · Templates ·
+Configuration.
 
 - **Contacts** (`/admin/campagnes/contacts`) : saisie manuelle, import CSV
   (colonnes `prenom,nom,email,telephone,type,zones` — zones = codes département
-  séparés par `|`, type ∈ `proprietaire|investisseur|mixte`), ou conversion
-  d'un lead. Un contact sans zone cherche dans toute la France.
-- **Composer** (`/admin/campagnes/new`) : bien publié → audience (type × zones,
-  compteur live) → objet + intro → aperçu → brouillon / test / envoi.
+  séparés par `|`, type ∈ `proprietaire|investisseur|mixte`), conversion d'un
+  lead, sélection multiple → ajout à une liste.
+- **Listes** (`/admin/campagnes/listes`) : audiences nommées réutilisables
+  (union sans doublon quand plusieurs listes sont ciblées).
+- **Templates** (`/admin/campagnes/templates`) : bibliothèque de modèles HTML
+  avec éditeur (aperçu desktop/mobile, variables `{{first_name}}`,
+  `{{last_name}}`, `{{email}}`, `{{unsubscribe_url}}`).
+- **Composer** (`/admin/campagnes/new`) : wizard 4 étapes — Expéditeur (nom +
+  email + reply-to, défaut `RESEND_FROM`) → Destinataires (listes OU segment
+  type × zones, compteur live) → Objet (+ texte d'aperçu/preheader) → Design
+  (bien mis en avant généré OU HTML personnalisé chargé depuis un template).
+  Actions : brouillon, test à soi-même, **Programmer** (envoi différé), Envoyer.
 - **Envoi** : snapshot des destinataires puis batchs Resend de 100 via la
   background function Netlify `send-campaign-background` (jusqu'à 15 min).
-  Chaque email porte un lien de désabonnement + header `List-Unsubscribe`
-  (one-click RFC 8058).
+  Les campagnes programmées sont déclenchées par la fonction planifiée
+  `campaign-scheduler` (cron toutes les 5 min). Chaque email porte un lien de
+  désabonnement + header `List-Unsubscribe` (one-click RFC 8058).
 - **Stats** : délivrés / ouverts / cliqués / bounces / plaintes via webhook
   Resend ; une plainte spam désabonne le contact.
+- **Configuration** (`/admin/campagnes/configuration`) : diagnostic des
+  domaines Resend (vérification, tracking opens/clicks, DNS) et des variables
+  d'environnement.
 
 ### Mise en service
 
-1. Appliquer `supabase/migrations/0006_email_campaigns.sql` dans le SQL editor.
+1. Appliquer `supabase/migrations/0006_email_campaigns.sql` puis
+   `supabase/migrations/0007_campaigns_v2.sql` dans le SQL editor.
 2. Renseigner `CAMPAIGN_FUNCTION_SECRET` (longue chaîne aléatoire) dans les
    variables d'environnement Netlify.
 3. Dans Resend : activer le tracking **opens & clicks** sur le domaine
@@ -94,10 +108,10 @@ contacts (propriétaires / investisseurs), via l'API Resend.
    `https://offmarket.oqoro.com/api/resend-webhook` avec les événements
    `delivered`, `opened`, `clicked`, `bounced`, `complained`, et copier le
    signing secret dans `RESEND_WEBHOOK_SECRET`.
-4. Les background functions Netlify nécessitent un plan qui les supporte
-   (elles sont exécutées en synchrone par `netlify dev` en local).
-5. Premier envoi : tester sur un segment ne contenant que les adresses de
-   l'équipe.
+4. Les background functions et scheduled functions Netlify nécessitent un plan
+   qui les supporte (`netlify dev` les exécute en local).
+5. Premier envoi : tester sur une liste ne contenant que les adresses de
+   l'équipe, et vérifier l'onglet Configuration (tout doit être vert).
 
 ## Déploiement Netlify
 

@@ -45,8 +45,13 @@ if (Astro.request.method === 'POST') {
           password,
         });
         const allowed = getAdminEmails();
-        const isAllowed = allowed.length === 0
-          || (data.user?.email && allowed.includes(data.user.email.toLowerCase()));
+        // Fail-closed : une allowlist vide (ADMIN_EMAILS absent/typo) refuse
+        // TOUT le monde plutôt que d'ouvrir l'admin à tout compte Supabase.
+        const isAllowed = Boolean(
+          allowed.length > 0 &&
+            data.user?.email &&
+            allowed.includes(data.user.email.toLowerCase()),
+        );
 
         if (error || !data.session || !isAllowed) {
           // Même message que l'email autorisé soit valide ou pas : empêche

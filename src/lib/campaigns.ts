@@ -5,6 +5,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
+  Campaign,
   CampaignTargetType,
   Property,
   PropertyFinancials,
@@ -83,6 +84,91 @@ export async function listComposerProperties(supabase: SupabaseClient): Promise<
         (financials ?? []).find((f: any) => f.id === p.id)?.gross_yield ?? 0,
     };
   });
+}
+
+export type AudienceTarget = Pick<
+  Campaign,
+  'target_contact_type' | 'target_zones' | 'target_list_ids'
+>;
+
+/**
+ * Construit la requête d'audience d'une campagne — LE point unique utilisé
+ * par le compteur du composer ET le snapshot du worker, pour garantir que
+ * les deux voient exactement le même ensemble de contacts.
+ *
+ * Deux modes exclusifs :
+ * - `target_list_ids` non vide → union des membres abonnés des listes
+ *   (l'embed PostgREST ne duplique pas un contact présent dans 2 listes) ;
+ * - sinon → segment type × zones (applySegmentFilter).
+ */
+export function audienceQuery(
+  supabase: SupabaseClient<any, any, any, any, any>,
+  target: AudienceTarget,
+  select: string,
+  options?: { count?: 'exact'; head?: boolean },
+): any {
+  if (target.target_list_ids && target.target_list_ids.length > 0) {
+    const embedded = `${select}, contact_list_members!inner(list_id)`;
+    return supabase
+      .from('contacts')
+      .select(embedded, options)
+      .in('contact_list_members.list_id', target.target_list_ids)
+      .eq('subscribed', true);
+  }
+  return applySegmentFilter(
+    supabase.from('contacts').select(select, options),
+    target.target_contact_type,
+    target.target_zones,
+  );
+}
+
+/**
+ * Listes de contacts avec compteur exact de membres — l'agrégat `count` de
+ * PostgREST est calculé en SQL, donc jamais tronqué par la limite de lignes.
+ */
+export async function listContactListsWithCounts(
+  supabase: SupabaseClient<any, any, any, any, any>,
+): Promise<Array<{ id: string; name: string; member_count: number; created_at: string; updated_at: string }>> {
+  const { data } = await supabase
+    .from('contact_lists')
+    .select('id, name, created_at, updated_at, contact_list_members(count)')
+    .order('created_at', { ascending: false });
+  return (data ?? []).map((l: any) => ({
+    id: l.id,
+    name: l.name,
+    created_at: l.created_at,
+    updated_at: l.updated_at,
+    member_count: l.contact_list_members?.[0]?.count ?? 0,
+  }));
+}
+
+/**
+ * Données du composer : biens publiés, listes (avec compteurs) et templates.
+ * Utilisé par /admin/campagnes/new et /admin/campagnes/[id] (mode brouillon).
+ */
+export async function loadComposerData(
+  supabase: SupabaseClient<any, any, any, any, any>,
+): Promise<{
+  properties: Awaited<ReturnType<typeof listComposerProperties>>;
+  lists: Array<{ id: string; name: string; member_count: number }>;
+  templates: Array<{ id: string; name: string; html: string }>;
+}> {
+  const [properties, lists, { data: templates }] = await Promise.all([
+    listComposerProperties(supabase),
+    listContactListsWithCounts(supabase),
+    supabase
+      .from('email_templates')
+      .select('id, name, html')
+      .order('updated_at', { ascending: false }),
+  ]);
+
+  return {
+    properties,
+    lists: lists
+      .map(({ id, name, member_count }) => ({ id, name, member_count }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr')),
+    templates: (templates ?? []) as Array<{ id: string; name: string; html: string }>,
+  };
 }
 
 export interface CampaignPropertyData {

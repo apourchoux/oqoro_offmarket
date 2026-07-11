@@ -10,7 +10,7 @@ import type {
   PropertyFinancials,
 } from './types';
 import { PROPERTY_TYPE_LABELS } from './types';
-import { formatEur } from './format';
+import { formatEur, formatPercent } from './format';
 
 export function escapeHtml(input: string): string {
   return input
@@ -22,13 +22,23 @@ export function escapeHtml(input: string): string {
 }
 
 export interface CampaignEmailInput {
-  campaign: Pick<Campaign, 'subject' | 'intro_text'>;
+  campaign: Pick<Campaign, 'subject' | 'intro_text'> &
+    Partial<Pick<Campaign, 'preview_text'>>;
   property: Property;
   financials: PropertyFinancials | null;
   photoUrl: string | null;
   contact: Pick<Contact, 'first_name'>;
   siteUrl: string;
   unsubscribeUrl: string;
+}
+
+/**
+ * Preheader : texte affiché à côté de l'objet dans la boîte de réception,
+ * invisible dans l'email lui-même.
+ */
+function preheaderHtml(previewText: string | null | undefined): string {
+  if (!previewText?.trim()) return '';
+  return `<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden">${escapeHtml(previewText.trim())}</div>`;
 }
 
 const DEFAULT_INTRO =
@@ -79,10 +89,7 @@ export function renderCampaignEmail(input: CampaignEmailInput): {
   if (financials && financials.gross_yield > 0) {
     figures.push({
       label: 'Rentabilité brute',
-      value: `${financials.gross_yield.toLocaleString('fr-FR', {
-        minimumFractionDigits: 1,
-        maximumFractionDigits: 2,
-      })} %`,
+      value: formatPercent(financials.gross_yield),
     });
   }
 
@@ -112,6 +119,7 @@ export function renderCampaignEmail(input: CampaignEmailInput): {
 <html lang="fr">
 <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head>
 <body style="margin:0;padding:0;background:#F2F2F7">
+  ${preheaderHtml(campaign.preview_text)}
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F2F2F7">
     <tr><td align="center" style="padding:24px 12px">
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
@@ -158,26 +166,98 @@ export function renderCampaignEmail(input: CampaignEmailInput): {
 </html>`;
 
   const textFigures = figures.map((f) => `- ${f.label} : ${f.value}`).join('\n');
-  const text = [
-    `Bonjour ${contact.first_name},`,
-    '',
-    intro,
-    '',
-    property.title,
-    cityLine,
-    badges.join(' · '),
-    '',
-    textFigures,
-    '',
-    `Découvrir ce bien : ${propertyUrl}`,
-    '',
-    '—',
-    'OQORO Off Market · offmarket@oqoro.com',
-    'Vous recevez cet email car vous êtes inscrit à nos opportunités off-market.',
-    `Se désabonner : ${unsubscribeUrl}`,
-  ]
-    .filter((line) => line !== null)
-    .join('\n');
+  return { html, text: buildText(textFigures) };
+
+  function buildText(figuresBlock: string): string {
+    return [
+      `Bonjour ${contact.first_name},`,
+      '',
+      intro,
+      '',
+      property.title,
+      cityLine,
+      badges.join(' · '),
+      '',
+      figuresBlock,
+      '',
+      `Découvrir ce bien : ${propertyUrl}`,
+      '',
+      '—',
+      'OQORO Off Market · offmarket@oqoro.com',
+      'Vous recevez cet email car vous êtes inscrit à nos opportunités off-market.',
+      `Se désabonner : ${unsubscribeUrl}`,
+    ].join('\n');
+  }
+}
+
+// ─────────── Mode HTML custom (templates avec variables) ───────────
+
+export const TEMPLATE_VARIABLES = [
+  { token: '{{first_name}}', label: 'Prénom' },
+  { token: '{{last_name}}', label: 'Nom' },
+  { token: '{{email}}', label: 'Email' },
+  { token: '{{unsubscribe_url}}', label: 'Lien de désabonnement' },
+] as const;
+
+export interface CustomEmailInput {
+  html: string;
+  previewText: string | null;
+  contact: Pick<Contact, 'first_name' | 'last_name' | 'email'>;
+  unsubscribeUrl: string;
+}
+
+/**
+ * Rend un email HTML libre : substitue les variables {{first_name}},
+ * {{last_name}}, {{email}} (échappées) et {{unsubscribe_url}} (URL brute),
+ * injecte le preheader, et garantit la présence d'un lien de désabonnement —
+ * si le template n'utilise pas {{unsubscribe_url}}, un footer est ajouté.
+ */
+export function renderCustomEmail(input: CustomEmailInput): {
+  html: string;
+  text: string;
+} {
+  const { contact, unsubscribeUrl, previewText } = input;
+  const hasUnsubscribe = input.html.includes('{{unsubscribe_url}}');
+
+  let html = input.html
+    .replace(/\{\{\s*first_name\s*\}\}/g, escapeHtml(contact.first_name))
+    .replace(/\{\{\s*last_name\s*\}\}/g, escapeHtml(contact.last_name))
+    .replace(/\{\{\s*email\s*\}\}/g, escapeHtml(contact.email))
+    .replace(/\{\{\s*unsubscribe_url\s*\}\}/g, unsubscribeUrl);
+
+  const footer = hasUnsubscribe
+    ? ''
+    : `<p style="font-size:12px;color:#9A9AAF;font-family:Arial,sans-serif;margin-top:24px">Vous recevez cet email de la part d'OQORO. <a href="${unsubscribeUrl}" style="color:#77778C">Se désabonner</a></p>`;
+  const preheader = preheaderHtml(previewText);
+
+  if (/<body[^>]*>/i.test(html)) {
+    html = html.replace(/(<body[^>]*>)/i, `$1${preheader}`);
+    if (footer) {
+      html = /<\/body>/i.test(html)
+        ? html.replace(/<\/body>/i, `${footer}</body>`)
+        : html + footer;
+    }
+  } else {
+    html = preheader + html + footer;
+  }
+
+  // Fallback texte : suppression grossière des balises, liens conservés.
+  const text =
+    html
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, '$2 ($1)')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/(p|div|tr|h[1-6]|li)>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      // &amp; décodé en DERNIER : sinon « &amp;lt; » deviendrait « < ».
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&amp;/g, '&')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim() + `\n\nSe désabonner : ${unsubscribeUrl}`;
 
   return { html, text };
 }
+

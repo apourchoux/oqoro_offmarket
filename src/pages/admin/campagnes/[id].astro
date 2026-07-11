@@ -4,13 +4,15 @@ export const prerender = false;
 import Admin from '../../../layouts/Admin.astro';
 import CampaignComposer from '../../../components/admin/CampaignComposer.tsx';
 import { getAdminClient } from '../../../lib/supabase';
-import { listComposerProperties } from '../../../lib/campaigns';
+import { loadComposerData } from '../../../lib/campaigns';
 import { zonesSummary } from '../../../lib/zones';
 import {
   CAMPAIGN_STATUS_LABELS,
+  CAMPAIGN_STATUS_TONES,
   CAMPAIGN_TARGET_TYPE_LABELS,
   RECIPIENT_STATUS_LABELS,
 } from '../../../lib/types';
+import { formatRate } from '../../../lib/format';
 import type {
   Campaign,
   CampaignRecipient,
@@ -42,25 +44,29 @@ const campaign = campaignRow as Campaign & {
   properties: { title: string; slug: string } | null;
 };
 const isDraft = campaign.status === 'draft';
+const isScheduled = campaign.status === 'scheduled';
 
-let composerProperties: Awaited<ReturnType<typeof listComposerProperties>> = [];
+let composerData: Awaited<ReturnType<typeof loadComposerData>> | null = null;
 let recipients: Array<CampaignRecipient & { contacts: { first_name: string; last_name: string } | null }> = [];
 let stats: CampaignStats | null = null;
 
 if (isDraft) {
-  composerProperties = await listComposerProperties(supabase);
-} else {
+  composerData = await loadComposerData(supabase);
+} else if (!isScheduled) {
   const [{ data: recipientRows }, { data: statsRows }] = await Promise.all([
     supabase
       .from('campaign_recipients')
       .select('*, contacts(first_name, last_name)')
       .eq('campaign_id', id)
-      .order('created_at', { ascending: true }),
+      .order('created_at', { ascending: true })
+      .limit(1000),
     supabase.from('campaign_stats').select('*').eq('campaign_id', id),
   ]);
   recipients = (recipientRows ?? []) as typeof recipients;
   stats = ((statsRows ?? [])[0] as CampaignStats) ?? null;
 }
+
+const defaultFrom = import.meta.env.RESEND_FROM || '';
 
 const RECIPIENT_TONES: Record<RecipientStatus, string> = {
   pending: 'bg-gray-100 text-gray-700',
@@ -73,20 +79,20 @@ const RECIPIENT_TONES: Record<RecipientStatus, string> = {
   failed: 'bg-red-100 text-red-800',
 };
 
-function pct(part: number, whole: number): string {
-  if (!whole) return '';
-  return `${Math.round((part / whole) * 100)} %`;
-}
-
 const tiles = stats
   ? [
       { label: 'Destinataires', value: stats.total, sub: '' },
-      { label: 'Délivrés', value: stats.delivered, sub: pct(stats.delivered, stats.total) },
-      { label: 'Ouverts', value: stats.opened, sub: pct(stats.opened, stats.delivered) },
-      { label: 'Cliqués', value: stats.clicked, sub: pct(stats.clicked, stats.delivered) },
+      { label: 'Délivrés', value: stats.delivered, sub: formatRate(stats.delivered, stats.total) },
+      { label: 'Ouverts', value: stats.opened, sub: formatRate(stats.opened, stats.delivered) },
+      { label: 'Cliqués', value: stats.clicked, sub: formatRate(stats.clicked, stats.delivered) },
       { label: 'Rejetés', value: stats.bounced + stats.failed, sub: '' },
     ]
   : [];
+
+const audienceLine =
+  campaign.target_list_ids && campaign.target_list_ids.length > 0
+    ? `${campaign.target_list_ids.length} liste${campaign.target_list_ids.length > 1 ? 's' : ''}`
+    : `${CAMPAIGN_TARGET_TYPE_LABELS[campaign.target_contact_type]} · ${zonesSummary(campaign.target_zones)}`;
 ---
 
 <Admin title={campaign.name} activeSection="campagnes">
@@ -94,39 +100,17 @@ const tiles = stats
     <meta http-equiv="refresh" content="10" />
   )}
 
-  <div class="flex items-center justify-between mb-8">
-    <div>
-      <div class="flex items-center gap-3">
-        <h1 class="text-[28px] font-extrabold text-oq-black">{campaign.name}</h1>
-        <span class:list={[
-          'inline-flex items-center text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded-full',
-          campaign.status === 'draft' ? 'bg-gray-100 text-gray-700' :
-          campaign.status === 'sending' ? 'bg-amber-100 text-amber-800' :
-          campaign.status === 'sent' ? 'bg-emerald-100 text-emerald-800' :
-          'bg-red-100 text-red-800',
-        ]}>
-          {CAMPAIGN_STATUS_LABELS[campaign.status]}
-        </span>
-      </div>
-      <p class="text-oq-muted text-[14px] mt-1">
-        {CAMPAIGN_TARGET_TYPE_LABELS[campaign.target_contact_type]} · {zonesSummary(campaign.target_zones)}
-        {campaign.sent_at && ` · envoyée le ${new Date(campaign.sent_at).toLocaleString('fr-FR')}`}
-      </p>
-    </div>
+  <div class="flex items-center justify-between mb-6">
     <div class="flex items-center gap-3">
-      {isDraft && (
-        <form method="POST" action={`/admin/api/campagnes/${campaign.id}/update`} id="delete-form">
-          <button
-            type="button"
-            class="text-[13px] text-red-600 hover:text-red-700"
-            onclick={`if(confirm('Supprimer ce brouillon ?')){fetch('/admin/api/campagnes/${campaign.id}/update',{method:'DELETE'}).then(()=>window.location.href='/admin/campagnes')}`}
-          >
-            Supprimer le brouillon
-          </button>
-        </form>
-      )}
-      <a href="/admin/campagnes" class="oq-btn-secondary">← Retour</a>
+      <h1 class="text-[24px] font-extrabold text-oq-black">{campaign.name}</h1>
+      <span class:list={[
+        'inline-flex items-center text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded-full',
+        CAMPAIGN_STATUS_TONES[campaign.status],
+      ]}>
+        {CAMPAIGN_STATUS_LABELS[campaign.status]}
+      </span>
     </div>
+    <a href="/admin/campagnes" class="oq-btn-secondary">← Retour</a>
   </div>
 
   {campaign.status === 'sending' && (
@@ -134,17 +118,62 @@ const tiles = stats
       Envoi en cours — cette page se rafraîchit automatiquement toutes les 10 secondes.
     </div>
   )}
-  {campaign.status === 'failed' && campaign.error && (
-    <div class="mb-6 px-4 py-3 bg-red-50 border border-red-200 rounded-btn text-[13px] text-red-800">
-      Échec de l'envoi : {campaign.error}
+  {campaign.status === 'failed' && (
+    <div class="mb-6 px-4 py-3 bg-red-50 border border-red-200 rounded-btn text-[13px] text-red-800 flex items-center justify-between gap-4">
+      <span>Échec de l'envoi{campaign.error ? ` : ${campaign.error}` : ''}. Seuls les destinataires encore en attente seront traités lors d'une relance.</span>
+      <button
+        type="button"
+        class="oq-btn-dark whitespace-nowrap"
+        onclick={`if(confirm('Relancer l\\'envoi de cette campagne ?')){fetch('/admin/api/campagnes/${campaign.id}/send',{method:'POST'}).then(r=>r.json()).then(d=>{if(d.error){alert(d.error)}else{window.location.reload()}})}`}
+      >
+        Relancer l'envoi
+      </button>
     </div>
   )}
 
-  {isDraft ? (
+  {isScheduled ? (
+    <div>
+      <div class="mb-6 px-5 py-4 bg-blue-50 border border-blue-200 rounded-card flex items-center justify-between gap-4">
+        <div class="text-[14px] text-blue-900">
+          <span class="font-bold">Envoi programmé le
+            {' '}{new Date(campaign.scheduled_at!).toLocaleString('fr-FR', {
+              weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+              hour: '2-digit', minute: '2-digit',
+            })}</span>
+          <div class="text-[13px] text-blue-800 mt-0.5">
+            La campagne partira automatiquement (précision ± 5 minutes).
+            Annulez la programmation pour la modifier.
+          </div>
+        </div>
+        <button
+          type="button"
+          class="oq-btn-secondary whitespace-nowrap"
+          onclick={`fetch('/admin/api/campagnes/${campaign.id}/schedule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cancel:true})}).then(r=>r.json()).then(d=>{if(d.error){alert(d.error)}else{window.location.reload()}})`}
+        >
+          Annuler la programmation
+        </button>
+      </div>
+
+      <div class="bg-white border border-oq-border rounded-card p-6">
+        <h2 class="text-[16px] font-bold text-oq-black mb-3">Récapitulatif</h2>
+        <div class="text-[14px] text-oq-text space-y-1">
+          <div><span class="text-oq-muted">Objet :</span> {campaign.subject || '—'}</div>
+          <div><span class="text-oq-muted">Audience :</span> {audienceLine}</div>
+          <div><span class="text-oq-muted">Contenu :</span> {campaign.content_mode === 'custom' ? 'HTML personnalisé' : `Bien mis en avant${campaign.properties?.title ? ` — ${campaign.properties.title}` : ''}`}</div>
+          {campaign.from_email && (
+            <div><span class="text-oq-muted">Expéditeur :</span> {campaign.from_name ? `${campaign.from_name} <${campaign.from_email}>` : campaign.from_email}</div>
+          )}
+        </div>
+      </div>
+    </div>
+  ) : isDraft ? (
     <CampaignComposer
       client:load
-      properties={composerProperties}
+      properties={composerData!.properties}
+      lists={composerData!.lists}
+      templates={composerData!.templates}
       initialCampaign={campaign}
+      defaultFrom={defaultFrom}
     />
   ) : (
     <div>
@@ -163,21 +192,31 @@ const tiles = stats
       <div class="bg-white border border-oq-border rounded-card p-6 mb-8">
         <h2 class="text-[16px] font-bold text-oq-black mb-3">Contenu envoyé</h2>
         <div class="text-[14px] text-oq-text space-y-1">
-          <div><span class="text-oq-muted">Bien :</span> {campaign.properties?.title ?? '—'}
+          <div><span class="text-oq-muted">Objet :</span> {campaign.subject || '—'}</div>
+          {campaign.preview_text && (
+            <div><span class="text-oq-muted">Texte d'aperçu :</span> {campaign.preview_text}</div>
+          )}
+          <div><span class="text-oq-muted">Audience :</span> {audienceLine}</div>
+          <div>
+            <span class="text-oq-muted">Contenu :</span>{' '}
+            {campaign.content_mode === 'custom' ? 'HTML personnalisé' : 'Bien mis en avant'}
+            {campaign.properties?.title && ` — ${campaign.properties.title}`}
             {campaign.properties?.slug && (
               <a href={`/biens/${campaign.properties.slug}`} target="_blank" class="text-[13px] ml-2">Voir la fiche</a>
             )}
           </div>
-          <div><span class="text-oq-muted">Objet :</span> {campaign.subject || '—'}</div>
-          {campaign.intro_text && (
-            <div><span class="text-oq-muted">Introduction :</span> {campaign.intro_text}</div>
+          {campaign.from_email && (
+            <div><span class="text-oq-muted">Expéditeur :</span> {campaign.from_name ? `${campaign.from_name} <${campaign.from_email}>` : campaign.from_email}</div>
+          )}
+          {campaign.sent_at && (
+            <div><span class="text-oq-muted">Envoyée le :</span> {new Date(campaign.sent_at).toLocaleString('fr-FR')}</div>
           )}
         </div>
       </div>
 
       <div class="bg-white border border-oq-border rounded-card overflow-hidden">
         <div class="px-4 py-3 border-b border-oq-border text-[12px] uppercase tracking-wider text-oq-muted font-semibold">
-          Destinataires ({recipients.length})
+          Destinataires ({campaign.total_recipients}{recipients.length < campaign.total_recipients ? ` — 1000 premiers affichés` : ''})
         </div>
         {recipients.length === 0 ? (
           <div class="p-10 text-center text-oq-muted">Aucun destinataire.</div>

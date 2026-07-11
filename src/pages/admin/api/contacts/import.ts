@@ -1,13 +1,12 @@
 import type { APIRoute } from 'astro';
 import { getAdminClient } from '../../../../lib/supabase';
 import { isValidDepartement } from '../../../../lib/zones';
+import { CONTACT_TYPES, EMAIL_REGEX, json } from './_helpers';
 
 export const prerender = false;
 
 const MAX_BODY_BYTES = 1024 * 1024; // 1 Mo
 const MAX_ROWS = 2000;
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const CONTACT_TYPES = new Set(['proprietaire', 'investisseur', 'mixte']);
 
 // Colonnes attendues (en-tête, insensible à la casse/accents) :
 //   prenom,nom,email,telephone,type,zones
@@ -18,7 +17,8 @@ const CONTACT_TYPES = new Set(['proprietaire', 'investisseur', 'mixte']);
 export const POST: APIRoute = async ({ request, locals }) => {
   if (!locals.user) return json({ error: 'Non authentifié' }, 401);
 
-  const raw = await request.text();
+  // Retire le BOM UTF-8 qu'Excel écrit systématiquement en « CSV UTF-8 ».
+  const raw = (await request.text()).replace(/^\uFEFF/, '');
   if (!raw.trim()) return json({ error: 'CSV vide' }, 400);
   if (new TextEncoder().encode(raw).length > MAX_BODY_BYTES) {
     return json({ error: 'Fichier trop volumineux (max 1 Mo)' }, 400);
@@ -49,18 +49,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
     );
   }
 
-  const supabase = getAdminClient();
-  const { data: existing, error: existingError } = await supabase
-    .from('contacts')
-    .select('email');
-  if (existingError) {
-    console.error('[admin contacts import] read error', existingError);
-    return json({ error: existingError.message }, 500);
-  }
-  const known = new Set((existing ?? []).map((c: any) => String(c.email).toLowerCase()));
-
-  const toInsert: Record<string, unknown>[] = [];
+  const candidates: Array<{ line: number; row: Record<string, unknown>; email: string }> = [];
   const errors: Array<{ line: number; reason: string }> = [];
+  const seenInFile = new Set<string>();
   let skipped = 0;
 
   for (let i = 1; i < rows.length; i++) {
@@ -87,11 +78,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
       errors.push({ line, reason: `Email invalide : « ${email || '(vide)'} »` });
       continue;
     }
-    if (known.has(email)) {
-      skipped += 1;
+    if (seenInFile.has(email)) {
+      skipped += 1; // doublon à l'intérieur du fichier
       continue;
     }
-    if (typeRaw && !CONTACT_TYPES.has(typeRaw)) {
+    if (typeRaw && !(CONTACT_TYPES as readonly string[]).includes(typeRaw)) {
       errors.push({ line, reason: `Type inconnu : « ${typeRaw} »` });
       continue;
     }
@@ -104,38 +95,76 @@ export const POST: APIRoute = async ({ request, locals }) => {
       continue;
     }
 
-    known.add(email); // dédoublonne aussi à l'intérieur du fichier
-    toInsert.push({
-      first_name,
-      last_name,
+    seenInFile.add(email);
+    candidates.push({
+      line,
       email,
-      phone: phone || null,
-      contact_type: typeRaw || 'proprietaire',
-      zones: [...new Set(zones)],
-      source: 'import_csv',
+      row: {
+        first_name,
+        last_name,
+        email,
+        phone: phone || null,
+        contact_type: typeRaw || 'proprietaire',
+        zones: [...new Set(zones)],
+        source: 'import_csv',
+      },
     });
   }
 
-  if (toInsert.length > 0) {
-    for (let i = 0; i < toInsert.length; i += 500) {
-      const chunk = toInsert.slice(i, i + 500);
-      const { error } = await supabase.from('contacts').insert(chunk);
-      if (error) {
-        console.error('[admin contacts import] insert error', error);
-        return json(
-          {
-            error: `Import interrompu : ${error.message}`,
-            inserted: i,
-            skipped,
-            errors,
-          },
-          500,
-        );
+  // Dédoublonnage contre la base, scopé aux emails du fichier (pas de select
+  // pleine table : il serait tronqué à la limite PostgREST de 1000 lignes).
+  const supabase = getAdminClient();
+  const known = new Set<string>();
+  const candidateEmails = candidates.map((c) => c.email);
+  for (let i = 0; i < candidateEmails.length; i += 500) {
+    const { data: existing, error } = await supabase
+      .from('contacts')
+      .select('email')
+      .in('email', candidateEmails.slice(i, i + 500));
+    if (error) {
+      console.error('[admin contacts import] read error', error);
+      return json({ error: error.message }, 500);
+    }
+    for (const c of existing ?? []) {
+      known.add(String((c as any).email).toLowerCase());
+    }
+  }
+
+  const toInsert = candidates.filter((c) => !known.has(c.email));
+  skipped += candidates.length - toInsert.length;
+
+  let inserted = 0;
+  for (let i = 0; i < toInsert.length; i += 500) {
+    const chunk = toInsert.slice(i, i + 500);
+    const { error } = await supabase
+      .from('contacts')
+      .insert(chunk.map((c) => c.row));
+    if (!error) {
+      inserted += chunk.length;
+      continue;
+    }
+    if (error.code !== '23505') {
+      console.error('[admin contacts import] insert error', error);
+      return json(
+        { error: `Import interrompu : ${error.message}`, inserted, skipped, errors },
+        500,
+      );
+    }
+    // Doublon résiduel dans le chunk (ex. casse différente, l'index unique
+    // porte sur lower(email)) : repli ligne à ligne pour ne perdre que lui.
+    for (const c of chunk) {
+      const { error: rowError } = await supabase.from('contacts').insert(c.row);
+      if (!rowError) {
+        inserted += 1;
+      } else if (rowError.code === '23505') {
+        skipped += 1;
+      } else {
+        errors.push({ line: c.line, reason: rowError.message });
       }
     }
   }
 
-  return json({ success: true, inserted: toInsert.length, skipped, errors });
+  return json({ success: true, inserted, skipped, errors });
 };
 
 function detectDelimiter(raw: string): string {
@@ -193,11 +222,4 @@ function parseCsv(input: string, delimiter: string): string[][] {
     rows.push(row);
   }
   return rows;
-}
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
 }

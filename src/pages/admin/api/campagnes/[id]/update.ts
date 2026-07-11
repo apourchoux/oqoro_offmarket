@@ -1,8 +1,9 @@
 import type { APIRoute } from 'astro';
 import { getAdminClient } from '../../../../../lib/supabase';
+import { isSameOrigin } from '../../../../../lib/security';
 import {
   UUID_REGEX,
-  assertPublishedProperty,
+  assertPropertyExists,
   json,
   validateCampaignFields,
 } from '../_helpers';
@@ -30,7 +31,7 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
 
   const supabase = getAdminClient();
   if (typeof fields.property_id === 'string') {
-    const propError = await assertPublishedProperty(supabase, fields.property_id);
+    const propError = await assertPropertyExists(supabase, fields.property_id);
     if (propError) return json({ error: propError }, 400);
   }
 
@@ -52,24 +53,33 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
   return json({ success: true, campaign: data[0] });
 };
 
-export const DELETE: APIRoute = async ({ params, locals }) => {
+export const DELETE: APIRoute = async ({ request, params, locals }) => {
   if (!locals.user) return json({ error: 'Non authentifié' }, 401);
+  // Garde CSRF : requête sans body JSON, donc sans préflight CORS.
+  if (!isSameOrigin(request, request.headers.get('host'))) {
+    return json({ error: 'Origine invalide' }, 403);
+  }
   const id = params.id;
   if (!id || !UUID_REGEX.test(id)) return json({ error: 'ID invalide' }, 400);
 
   const supabase = getAdminClient();
+  // Brouillons et campagnes en échec supprimables ; une programmée doit être
+  // annulée d'abord ; les envoyées restent (historique des stats).
   const { data, error } = await supabase
     .from('campaigns')
     .delete()
     .eq('id', id)
-    .eq('status', 'draft')
+    .in('status', ['draft', 'failed'])
     .select();
   if (error) {
     console.error('[admin campagnes delete] error', error);
     return json({ error: `Suppression impossible : ${error.message}` }, 500);
   }
   if (!data || data.length === 0) {
-    return json({ error: 'Seuls les brouillons sont supprimables' }, 409);
+    return json(
+      { error: 'Seuls les brouillons et campagnes en échec sont supprimables' },
+      409,
+    );
   }
   return json({ success: true });
 };

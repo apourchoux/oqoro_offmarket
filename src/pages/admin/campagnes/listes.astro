@@ -1,0 +1,29 @@
+---
+export const prerender = false;
+
+import Admin from '../../../layouts/Admin.astro';
+import CampaignsNav from '../../../components/admin/CampaignsNav.astro';
+import ListsTable from '../../../components/admin/ListsTable.tsx';
+import { getAdminClient } from '../../../lib/supabase';
+import { listContactListsWithCounts } from '../../../lib/campaigns';
+
+if (!Astro.locals.user) {
+  return Astro.redirect('/admin/login');
+}
+
+const supabase = getAdminClient();
+const withCounts = await listContactListsWithCounts(supabase);
+---
+
+<Admin title="Listes" activeSection="campagnes">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-[28px] font-extrabold text-oq-black">Listes</h1>
+      <p class="text-oq-muted text-[14px] mt-1">
+        {withCounts.length} liste{withCounts.length > 1 ? 's' : ''} — audiences réutilisables pour les campagnes
+      </p>
+    </div>
+    <CampaignsNav active="listes" />
+  </div>
+  <ListsTable client:load initialLists={withCounts} />
+</Admin>

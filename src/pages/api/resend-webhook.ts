@@ -11,8 +11,10 @@ export const prerender = false;
 // et le signing secret dans RESEND_WEBHOOK_SECRET.
 //
 // Les timestamps sont la source de vérité des stats (vue campaign_stats) ;
-// `status` ne progresse que vers l'avant (un `opened` tardif n'écrase pas un
-// `clicked`, un événement ne rétrograde jamais un état terminal).
+// `status` ne progresse que vers l'avant (un `delivered` en retard n'écrase
+// pas un `clicked`, rien ne rétrograde un état terminal) — la garde est dans
+// le prédicat de l'UPDATE, donc atomique même si deux événements arrivent en
+// parallèle.
 
 const STATUS_RANK: Record<RecipientStatus, number> = {
   pending: 0,
@@ -24,6 +26,33 @@ const STATUS_RANK: Record<RecipientStatus, number> = {
   complained: 5,
   failed: 5,
 };
+
+const TIMESTAMP_COLUMN: Partial<Record<string, keyof RecipientRow>> = {
+  'email.delivered': 'delivered_at',
+  'email.opened': 'opened_at',
+  'email.clicked': 'clicked_at',
+  'email.bounced': 'bounced_at',
+  'email.complained': 'complained_at',
+};
+
+const NEXT_STATUS: Partial<Record<string, RecipientStatus>> = {
+  'email.delivered': 'delivered',
+  'email.opened': 'opened',
+  'email.clicked': 'clicked',
+  'email.bounced': 'bounced',
+  'email.complained': 'complained',
+};
+
+interface RecipientRow {
+  id: string;
+  contact_id: string;
+  status: RecipientStatus;
+  delivered_at: string | null;
+  opened_at: string | null;
+  clicked_at: string | null;
+  bounced_at: string | null;
+  complained_at: string | null;
+}
 
 export const POST: APIRoute = async ({ request }) => {
   const secret = import.meta.env.RESEND_WEBHOOK_SECRET;
@@ -58,97 +87,98 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const emailId = event.data?.email_id;
-  const type = event.type;
-  if (!emailId || !type) {
+  const type = event.type ?? '';
+  const timestampColumn = TIMESTAMP_COLUMN[type];
+  if (!emailId || !timestampColumn) {
     return new Response('OK', { status: 200 });
   }
 
   const supabase = getAdminClient();
-  const { data: recipient } = await supabase
+  const select =
+    'id, contact_id, status, delivered_at, opened_at, clicked_at, bounced_at, complained_at';
+
+  let { data: recipient } = await supabase
     .from('campaign_recipients')
-    .select('id, status')
+    .select(select)
     .eq('resend_email_id', emailId)
     .maybeSingle();
-  // Id inconnu = email transactionnel (leads) ou test : no-op.
+
+  // Course possible : delivered/bounced/complained peuvent arriver avant que
+  // le worker ait persisté le resend_email_id du batch. Une courte attente +
+  // relecture couvre cette fenêtre — seulement pour ces événements précoces
+  // (opened/clicked arrivent bien plus tard, la ligne existe forcément), pour
+  // ne pas immobiliser une exécution serverless sur chaque événement
+  // transactionnel sans rapport.
+  const RACE_PRONE = new Set(['email.delivered', 'email.bounced', 'email.complained']);
+  if (!recipient && RACE_PRONE.has(type)) {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    ({ data: recipient } = await supabase
+      .from('campaign_recipients')
+      .select(select)
+      .eq('resend_email_id', emailId)
+      .maybeSingle());
+  }
+  // Id toujours inconnu = email transactionnel (leads) ou test : no-op.
   if (!recipient) {
     return new Response('OK', { status: 200 });
   }
+  const row = recipient as unknown as RecipientRow;
 
   const occurredAt =
     event.created_at ?? event.data?.created_at ?? new Date().toISOString();
-  const patch: Record<string, unknown> = {};
-  let nextStatus: RecipientStatus | null = null;
 
-  switch (type) {
-    case 'email.delivered':
-      patch.delivered_at = occurredAt;
-      nextStatus = 'delivered';
-      break;
-    case 'email.opened':
-      patch.opened_at = occurredAt;
-      nextStatus = 'opened';
-      break;
-    case 'email.clicked':
-      patch.clicked_at = occurredAt;
-      nextStatus = 'clicked';
-      break;
-    case 'email.bounced':
-      patch.bounced_at = occurredAt;
+  // Une écriture échouée ne doit PAS être acquittée en 200 : Resend ne rejoue
+  // que sur réponse non-2xx. Les handlers sont idempotents, donc un rejeu est
+  // sûr. On suit les erreurs et on répond 500 en fin de traitement.
+  let writeError = false;
+
+  // Timestamp : première occurrence seulement (ex. ouvertures multiples).
+  if (!row[timestampColumn]) {
+    const patch: Record<string, unknown> = { [timestampColumn]: occurredAt };
+    if (type === 'email.bounced') {
       patch.error = event.data?.bounce?.message?.slice(0, 1000) ?? 'Bounce';
-      nextStatus = 'bounced';
-      break;
-    case 'email.complained': {
-      patch.complained_at = occurredAt;
-      nextStatus = 'complained';
-      // Suppression list : une plainte spam désabonne définitivement le contact.
-      const { data: full } = await supabase
-        .from('campaign_recipients')
-        .select('contact_id')
-        .eq('id', recipient.id)
-        .maybeSingle();
-      if (full?.contact_id) {
-        await supabase
-          .from('contacts')
-          .update({ subscribed: false, unsubscribed_at: occurredAt })
-          .eq('id', full.contact_id);
-      }
-      break;
     }
-    default:
-      return new Response('OK', { status: 200 });
-  }
-
-  // Ne pas écraser un timestamp déjà posé (ex. opened multiple : on garde la
-  // première ouverture) ni rétrograder le statut.
-  const current = recipient.status as RecipientStatus;
-  if (
-    nextStatus &&
-    STATUS_RANK[nextStatus] > STATUS_RANK[current] &&
-    STATUS_RANK[current] < 5
-  ) {
-    patch.status = nextStatus;
-  }
-  const timestampKey = Object.keys(patch).find((k) => k.endsWith('_at'));
-  if (timestampKey) {
-    const { data: existing } = await supabase
-      .from('campaign_recipients')
-      .select(timestampKey)
-      .eq('id', recipient.id)
-      .maybeSingle();
-    if (existing && (existing as unknown as Record<string, unknown>)[timestampKey]) {
-      delete patch[timestampKey];
-    }
-  }
-
-  if (Object.keys(patch).length > 0) {
     const { error } = await supabase
       .from('campaign_recipients')
       .update(patch)
-      .eq('id', recipient.id);
+      .eq('id', row.id)
+      .is(timestampColumn, null);
     if (error) {
-      console.error('[resend-webhook] update error', error);
+      console.error('[resend-webhook] timestamp update error', error);
+      writeError = true;
     }
   }
 
+  // Statut : progression uniquement, garde dans le prédicat (atomique).
+  const nextStatus = NEXT_STATUS[type]!;
+  const below = (Object.keys(STATUS_RANK) as RecipientStatus[]).filter(
+    (s) => STATUS_RANK[s] < STATUS_RANK[nextStatus] && STATUS_RANK[s] < 5,
+  );
+  const { error: statusError } = await supabase
+    .from('campaign_recipients')
+    .update({ status: nextStatus })
+    .eq('id', row.id)
+    .in('status', below);
+  if (statusError) {
+    console.error('[resend-webhook] status update error', statusError);
+    writeError = true;
+  }
+
+  // Suppression list : une plainte spam désabonne définitivement le contact.
+  // Conformité critique — un échec ici DOIT provoquer un rejeu.
+  if (type === 'email.complained' && row.contact_id) {
+    const { error: unsubError } = await supabase
+      .from('contacts')
+      .update({ subscribed: false, unsubscribed_at: occurredAt })
+      .eq('id', row.contact_id);
+    if (unsubError) {
+      console.error('[resend-webhook] complaint unsubscribe error', unsubError);
+      writeError = true;
+    }
+  }
+
+  if (writeError) {
+    return new Response('Write error, please retry', { status: 500 });
+  }
   return new Response('OK', { status: 200 });
 };

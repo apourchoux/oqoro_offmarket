@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getAdminClient } from '../../../../lib/supabase';
 import { isSameOrigin } from '../../../../lib/security';
-import { UUID_REGEX, json, validateContactFields } from './_helpers';
+import { UUID_REGEX, json } from '../_helpers';
 
 export const prerender = false;
 
@@ -17,20 +17,27 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
     return json({ error: 'JSON invalide' }, 400);
   }
 
-  const result = validateContactFields(body);
-  if ('error' in result) return json({ error: result.error }, 400);
-  const patch = result.fields;
+  const patch: Record<string, unknown> = {};
+  if ('name' in body) {
+    if (typeof body.name !== 'string' || !body.name.trim() || body.name.length > 200) {
+      return json({ error: 'Nom de template invalide' }, 400);
+    }
+    patch.name = body.name.trim();
+  }
+  if ('html' in body) {
+    if (typeof body.html !== 'string' || body.html.length > 500000) {
+      return json({ error: 'HTML invalide' }, 400);
+    }
+    patch.html = body.html;
+  }
   if (Object.keys(patch).length === 0) {
     return json({ error: 'Aucun champ à mettre à jour' }, 400);
   }
 
   const supabase = getAdminClient();
-  const { error } = await supabase.from('contacts').update(patch).eq('id', id);
+  const { error } = await supabase.from('email_templates').update(patch).eq('id', id);
   if (error) {
-    if (error.code === '23505') {
-      return json({ error: 'Cet email est déjà utilisé par un autre contact' }, 409);
-    }
-    console.error('[admin contacts update] error', error);
+    console.error('[admin templates update] error', error);
     return json({ error: `Mise à jour impossible : ${error.message}` }, 500);
   }
   return json({ success: true });
@@ -46,10 +53,11 @@ export const DELETE: APIRoute = async ({ request, params, locals }) => {
   if (!id || !UUID_REGEX.test(id)) return json({ error: 'ID invalide' }, 400);
 
   const supabase = getAdminClient();
-  const { error } = await supabase.from('contacts').delete().eq('id', id);
+  const { error } = await supabase.from('email_templates').delete().eq('id', id);
   if (error) {
-    console.error('[admin contacts delete] error', error);
+    console.error('[admin templates delete] error', error);
     return json({ error: `Suppression impossible : ${error.message}` }, 500);
   }
   return json({ success: true });
 };
+

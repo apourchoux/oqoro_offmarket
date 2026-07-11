@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getAdminClient } from '../../../../lib/supabase';
-import { assertPublishedProperty, json, validateCampaignFields } from './_helpers';
+import { assertPropertyExists, json, validateCampaignFields } from './_helpers';
 
 export const prerender = false;
 
@@ -24,7 +24,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
   const supabase = getAdminClient();
   if (typeof fields.property_id === 'string') {
-    const propError = await assertPublishedProperty(supabase, fields.property_id);
+    const propError = await assertPropertyExists(supabase, fields.property_id);
     if (propError) return json({ error: propError }, 400);
   }
 
