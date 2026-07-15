@@ -10,12 +10,12 @@ if (!Astro.locals.user) {
 ---
 
 <Admin title="Nouveau bien" activeSection="biens">
-  <div class="mb-6">
-    <a href="/admin/biens" class="text-[13px] text-oq-muted hover:text-oq-black no-underline">
+  <div class="mb-4">
+    <a href="/admin/biens" class="inline-flex items-center min-h-[32px] text-[13px] text-oq-muted hover:text-oq-black no-underline">
       ← Retour à la liste
     </a>
   </div>
-  <h1 class="text-[28px] font-extrabold text-oq-black mb-8">Nouveau bien</h1>
+  <h1 class="text-[24px] sm:text-[28px] font-extrabold text-oq-black mb-6 lg:mb-8">Nouveau bien</h1>
 
   <PropertyForm client:load mode="create" />
 </Admin>

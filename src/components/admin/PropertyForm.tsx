@@ -837,38 +837,40 @@ export default function PropertyForm({
       </Section>
       )}
 
-      <div className="sticky bottom-0 bg-white border-t border-oq-border py-4 -mx-6 px-6 flex items-center justify-between gap-3 flex-wrap">
+      <div className="sticky bottom-0 z-20 bg-white border-t border-oq-border py-3 sm:py-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-3">
+        <button
+          type="submit"
+          disabled={saving}
+          className="oq-btn-secondary col-span-2 order-first sm:order-2 sm:col-span-1"
+        >
+          {saving ? 'Enregistrement…' : 'Enregistrer le brouillon'}
+        </button>
         <button
           type="button"
           disabled={isFirstStep}
           onClick={() => goToStep((currentStep - 1) as StepId)}
-          className="oq-btn-secondary disabled:opacity-40 disabled:cursor-not-allowed"
+          className="oq-btn-secondary disabled:opacity-40 disabled:cursor-not-allowed sm:order-1 sm:mr-auto"
         >
           ← Précédent
         </button>
-        <div className="flex items-center gap-3 flex-wrap">
-          <button type="submit" disabled={saving} className="oq-btn-secondary">
-            {saving ? 'Enregistrement…' : 'Enregistrer le brouillon'}
+        {isLastStep ? (
+          <button
+            type="button"
+            onClick={(e) => handleSubmit(e as any, true)}
+            disabled={saving}
+            className="oq-btn-dark sm:order-3"
+          >
+            Publier &amp; rebuild
           </button>
-          {isLastStep ? (
-            <button
-              type="button"
-              onClick={(e) => handleSubmit(e as any, true)}
-              disabled={saving}
-              className="oq-btn-dark"
-            >
-              Publier &amp; rebuild
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => goToStep((currentStep + 1) as StepId)}
-              className="oq-btn-dark"
-            >
-              Suivant →
-            </button>
-          )}
-        </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => goToStep((currentStep + 1) as StepId)}
+            className="oq-btn-dark sm:order-3"
+          >
+            Suivant →
+          </button>
+        )}
       </div>
     </form>
   );
@@ -884,7 +886,7 @@ function Stepper({
   onChange: (step: StepId) => void;
 }) {
   return (
-    <nav className="flex items-stretch gap-0 border border-oq-border rounded-btn overflow-hidden bg-white">
+    <nav className="flex items-stretch gap-0 border border-oq-border rounded-btn overflow-x-auto bg-white [-webkit-overflow-scrolling:touch]">
       {STEPS.map((step, idx) => {
         const isActive = currentStep === step.id;
         const isDone = currentStep > step.id;
@@ -894,7 +896,7 @@ function Stepper({
             type="button"
             onClick={() => onChange(step.id)}
             className={[
-              'flex-1 px-4 py-3 text-left transition-colors text-[13px]',
+              'flex-1 shrink-0 min-w-[9.5rem] sm:min-w-0 px-4 py-3 text-left transition-colors text-[13px]',
               isActive
                 ? 'bg-oq-black text-white font-semibold'
                 : isDone
@@ -1135,8 +1137,26 @@ function PhotoManager({
       </div>
 
       {photos.map((photo, i) => (
-        <div key={photo.id} className="border border-oq-border rounded-btn p-3 flex gap-4 items-center">
-          <img src={photo.url} alt="" className="w-20 h-20 object-cover rounded-btn bg-oq-bg" />
+        <div key={photo.id} className="border border-oq-border rounded-btn p-3 flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center">
+          <div className="flex items-start gap-3 sm:contents">
+            <img src={photo.url} alt="" className="w-20 h-20 object-cover rounded-btn bg-oq-bg shrink-0" />
+            <div className="flex sm:hidden flex-col gap-2 flex-1">
+              <label className="flex items-center gap-2 text-[13px] min-h-[32px]">
+                <input
+                  type="radio"
+                  name="primary-photo-mobile"
+                  checked={photo.is_primary}
+                  onChange={() => setPrimary(i)}
+                />
+                Photo principale
+              </label>
+              <div className="flex gap-1">
+                <button type="button" onClick={() => move(i, -1)} aria-label="Monter" className="text-[14px] w-10 h-10 hover:bg-oq-bg rounded border border-oq-border">↑</button>
+                <button type="button" onClick={() => move(i, 1)} aria-label="Descendre" className="text-[14px] w-10 h-10 hover:bg-oq-bg rounded border border-oq-border">↓</button>
+                <button type="button" onClick={() => remove(i)} aria-label="Supprimer" className="text-[14px] w-10 h-10 hover:bg-oq-bg rounded border border-oq-border">✕</button>
+              </div>
+            </div>
+          </div>
           <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
             <Field label="URL">
               <input className="oq-input" value={photo.url} onChange={(e) => update(i, { url: e.target.value })} />
@@ -1145,7 +1165,7 @@ function PhotoManager({
               <input className="oq-input" value={photo.label ?? ''} onChange={(e) => update(i, { label: e.target.value || null })} />
             </Field>
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="hidden sm:flex flex-col gap-1">
             <label className="flex items-center gap-2 text-[12px]">
               <input
                 type="radio"

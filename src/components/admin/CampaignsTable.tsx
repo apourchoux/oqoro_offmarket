@@ -124,16 +124,16 @@ export default function CampaignsTable({ initialCampaigns }: Props) {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-3 mb-4">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 mb-4">
         <input
           type="search"
-          className="oq-input max-w-xs"
+          className="oq-input sm:max-w-xs"
           placeholder="Rechercher une campagne…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
         <select
-          className="oq-input w-auto"
+          className="oq-input sm:w-auto"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as CampaignStatus | 'all')}
         >
@@ -143,7 +143,7 @@ export default function CampaignsTable({ initialCampaigns }: Props) {
             </option>
           ))}
         </select>
-        <div className="flex-1" />
+        <div className="hidden sm:block sm:flex-1" />
         <span className="text-[13px] text-oq-muted">
           {filtered.length} campagne{filtered.length > 1 ? 's' : ''}
         </span>
@@ -164,6 +164,93 @@ export default function CampaignsTable({ initialCampaigns }: Props) {
             )}
           </div>
         ) : (
+          <>
+          {/* Mobile : cartes empilées */}
+          <div className="lg:hidden divide-y divide-oq-border">
+            {filtered.map((c) => {
+              const audience = audienceLabel(c);
+              const date = c.sent_at ?? c.scheduled_at ?? c.created_at;
+              const hasStats = c.status !== 'draft' && c.status !== 'scheduled';
+              return (
+                <div key={c.id} className="p-4">
+                  <a href={`/admin/campagnes/${c.id}`} className="block no-underline">
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="font-semibold text-oq-black text-[15px] leading-snug">
+                        {c.name}
+                      </span>
+                      <span className={`inline-flex items-center text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded-full shrink-0 ${CAMPAIGN_STATUS_TONES[c.status]}`}>
+                        {CAMPAIGN_STATUS_LABELS[c.status]}
+                      </span>
+                    </div>
+                    <div className="text-[13px] text-oq-muted mt-0.5 line-clamp-1">
+                      {c.subject || audience.main}
+                      {c.property_title ? ` · ${c.property_title}` : ''}
+                    </div>
+                    <div className="text-[13px] text-oq-muted mt-1">
+                      {new Date(date).toLocaleString('fr-FR', {
+                        day: 'numeric', month: 'short', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit',
+                      })}
+                      {c.status === 'scheduled' && (
+                        <span className="text-blue-700"> · envoi programmé</span>
+                      )}
+                    </div>
+                    {hasStats && (
+                      <div className="grid grid-cols-4 gap-2 mt-3 text-center bg-oq-bg rounded-btn px-2 py-2">
+                        <div>
+                          <div className="text-[11px] uppercase tracking-wider text-oq-muted">Dest.</div>
+                          <div className="text-[14px] font-bold text-oq-black">{c.total_recipients}</div>
+                        </div>
+                        <div>
+                          <div className="text-[11px] uppercase tracking-wider text-oq-muted">Ouvert.</div>
+                          <div className="text-[14px] font-bold text-oq-black">
+                            {c.stats ? formatRate(c.stats.opened, c.stats.delivered) : '—'}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[11px] uppercase tracking-wider text-oq-muted">Clics</div>
+                          <div className="text-[14px] font-bold text-oq-black">
+                            {c.stats ? formatRate(c.stats.clicked, c.stats.delivered) : '—'}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[11px] uppercase tracking-wider text-oq-muted">Rejets</div>
+                          <div className="text-[14px] font-bold text-oq-black">
+                            {c.stats ? c.stats.bounced : '—'}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </a>
+                  <div className="flex gap-2 mt-3">
+                    <a href={`/admin/campagnes/${c.id}`} className="oq-btn-secondary oq-btn-sm flex-1">
+                      {c.status === 'draft' ? 'Éditer' : 'Ouvrir'}
+                    </a>
+                    <button
+                      type="button"
+                      className="oq-btn-secondary oq-btn-sm flex-1"
+                      disabled={busy === c.id}
+                      onClick={() => duplicateCampaign(c)}
+                    >
+                      Dupliquer
+                    </button>
+                    {(c.status === 'draft' || c.status === 'failed') && (
+                      <button
+                        type="button"
+                        className="oq-btn-secondary oq-btn-sm !text-red-600"
+                        disabled={busy === c.id}
+                        onClick={() => deleteCampaign(c.id)}
+                      >
+                        Suppr.
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Desktop : table */}
+          <div className="hidden lg:block overflow-x-auto">
           <table className="w-full text-[14px]">
             <thead>
               <tr className="text-left text-[12px] uppercase tracking-wider text-oq-muted bg-oq-bg">
@@ -252,6 +339,8 @@ export default function CampaignsTable({ initialCampaigns }: Props) {
               })}
             </tbody>
           </table>
+          </div>
+          </>
         )}
       </div>
     </div>

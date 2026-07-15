@@ -19,9 +19,9 @@ const [{ data: contacts }, { data: lists }] = await Promise.all([
 ---
 
 <Admin title="Contacts" activeSection="campagnes">
-  <div class="flex items-center justify-between mb-8">
+  <div class="space-y-4 mb-6 lg:mb-8">
     <div>
-      <h1 class="text-[28px] font-extrabold text-oq-black">Contacts</h1>
+      <h1 class="text-[24px] sm:text-[28px] font-extrabold text-oq-black">Contacts</h1>
       <p class="text-oq-muted text-[14px] mt-1">
         {(contacts ?? []).length} au total
       </p>

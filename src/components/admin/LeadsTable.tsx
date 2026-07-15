@@ -134,13 +134,13 @@ export default function LeadsTable({ initialLeads }: Props) {
           <button
             type="button"
             onClick={() => setStatusFilter('all')}
-            className="text-[13px] text-oq-muted hover:text-oq-black"
+            className="min-h-[44px] text-[13px] text-oq-muted hover:text-oq-black"
           >
             ← Tous les statuts
           </button>
         )}
         <div className="flex-1" />
-        <button type="button" onClick={exportCsv} className="oq-btn-secondary">
+        <button type="button" onClick={exportCsv} className="oq-btn-secondary w-full sm:w-auto">
           Exporter CSV ({filtered.length})
         </button>
       </div>
@@ -149,6 +149,49 @@ export default function LeadsTable({ initialLeads }: Props) {
         {filtered.length === 0 ? (
           <div className="p-10 text-center text-oq-muted">Aucun lead.</div>
         ) : (
+          <>
+          {/* Mobile : cartes empilées, tap = ouvre le détail */}
+          <div className="md:hidden divide-y divide-oq-border">
+            {filtered.map((lead) => (
+              <div key={lead.id} className="p-4">
+                <button
+                  type="button"
+                  className="w-full text-left"
+                  onClick={() => setSelectedId(lead.id)}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="font-semibold text-oq-black text-[15px]">
+                      {lead.first_name} {lead.last_name}
+                    </span>
+                    <span className={`inline-flex items-center text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded-full shrink-0 ${STATUS_TONES[lead.status].badge}`}>
+                      {LEAD_STATUS_LABELS[lead.status]}
+                    </span>
+                  </div>
+                  <div className="text-[14px] text-oq-text mt-1 break-all">{lead.email}</div>
+                  {lead.phone && (
+                    <div className="text-[13px] text-oq-muted">{lead.phone}</div>
+                  )}
+                  <div className="flex items-center justify-between gap-3 mt-1.5 text-[13px] text-oq-muted">
+                    <span className="truncate">{lead.property_title ?? '—'}</span>
+                    <span className="shrink-0">
+                      {new Date(lead.created_at).toLocaleDateString('fr-FR')}
+                    </span>
+                  </div>
+                </button>
+                {QUICK_ACTIONS[lead.status] && (
+                  <button
+                    type="button"
+                    onClick={() => updateLead(lead.id, { status: QUICK_ACTIONS[lead.status]!.next })}
+                    className="oq-btn-secondary oq-btn-sm w-full mt-3 !text-brand-700 font-semibold"
+                  >
+                    {QUICK_ACTIONS[lead.status]!.label} →
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          {/* Desktop : table */}
+          <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-[14px]">
             <thead>
               <tr className="text-left text-[12px] uppercase tracking-wider text-oq-muted bg-oq-bg">
@@ -204,6 +247,8 @@ export default function LeadsTable({ initialLeads }: Props) {
               ))}
             </tbody>
           </table>
+          </div>
+          </>
         )}
       </div>
 
@@ -216,13 +261,19 @@ export default function LeadsTable({ initialLeads }: Props) {
             className="fixed top-0 right-0 h-full w-full max-w-md bg-white border-l border-oq-border overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6 border-b border-oq-border flex items-center justify-between">
-              <h2 className="text-[18px] font-bold text-oq-black">
+            <div className="p-4 sm:p-6 border-b border-oq-border flex items-center justify-between gap-3">
+              <h2 className="text-[18px] font-bold text-oq-black min-w-0 truncate">
                 {selected.first_name} {selected.last_name}
               </h2>
-              <button onClick={() => setSelectedId(null)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-oq-bg text-oq-muted">×</button>
+              <button
+                onClick={() => setSelectedId(null)}
+                aria-label="Fermer"
+                className="w-11 h-11 shrink-0 flex items-center justify-center rounded-full hover:bg-oq-bg text-oq-muted text-[20px]"
+              >
+                ×
+              </button>
             </div>
-            <div className="p-6 space-y-4 text-[14px]">
+            <div className="p-4 sm:p-6 space-y-4 text-[14px] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
               <div>
                 <div className="text-[12px] uppercase tracking-wider text-oq-muted mb-1">Email</div>
                 <a href={`mailto:${selected.email}`}>{selected.email}</a>

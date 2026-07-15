@@ -112,40 +112,44 @@ export default function TemplateEditor({ initialTemplate }: Props) {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-3 mb-5">
-        <input
-          className="oq-input max-w-sm font-semibold"
-          placeholder="Nom du template"
-          value={name}
-          onChange={(e) => {
-            setName(e.target.value);
-            setDirty(true);
-          }}
-        />
-        <div className="flex gap-1 bg-white border border-oq-border rounded-btn p-1">
-          <button
-            type="button"
-            onClick={() => setDevice('desktop')}
-            className={`px-3 py-1 rounded-btn text-[13px] ${device === 'desktop' ? 'bg-oq-black text-white' : 'text-oq-text hover:bg-oq-bg'}`}
-          >
-            Desktop
-          </button>
-          <button
-            type="button"
-            onClick={() => setDevice('mobile')}
-            className={`px-3 py-1 rounded-btn text-[13px] ${device === 'mobile' ? 'bg-oq-black text-white' : 'text-oq-text hover:bg-oq-bg'}`}
-          >
-            Mobile
-          </button>
+      <div className="space-y-3 mb-5">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <input
+            className="oq-input sm:max-w-sm font-semibold"
+            placeholder="Nom du template"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              setDirty(true);
+            }}
+          />
+          <div className="flex gap-1 bg-white border border-oq-border rounded-btn p-1 self-start">
+            <button
+              type="button"
+              onClick={() => setDevice('desktop')}
+              className={`px-3.5 py-2 rounded-btn text-[13px] ${device === 'desktop' ? 'bg-oq-black text-white' : 'text-oq-text hover:bg-oq-bg'}`}
+            >
+              Desktop
+            </button>
+            <button
+              type="button"
+              onClick={() => setDevice('mobile')}
+              className={`px-3.5 py-2 rounded-btn text-[13px] ${device === 'mobile' ? 'bg-oq-black text-white' : 'text-oq-text hover:bg-oq-bg'}`}
+            >
+              Mobile
+            </button>
+          </div>
+          <div className="hidden sm:block sm:flex-1" />
+          {notice && <span className="text-[13px] text-oq-muted">{notice}</span>}
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-3">
+            <button type="button" className="oq-btn-secondary" disabled={saving || !dirty} onClick={save}>
+              {saving ? 'Enregistrement…' : 'Sauvegarder'}
+            </button>
+            <button type="button" className="oq-btn-dark" disabled={saving} onClick={saveAndQuit}>
+              Enregistrer &amp; quitter
+            </button>
+          </div>
         </div>
-        <div className="flex-1" />
-        {notice && <span className="text-[13px] text-oq-muted">{notice}</span>}
-        <button type="button" className="oq-btn-secondary" disabled={saving || !dirty} onClick={save}>
-          {saving ? 'Enregistrement…' : 'Sauvegarder'}
-        </button>
-        <button type="button" className="oq-btn-dark" disabled={saving} onClick={saveAndQuit}>
-          Enregistrer &amp; quitter
-        </button>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 mb-4 text-[13px]">
@@ -154,7 +158,7 @@ export default function TemplateEditor({ initialTemplate }: Props) {
           <button
             key={v.token}
             type="button"
-            className="px-2 py-1 bg-white border border-oq-border rounded-btn font-mono text-[12px] hover:bg-oq-bg"
+            className="px-2.5 py-1.5 min-h-[36px] bg-white border border-oq-border rounded-btn font-mono text-[12px] hover:bg-oq-bg"
             title={v.label}
             onClick={() => insertVariable(v.token)}
           >
@@ -170,7 +174,7 @@ export default function TemplateEditor({ initialTemplate }: Props) {
       <div className="grid lg:grid-cols-2 gap-5 items-start">
         <textarea
           id="template-html"
-          className="oq-input font-mono text-[13px] leading-relaxed min-h-[70vh] whitespace-pre"
+          className="oq-input font-mono text-[13px] leading-relaxed min-h-[50vh] lg:min-h-[70vh] whitespace-pre"
           spellCheck={false}
           value={html}
           onChange={(e) => {
@@ -187,7 +191,7 @@ export default function TemplateEditor({ initialTemplate }: Props) {
               title="Aperçu du template"
               sandbox=""
               srcDoc={rendered}
-              className={`h-[70vh] bg-white ${device === 'mobile' ? 'w-[375px]' : 'w-full'}`}
+              className={`h-[60vh] lg:h-[70vh] bg-white ${device === 'mobile' ? 'w-[375px] max-w-full' : 'w-full'}`}
             />
           </div>
         </div>

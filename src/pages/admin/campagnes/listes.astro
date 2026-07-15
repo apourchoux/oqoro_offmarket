@@ -16,9 +16,9 @@ const withCounts = await listContactListsWithCounts(supabase);
 ---
 
 <Admin title="Listes" activeSection="campagnes">
-  <div class="flex items-center justify-between mb-8">
+  <div class="space-y-4 mb-6 lg:mb-8">
     <div>
-      <h1 class="text-[28px] font-extrabold text-oq-black">Listes</h1>
+      <h1 class="text-[24px] sm:text-[28px] font-extrabold text-oq-black">Listes</h1>
       <p class="text-oq-muted text-[14px] mt-1">
         {withCounts.length} liste{withCounts.length > 1 ? 's' : ''} — audiences réutilisables pour les campagnes
       </p>

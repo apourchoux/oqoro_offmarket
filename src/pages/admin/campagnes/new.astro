@@ -16,9 +16,11 @@ const defaultFrom = import.meta.env.RESEND_FROM || '';
 ---
 
 <Admin title="Nouvelle campagne" activeSection="campagnes">
-  <div class="flex items-center justify-between mb-6">
-    <h1 class="text-[24px] font-extrabold text-oq-black">Nouvelle campagne</h1>
-    <a href="/admin/campagnes" class="oq-btn-secondary">← Retour</a>
+  <div class="mb-6">
+    <a href="/admin/campagnes" class="inline-flex items-center min-h-[32px] text-[13px] text-oq-muted hover:text-oq-black no-underline mb-2">
+      ← Retour aux campagnes
+    </a>
+    <h1 class="text-[22px] sm:text-[24px] font-extrabold text-oq-black">Nouvelle campagne</h1>
   </div>
   <CampaignComposer
     client:load
