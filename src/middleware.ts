@@ -1,19 +1,17 @@
 import { defineMiddleware } from 'astro:middleware';
 import { createClient } from '@supabase/supabase-js';
 import { isSameOrigin, normalizePathname } from './lib/security';
+import { resolveAdminRole } from './lib/admin-users';
 
 const ADMIN_PATH_PREFIX = '/admin';
 const ADMIN_API_PREFIX = '/admin/api/';
 const LOGIN_PATH = '/admin/login';
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
-function getAdminEmails(): string[] {
-  const raw = import.meta.env.ADMIN_EMAILS ?? '';
-  return raw
-    .split(',')
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
-}
+// Périmètre réservé au rôle `admin` : la gestion des utilisateurs.
+// Les opérateurs ont accès à tout le reste de l'admin.
+const ADMIN_ONLY_PAGE_PREFIX = '/admin/utilisateurs';
+const ADMIN_ONLY_API_PREFIX = '/admin/api/utilisateurs';
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const normalized = normalizePathname(context.url.pathname);
@@ -70,17 +68,40 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return context.redirect(LOGIN_PATH);
   }
 
-  // Fail-closed : une allowlist vide refuse tout accès (voir login.astro).
-  const allowed = getAdminEmails();
-  if (allowed.length === 0 || !allowed.includes(data.user.email.toLowerCase())) {
+  // Autorisation + rôle : table admin_users (service role), ADMIN_EMAILS en
+  // filet de sécurité. Fail-closed : aucun des deux = accès refusé.
+  const serviceKey = import.meta.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceClient = serviceKey
+    ? createClient(url, serviceKey, { auth: { persistSession: false } })
+    : null;
+  const role = await resolveAdminRole(
+    serviceClient,
+    import.meta.env.ADMIN_EMAILS,
+    data.user.email,
+  );
+  if (!role) {
     context.cookies.delete('sb-access-token', { path: '/' });
     context.cookies.delete('sb-refresh-token', { path: '/' });
     return context.redirect(`${LOGIN_PATH}?error=forbidden`);
   }
 
+  // Verrou de rôle : la gestion des utilisateurs est réservée aux admins.
+  if (role !== 'admin') {
+    if (normalized.startsWith(ADMIN_ONLY_API_PREFIX)) {
+      return new Response(
+        JSON.stringify({ error: 'Réservé aux administrateurs' }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+    if (normalized.startsWith(ADMIN_ONLY_PAGE_PREFIX)) {
+      return context.redirect('/admin');
+    }
+  }
+
   context.locals.user = {
     id: data.user.id,
     email: data.user.email,
+    role,
   };
 
   const response = await next();

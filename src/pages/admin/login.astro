@@ -4,14 +4,10 @@ export const prerender = false;
 import '../../styles/global.css';
 import { createClient } from '@supabase/supabase-js';
 import { rateLimit } from '../../lib/security';
+import { resolveAdminRole } from '../../lib/admin-users';
 
 const url = import.meta.env.PUBLIC_SUPABASE_URL;
 const anonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
-
-function getAdminEmails(): string[] {
-  const raw = import.meta.env.ADMIN_EMAILS ?? '';
-  return raw.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
-}
 
 let errorMessage: string | null = null;
 
@@ -44,16 +40,23 @@ if (Astro.request.method === 'POST') {
           email,
           password,
         });
-        const allowed = getAdminEmails();
-        // Fail-closed : une allowlist vide (ADMIN_EMAILS absent/typo) refuse
-        // TOUT le monde plutôt que d'ouvrir l'admin à tout compte Supabase.
-        const isAllowed = Boolean(
-          allowed.length > 0 &&
-            data.user?.email &&
-            allowed.includes(data.user.email.toLowerCase()),
-        );
+        // Autorisation : table admin_users (rôles admin/opérateur) +
+        // ADMIN_EMAILS en filet de sécurité. Fail-closed : table vide ET
+        // env vide = personne n'entre (pas d'ouverture à tout compte Supabase).
+        const serviceKey = import.meta.env.SUPABASE_SERVICE_ROLE_KEY;
+        const serviceClient =
+          url && serviceKey
+            ? createClient(url, serviceKey, { auth: { persistSession: false } })
+            : null;
+        const role = data.user?.email
+          ? await resolveAdminRole(
+              serviceClient,
+              import.meta.env.ADMIN_EMAILS,
+              data.user.email,
+            )
+          : null;
 
-        if (error || !data.session || !isAllowed) {
+        if (error || !data.session || !role) {
           // Même message que l'email autorisé soit valide ou pas : empêche
           // l'énumération des comptes admin.
           errorMessage = 'Identifiants invalides.';

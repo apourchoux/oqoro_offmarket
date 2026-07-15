@@ -26,6 +26,9 @@ declare namespace App {
     user?: {
       id: string;
       email: string;
+      // 'admin' : accès complet ; 'operateur' : tout sauf la gestion des
+      // utilisateurs (verrou appliqué par le middleware).
+      role: 'admin' | 'operateur';
     };
   }
 }

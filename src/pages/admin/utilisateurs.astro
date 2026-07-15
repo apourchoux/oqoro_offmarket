@@ -1,0 +1,40 @@
+---
+export const prerender = false;
+
+import Admin from '../../layouts/Admin.astro';
+import UsersManager from '../../components/admin/UsersManager.tsx';
+import { getAdminClient } from '../../lib/supabase';
+import { envAdminEmails, type AdminUser } from '../../lib/admin-users';
+
+// Le middleware bloque déjà cette page pour les opérateurs (redirection
+// /admin) — la double vérification ici est de la défense en profondeur.
+if (!Astro.locals.user) {
+  return Astro.redirect('/admin/login');
+}
+if (Astro.locals.user.role !== 'admin') {
+  return Astro.redirect('/admin');
+}
+
+const supabase = getAdminClient();
+const { data: userRows } = await supabase
+  .from('admin_users')
+  .select('*')
+  .order('created_at', { ascending: true });
+const users = (userRows ?? []) as AdminUser[];
+const envAdmins = envAdminEmails(import.meta.env.ADMIN_EMAILS);
+---
+
+<Admin title="Utilisateurs" activeSection="utilisateurs">
+  <div class="mb-6 lg:mb-8">
+    <h1 class="text-[24px] sm:text-[28px] font-extrabold text-oq-black">Utilisateurs</h1>
+    <p class="text-oq-muted text-[14px] mt-1">
+      Comptes ayant accès à l'admin — création, rôles et mots de passe.
+    </p>
+  </div>
+  <UsersManager
+    client:load
+    initialUsers={users}
+    envAdmins={envAdmins}
+    currentEmail={Astro.locals.user.email}
+  />
+</Admin>

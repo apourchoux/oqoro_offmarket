@@ -3,7 +3,7 @@ import '../styles/global.css';
 
 interface Props {
   title: string;
-  activeSection?: 'dashboard' | 'biens' | 'leads' | 'campagnes';
+  activeSection?: 'dashboard' | 'biens' | 'leads' | 'campagnes' | 'utilisateurs';
 }
 
 const { title, activeSection = 'dashboard' } = Astro.props;
@@ -20,6 +20,8 @@ const ICONS: Record<string, string> = {
     'M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z',
   campagnes:
     'M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75',
+  utilisateurs:
+    'M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z',
   logout:
     'M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9',
 };
@@ -29,6 +31,11 @@ const navItems = [
   { href: '/admin/biens', label: 'Biens', key: 'biens' },
   { href: '/admin/leads', label: 'Leads', key: 'leads' },
   { href: '/admin/campagnes', label: 'Campagnes', key: 'campagnes' },
+  // Gestion des utilisateurs : visible pour les admins uniquement (les
+  // opérateurs sont de toute façon bloqués par le middleware).
+  ...(user?.role === 'admin'
+    ? [{ href: '/admin/utilisateurs', label: 'Utilisateurs', key: 'utilisateurs' }]
+    : []),
 ] as const;
 
 // Sous-navigation Campagnes, affichée dans la sidebar / le drawer quand on est
@@ -110,6 +117,9 @@ const campaignSubItems = [
         {user && (
           <div class="px-3 pb-3 text-[12px] text-oq-muted truncate" title={user.email}>
             {user.email}
+            <span class="ml-1.5 inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-oq-bg text-oq-text align-middle">
+              {user.role === 'admin' ? 'Admin' : 'Opérateur'}
+            </span>
           </div>
         )}
         <form method="POST" action="/admin/logout">
@@ -213,6 +223,9 @@ const campaignSubItems = [
           {user && (
             <div class="pb-3 text-[13px] text-oq-muted truncate" title={user.email}>
               {user.email}
+              <span class="ml-1.5 inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-oq-bg text-oq-text align-middle">
+                {user.role === 'admin' ? 'Admin' : 'Opérateur'}
+              </span>
             </div>
           )}
           <form method="POST" action="/admin/logout">
