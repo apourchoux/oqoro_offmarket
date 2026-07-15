@@ -56,7 +56,7 @@ function PillToggle<T extends string>({
           key={o.value}
           type="button"
           onClick={() => onChange(o.value)}
-          className={`px-3 py-1.5 rounded-btn text-[13px] border transition-colors ${
+          className={`px-3.5 py-2 rounded-btn text-[13px] border transition-colors ${
             value === o.value
               ? 'bg-oq-black text-white border-oq-black'
               : 'bg-white text-oq-text border-oq-border hover:bg-oq-bg'
@@ -395,9 +395,9 @@ export default function CampaignComposer({
   return (
     <div>
       {/* ─── En-tête : nom + actions ─── */}
-      <div className="flex flex-wrap items-center gap-3 mb-5">
+      <div className="space-y-3 mb-5">
         <input
-          className="oq-input max-w-md font-semibold"
+          className="oq-input lg:max-w-md font-semibold"
           placeholder="Nom interne de la campagne"
           value={name}
           onChange={(e) => {
@@ -405,34 +405,35 @@ export default function CampaignComposer({
             markDirty();
           }}
         />
-        <div className="flex-1" />
-        <button type="button" className="oq-btn-secondary" disabled={saving} onClick={saveDraft}>
-          {saving ? 'Enregistrement…' : dirty || !campaignId ? 'Enregistrer' : 'Enregistré ✓'}
-        </button>
-        <button
-          type="button"
-          className="oq-btn-secondary"
-          disabled={testing || !steps[3].done}
-          onClick={sendTest}
-        >
-          {testing ? 'Envoi du test…' : 'Envoyer un test'}
-        </button>
-        <button
-          type="button"
-          className="oq-btn-secondary"
-          disabled={!readyToSend}
-          onClick={() => setScheduleOpen(true)}
-        >
-          Programmer
-        </button>
-        <button
-          type="button"
-          className="oq-btn-dark"
-          disabled={sending || !readyToSend}
-          onClick={sendCampaign}
-        >
-          {sending ? 'Envoi…' : `Envoyer${recipientCount ? ` (${recipientCount})` : ''}`}
-        </button>
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
+          <button type="button" className="oq-btn-secondary" disabled={saving} onClick={saveDraft}>
+            {saving ? 'Enregistrement…' : dirty || !campaignId ? 'Enregistrer' : 'Enregistré ✓'}
+          </button>
+          <button
+            type="button"
+            className="oq-btn-secondary"
+            disabled={testing || !steps[3].done}
+            onClick={sendTest}
+          >
+            {testing ? 'Envoi du test…' : 'Envoyer un test'}
+          </button>
+          <button
+            type="button"
+            className="oq-btn-secondary"
+            disabled={!readyToSend}
+            onClick={() => setScheduleOpen(true)}
+          >
+            Programmer
+          </button>
+          <button
+            type="button"
+            className="oq-btn-dark"
+            disabled={sending || !readyToSend}
+            onClick={sendCampaign}
+          >
+            {sending ? 'Envoi…' : `Envoyer${recipientCount ? ` (${recipientCount})` : ''}`}
+          </button>
+        </div>
       </div>
 
       {notice && (
@@ -442,19 +443,19 @@ export default function CampaignComposer({
       )}
 
       {/* ─── Barre de progression ─── */}
-      <div className="bg-white border border-oq-border rounded-card px-6 py-4 mb-6">
+      <div className="bg-white border border-oq-border rounded-card px-4 sm:px-6 py-4 mb-6">
         <div className="text-[13px] text-oq-muted mb-3">
           {completedSteps}/4 étapes complètes
         </div>
-        <div className="flex items-center gap-2">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-2 sm:flex sm:items-center sm:gap-2">
           {steps.map((step, i) => (
-            <div key={step.label} className="flex items-center gap-2 flex-1 min-w-0">
+            <div key={step.label} className="flex items-center gap-2 sm:flex-1 min-w-0">
               <StepIcon done={step.done} index={i + 1} />
               <span className={`text-[14px] font-medium truncate ${step.done ? 'text-oq-black' : 'text-oq-muted'}`}>
                 {step.label}
               </span>
               {i < steps.length - 1 && (
-                <div className={`flex-1 h-px ${step.done ? 'bg-emerald-300' : 'bg-oq-border'}`} />
+                <div className={`hidden sm:block flex-1 h-px ${step.done ? 'bg-emerald-300' : 'bg-oq-border'}`} />
               )}
             </div>
           ))}
@@ -464,7 +465,7 @@ export default function CampaignComposer({
       <div className="grid lg:grid-cols-2 gap-8 items-start">
         <div className="space-y-6">
           {/* ─── 1. Expéditeur ─── */}
-          <section className="bg-white border border-oq-border rounded-card p-6 space-y-4">
+          <section className="bg-white border border-oq-border rounded-card p-4 sm:p-6 space-y-4">
             <div className="flex items-center gap-2">
               <StepIcon done={steps[0].done} index={1} />
               <h2 className="text-[16px] font-bold text-oq-black">Expéditeur</h2>
@@ -516,13 +517,13 @@ export default function CampaignComposer({
           </section>
 
           {/* ─── 2. Destinataires ─── */}
-          <section className="bg-white border border-oq-border rounded-card p-6">
-            <div className="flex items-center justify-between mb-4">
+          <section className="bg-white border border-oq-border rounded-card p-4 sm:p-6">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
               <div className="flex items-center gap-2">
                 <StepIcon done={steps[1].done} index={2} />
                 <h2 className="text-[16px] font-bold text-oq-black">Destinataires</h2>
               </div>
-              <span className="text-[13px] font-semibold text-brand-700 bg-brand-600/10 px-3 py-1 rounded-full">
+              <span className="self-start sm:self-auto text-[13px] font-semibold text-brand-700 bg-brand-600/10 px-3 py-1 rounded-full">
                 {recipientCount === null ? '…' : `${recipientCount} destinataire${recipientCount > 1 ? 's' : ''} actif${recipientCount > 1 ? 's' : ''}`}
               </span>
             </div>
@@ -605,7 +606,7 @@ export default function CampaignComposer({
           </section>
 
           {/* ─── 3. Objet ─── */}
-          <section className="bg-white border border-oq-border rounded-card p-6 space-y-4">
+          <section className="bg-white border border-oq-border rounded-card p-4 sm:p-6 space-y-4">
             <div className="flex items-center gap-2">
               <StepIcon done={steps[2].done} index={3} />
               <h2 className="text-[16px] font-bold text-oq-black">Objet de la campagne</h2>
@@ -637,7 +638,7 @@ export default function CampaignComposer({
           </section>
 
           {/* ─── 4. Design ─── */}
-          <section className="bg-white border border-oq-border rounded-card p-6">
+          <section className="bg-white border border-oq-border rounded-card p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <StepIcon done={steps[3].done} index={4} />
               <h2 className="text-[16px] font-bold text-oq-black">Design</h2>
@@ -718,9 +719,9 @@ export default function CampaignComposer({
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2">
                   <select
-                    className="oq-input w-auto"
+                    className="oq-input sm:w-auto"
                     value=""
                     onChange={(e) => {
                       if (e.target.value) loadTemplate(e.target.value);
@@ -805,7 +806,7 @@ export default function CampaignComposer({
                   title="Aperçu de l'email"
                   sandbox=""
                   srcDoc={previewHtml}
-                  className={`h-[720px] bg-white ${previewDevice === 'mobile' ? 'w-[375px]' : 'w-full'}`}
+                  className={`h-[560px] sm:h-[720px] bg-white ${previewDevice === 'mobile' ? 'w-[375px] max-w-full' : 'w-full'}`}
                 />
               </div>
             ) : (
@@ -839,7 +840,7 @@ export default function CampaignComposer({
               value={scheduleValue}
               onChange={(e) => setScheduleValue(e.target.value)}
             />
-            <div className="flex gap-3 justify-end">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-3 sm:justify-end">
               <button type="button" className="oq-btn-secondary" onClick={() => setScheduleOpen(false)}>
                 Annuler
               </button>

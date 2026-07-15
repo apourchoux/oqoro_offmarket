@@ -32,35 +32,35 @@ const [
 ---
 
 <Admin title="Tableau de bord" activeSection="dashboard">
-  <div class="flex items-center justify-between mb-8">
-    <h1 class="text-[28px] font-extrabold text-oq-black">Tableau de bord</h1>
-    <a href="/admin/biens/new" class="oq-btn-dark">Ajouter un bien</a>
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 lg:mb-8">
+    <h1 class="text-[24px] sm:text-[28px] font-extrabold text-oq-black">Tableau de bord</h1>
+    <a href="/admin/biens/new" class="oq-btn-dark w-full sm:w-auto">Ajouter un bien</a>
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-    <div class="bg-white border border-oq-border rounded-card p-6">
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 mb-8 lg:mb-10">
+    <div class="bg-white border border-oq-border rounded-card p-5 sm:p-6">
       <div class="text-[12px] font-semibold uppercase tracking-wider text-oq-muted">
         Biens publiés
       </div>
-      <div class="text-[32px] font-extrabold text-oq-black mt-2">
+      <div class="text-[28px] sm:text-[32px] font-extrabold text-oq-black mt-2">
         {publishedCount ?? 0}
       </div>
       <div class="text-[13px] text-oq-muted mt-1">
         sur {totalCount ?? 0} au total
       </div>
     </div>
-    <div class="bg-white border border-oq-border rounded-card p-6">
+    <div class="bg-white border border-oq-border rounded-card p-5 sm:p-6">
       <div class="text-[12px] font-semibold uppercase tracking-wider text-oq-muted">
         Leads (30 derniers jours)
       </div>
-      <div class="text-[32px] font-extrabold text-oq-black mt-2">
+      <div class="text-[28px] sm:text-[32px] font-extrabold text-oq-black mt-2">
         {recentLeads?.length ?? 0}
       </div>
       <div class="text-[13px] text-oq-muted mt-1">
-        <a href="/admin/leads" class="text-oq-orange no-underline">Voir tous les leads →</a>
+        <a href="/admin/leads" class="text-oq-orange no-underline inline-flex items-center min-h-[32px]">Voir tous les leads →</a>
       </div>
     </div>
-    <div class="bg-white border border-oq-border rounded-card p-6">
+    <div class="bg-white border border-oq-border rounded-card p-5 sm:p-6">
       <div class="text-[12px] font-semibold uppercase tracking-wider text-oq-muted">
         Dernière publication
       </div>
@@ -71,45 +71,70 @@ const [
   </div>
 
   <div class="bg-white border border-oq-border rounded-card overflow-hidden">
-    <div class="px-6 py-4 border-b border-oq-border flex items-center justify-between">
+    <div class="px-4 sm:px-6 py-4 border-b border-oq-border flex items-center justify-between gap-3">
       <h2 class="text-[16px] font-semibold text-oq-black">5 derniers leads</h2>
-      <a href="/admin/leads" class="text-[13px] text-oq-orange no-underline">
+      <a href="/admin/leads" class="text-[13px] text-oq-orange no-underline whitespace-nowrap inline-flex items-center min-h-[32px]">
         Tous les leads →
       </a>
     </div>
     {recentLeads && recentLeads.length > 0 ? (
-      <table class="w-full text-[14px]">
-        <thead>
-          <tr class="text-left text-[12px] uppercase tracking-wider text-oq-muted bg-oq-bg">
-            <th class="px-6 py-3 font-semibold">Nom</th>
-            <th class="px-6 py-3 font-semibold">Email</th>
-            <th class="px-6 py-3 font-semibold">Bien</th>
-            <th class="px-6 py-3 font-semibold">Statut</th>
-            <th class="px-6 py-3 font-semibold">Date</th>
-          </tr>
-        </thead>
-        <tbody>
+      <>
+        <!-- Mobile : cartes empilées -->
+        <div class="md:hidden divide-y divide-oq-border">
           {recentLeads.map((lead: any) => (
-            <tr class="border-t border-oq-border">
-              <td class="px-6 py-3 font-medium text-oq-black">
-                {lead.first_name} {lead.last_name}
-              </td>
-              <td class="px-6 py-3 text-oq-text">{lead.email}</td>
-              <td class="px-6 py-3 text-oq-text">
-                {lead.properties?.title ?? '—'}
-              </td>
-              <td class="px-6 py-3">
-                <span class="inline-flex items-center rounded-badge bg-oq-bg px-2.5 py-0.5 text-[12px] font-semibold text-oq-text">
+            <div class="p-4">
+              <div class="flex items-start justify-between gap-3">
+                <div class="font-semibold text-oq-black text-[15px]">
+                  {lead.first_name} {lead.last_name}
+                </div>
+                <span class="inline-flex items-center rounded-badge bg-oq-bg px-2.5 py-1 text-[12px] font-semibold text-oq-text shrink-0">
                   {LEAD_STATUS_LABELS[lead.status as keyof typeof LEAD_STATUS_LABELS]}
                 </span>
-              </td>
-              <td class="px-6 py-3 text-oq-muted text-[13px]">
-                {new Date(lead.created_at).toLocaleDateString('fr-FR')}
-              </td>
-            </tr>
+              </div>
+              <a href={`mailto:${lead.email}`} class="block text-[14px] text-oq-text mt-1 break-all">{lead.email}</a>
+              <div class="flex items-center justify-between gap-3 mt-1.5 text-[13px] text-oq-muted">
+                <span class="truncate">{lead.properties?.title ?? '—'}</span>
+                <span class="shrink-0">{new Date(lead.created_at).toLocaleDateString('fr-FR')}</span>
+              </div>
+            </div>
           ))}
-        </tbody>
-      </table>
+        </div>
+        <!-- Desktop : table -->
+        <div class="hidden md:block overflow-x-auto">
+          <table class="w-full text-[14px]">
+            <thead>
+              <tr class="text-left text-[12px] uppercase tracking-wider text-oq-muted bg-oq-bg">
+                <th class="px-6 py-3 font-semibold">Nom</th>
+                <th class="px-6 py-3 font-semibold">Email</th>
+                <th class="px-6 py-3 font-semibold">Bien</th>
+                <th class="px-6 py-3 font-semibold">Statut</th>
+                <th class="px-6 py-3 font-semibold">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentLeads.map((lead: any) => (
+                <tr class="border-t border-oq-border">
+                  <td class="px-6 py-3 font-medium text-oq-black">
+                    {lead.first_name} {lead.last_name}
+                  </td>
+                  <td class="px-6 py-3 text-oq-text">{lead.email}</td>
+                  <td class="px-6 py-3 text-oq-text">
+                    {lead.properties?.title ?? '—'}
+                  </td>
+                  <td class="px-6 py-3">
+                    <span class="inline-flex items-center rounded-badge bg-oq-bg px-2.5 py-0.5 text-[12px] font-semibold text-oq-text">
+                      {LEAD_STATUS_LABELS[lead.status as keyof typeof LEAD_STATUS_LABELS]}
+                    </span>
+                  </td>
+                  <td class="px-6 py-3 text-oq-muted text-[13px]">
+                    {new Date(lead.created_at).toLocaleDateString('fr-FR')}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </>
     ) : (
       <div class="p-10 text-center text-oq-muted">
         Aucun lead pour le moment.

@@ -204,7 +204,8 @@
     border: 1px solid var(--border-primary);
     border-radius: 10px;
     font-family: inherit;
-    font-size: 15px;
+    /* 16px minimum : en dessous, iOS Safari zoome automatiquement au focus. */
+    font-size: 16px;
     color: var(--fg-primary);
     background: #fff;
     transition: border-color .2s, box-shadow .2s;

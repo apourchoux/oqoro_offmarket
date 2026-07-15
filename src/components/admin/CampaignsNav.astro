@@ -1,6 +1,7 @@
 ---
 // Sous-navigation de la section Campagnes (pills), partagée par toutes les
-// pages /admin/campagnes/*.
+// pages /admin/campagnes/*. Affichée uniquement en dessous de lg : au-delà,
+// la sidebar du layout Admin porte déjà cette sous-navigation.
 interface Props {
   active: 'campagnes' | 'contacts' | 'listes' | 'templates' | 'configuration';
 }
@@ -15,14 +16,18 @@ const items = [
 ] as const;
 ---
 
-<nav class="flex gap-1 bg-white border border-oq-border rounded-btn p-1 overflow-x-auto">
+<nav
+  class="lg:hidden flex gap-1 bg-white border border-oq-border rounded-btn p-1 overflow-x-auto [-webkit-overflow-scrolling:touch]"
+  aria-label="Sections campagnes"
+>
   {items.map((item) => (
     <a
       href={item.href}
+      aria-current={active === item.key ? 'page' : undefined}
       class:list={[
-        'px-3 py-1.5 rounded-btn text-[14px] no-underline whitespace-nowrap',
+        'px-3.5 py-2 rounded-btn text-[14px] no-underline whitespace-nowrap shrink-0',
         active === item.key
-          ? 'bg-oq-black text-white'
+          ? 'bg-oq-black text-white font-semibold'
           : 'text-oq-text hover:bg-oq-bg',
       ]}
     >

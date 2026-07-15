@@ -33,11 +33,13 @@ if (id !== 'new') {
 ---
 
 <Admin title={template ? template.name : 'Nouveau template'} activeSection="campagnes">
-  <div class="flex items-center justify-between mb-6">
-    <h1 class="text-[24px] font-extrabold text-oq-black">
+  <div class="mb-6">
+    <a href="/admin/campagnes/templates" class="inline-flex items-center min-h-[32px] text-[13px] text-oq-muted hover:text-oq-black no-underline mb-2">
+      ← Retour aux templates
+    </a>
+    <h1 class="text-[22px] sm:text-[24px] font-extrabold text-oq-black">
       {template ? 'Éditer le template' : 'Nouveau template'}
     </h1>
-    <a href="/admin/campagnes/templates" class="oq-btn-secondary">← Retour aux templates</a>
   </div>
   <TemplateEditor client:load initialTemplate={template} />
 </Admin>

@@ -62,7 +62,7 @@ export default function TemplatesGrid({ initialTemplates }: Props) {
   }
 
   return (
-    <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
+    <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
       {templates.map((t) => (
         <div key={t.id} className="bg-white border border-oq-border rounded-card overflow-hidden flex flex-col">
           <a
@@ -91,17 +91,17 @@ export default function TemplatesGrid({ initialTemplates }: Props) {
                 })}
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1 shrink-0">
               <a
                 href={`/admin/campagnes/templates/${t.id}`}
-                className="text-[13px] text-oq-muted hover:text-oq-black no-underline"
+                className="min-h-[44px] px-2 inline-flex items-center text-[13px] text-oq-muted hover:text-oq-black no-underline"
                 title="Éditer"
               >
                 Éditer
               </a>
               <button
                 type="button"
-                className="text-[13px] text-oq-muted hover:text-oq-black"
+                className="min-h-[44px] px-2 text-[13px] text-oq-muted hover:text-oq-black"
                 disabled={busy === t.id}
                 onClick={() => duplicateTemplate(t)}
                 title="Dupliquer"
@@ -110,7 +110,7 @@ export default function TemplatesGrid({ initialTemplates }: Props) {
               </button>
               <button
                 type="button"
-                className="text-[13px] text-red-600 hover:text-red-700"
+                className="min-h-[44px] px-2 text-[13px] text-red-600 hover:text-red-700"
                 disabled={busy === t.id}
                 onClick={() => deleteTemplate(t.id)}
                 title="Supprimer"

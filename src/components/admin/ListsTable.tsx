@@ -121,39 +121,41 @@ export default function ListsTable({ initialLists }: Props) {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-3 mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
         <input
           type="search"
-          className="oq-input max-w-xs"
+          className="oq-input sm:max-w-xs"
           placeholder="Rechercher une liste…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <div className="flex-1" />
-        <button type="button" className="oq-btn-dark" onClick={() => setCreating(true)}>
+        <div className="hidden sm:block sm:flex-1" />
+        <button type="button" className="oq-btn-dark w-full sm:w-auto" onClick={() => setCreating(true)}>
           Créer une liste
         </button>
       </div>
 
       {creating && (
         <form
-          className="mb-4 flex gap-3 items-center bg-white border border-oq-border rounded-card p-4"
+          className="mb-4 flex flex-col sm:flex-row gap-3 sm:items-center bg-white border border-oq-border rounded-card p-4"
           onSubmit={(e) => {
             e.preventDefault();
             createList();
           }}
         >
           <input
-            className="oq-input max-w-sm"
+            className="oq-input sm:max-w-sm"
             placeholder="Nom de la liste (ex : Investisseurs Lyon)"
             value={newName}
             autoFocus
             onChange={(e) => setNewName(e.target.value)}
           />
-          <button type="submit" className="oq-btn-dark">Créer</button>
-          <button type="button" className="oq-btn-secondary" onClick={() => setCreating(false)}>
-            Annuler
-          </button>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-3">
+            <button type="submit" className="oq-btn-dark">Créer</button>
+            <button type="button" className="oq-btn-secondary" onClick={() => setCreating(false)}>
+              Annuler
+            </button>
+          </div>
         </form>
       )}
 
@@ -164,6 +166,71 @@ export default function ListsTable({ initialLists }: Props) {
             l'onglet Contacts (sélection multiple).
           </div>
         ) : (
+          <>
+          {/* Mobile : cartes empilées */}
+          <div className="md:hidden divide-y divide-oq-border">
+            {filtered.map((list) => (
+              <div key={list.id} className="p-4">
+                {renamingId === list.id ? (
+                  <form
+                    className="flex gap-2"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      renameList(list.id);
+                    }}
+                  >
+                    <input
+                      className="oq-input"
+                      value={renameValue}
+                      autoFocus
+                      onChange={(e) => setRenameValue(e.target.value)}
+                    />
+                    <button type="submit" className="oq-btn-secondary shrink-0">OK</button>
+                  </form>
+                ) : (
+                  <button
+                    type="button"
+                    className="w-full text-left"
+                    onClick={() => openMembers(list.id)}
+                  >
+                    <div className="font-semibold text-oq-black text-[15px]">{list.name}</div>
+                    <div className="text-[13px] text-oq-muted mt-0.5">
+                      {list.member_count} contact{list.member_count > 1 ? 's' : ''} · créée le{' '}
+                      {new Date(list.created_at).toLocaleDateString('fr-FR')}
+                    </div>
+                  </button>
+                )}
+                <div className="flex gap-2 mt-3">
+                  <button
+                    type="button"
+                    className="oq-btn-secondary oq-btn-sm flex-1"
+                    onClick={() => openMembers(list.id)}
+                  >
+                    Voir les contacts
+                  </button>
+                  <button
+                    type="button"
+                    className="oq-btn-secondary oq-btn-sm flex-1"
+                    onClick={() => {
+                      setRenamingId(list.id);
+                      setRenameValue(list.name);
+                    }}
+                  >
+                    Renommer
+                  </button>
+                  <button
+                    type="button"
+                    className="oq-btn-secondary oq-btn-sm !text-red-600"
+                    onClick={() => deleteList(list.id)}
+                  >
+                    Suppr.
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Desktop : table */}
+          <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-[14px]">
             <thead>
               <tr className="text-left text-[12px] uppercase tracking-wider text-oq-muted bg-oq-bg">
@@ -230,6 +297,8 @@ export default function ListsTable({ initialLists }: Props) {
               ))}
             </tbody>
           </table>
+          </div>
+          </>
         )}
       </div>
 
@@ -239,16 +308,22 @@ export default function ListsTable({ initialLists }: Props) {
             className="fixed top-0 right-0 h-full w-full max-w-md bg-white border-l border-oq-border overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6 border-b border-oq-border flex items-center justify-between">
-              <div>
-                <h2 className="text-[18px] font-bold text-oq-black">{openList.name}</h2>
+            <div className="p-4 sm:p-6 border-b border-oq-border flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-[18px] font-bold text-oq-black truncate">{openList.name}</h2>
                 <p className="text-[13px] text-oq-muted mt-0.5">
                   {openList.member_count} contact{openList.member_count > 1 ? 's' : ''}
                 </p>
               </div>
-              <button onClick={() => setOpenListId(null)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-oq-bg text-oq-muted">×</button>
+              <button
+                onClick={() => setOpenListId(null)}
+                aria-label="Fermer"
+                className="w-11 h-11 shrink-0 flex items-center justify-center rounded-full hover:bg-oq-bg text-oq-muted text-[20px]"
+              >
+                ×
+              </button>
             </div>
-            <div className="p-6">
+            <div className="p-4 sm:p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
               {members === null ? (
                 <p className="text-oq-muted text-[14px]">Chargement…</p>
               ) : members.length === 0 ? (
@@ -271,7 +346,7 @@ export default function ListsTable({ initialLists }: Props) {
                       </div>
                       <button
                         type="button"
-                        className="text-[12px] text-red-600 hover:text-red-700 whitespace-nowrap"
+                        className="min-h-[44px] px-2 text-[13px] text-red-600 hover:text-red-700 whitespace-nowrap"
                         onClick={() => removeMember(m.id)}
                       >
                         Retirer

@@ -8,6 +8,21 @@ interface Props {
 
 const { title, activeSection = 'dashboard' } = Astro.props;
 const user = Astro.locals.user;
+const path = Astro.url.pathname.replace(/\/+$/, '') || '/';
+
+// Icônes outline (Heroicons, viewBox 24) rendues inline pour éviter toute dépendance.
+const ICONS: Record<string, string> = {
+  dashboard:
+    'M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z',
+  biens:
+    'm2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25',
+  leads:
+    'M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z',
+  campagnes:
+    'M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75',
+  logout:
+    'M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9',
+};
 
 const navItems = [
   { href: '/admin', label: 'Tableau de bord', key: 'dashboard' },
@@ -15,55 +30,226 @@ const navItems = [
   { href: '/admin/leads', label: 'Leads', key: 'leads' },
   { href: '/admin/campagnes', label: 'Campagnes', key: 'campagnes' },
 ] as const;
+
+// Sous-navigation Campagnes, affichée dans la sidebar / le drawer quand on est
+// dans la section (les pages gardent aussi leurs pills sur mobile).
+const inCampagnes = activeSection === 'campagnes';
+const campaignSubItems = [
+  {
+    href: '/admin/campagnes',
+    label: 'Campagnes',
+    active:
+      inCampagnes &&
+      !/^\/admin\/campagnes\/(contacts|listes|templates|configuration)/.test(path),
+  },
+  { href: '/admin/campagnes/contacts', label: 'Contacts', active: path.startsWith('/admin/campagnes/contacts') },
+  { href: '/admin/campagnes/listes', label: 'Listes', active: path.startsWith('/admin/campagnes/listes') },
+  { href: '/admin/campagnes/templates', label: 'Templates', active: path.startsWith('/admin/campagnes/templates') },
+  { href: '/admin/campagnes/configuration', label: 'Configuration', active: path.startsWith('/admin/campagnes/configuration') },
+];
 ---
 
 <!doctype html>
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="robots" content="noindex, nofollow" />
     <title>{title} · OQORO Admin</title>
   </head>
-  <body class="bg-oq-bg">
-    <header class="bg-white border-b border-oq-border">
-      <div class="max-w-container mx-auto px-6 h-16 flex items-center justify-between">
-        <div class="flex items-center gap-6">
-          <a href="/admin" class="flex items-center gap-3 no-underline">
+  <body class="bg-oq-bg min-h-screen">
+    <!-- ═══ Sidebar (desktop ≥ lg) ═══ -->
+    <aside class="hidden lg:flex lg:flex-col fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-oq-border">
+      <div class="h-16 flex items-center px-6 border-b border-oq-border shrink-0">
+        <a href="/admin" class="flex items-center gap-3 no-underline">
+          <span class="font-extrabold text-oq-black text-lg tracking-tight">OQORO</span>
+          <span class="text-oq-border">|</span>
+          <span class="text-[12px] font-bold uppercase tracking-wider text-oq-text">Admin</span>
+        </a>
+      </div>
+      <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1" aria-label="Navigation principale">
+        {navItems.map((item) => (
+          <>
+            <a
+              href={item.href}
+              aria-current={activeSection === item.key ? 'page' : undefined}
+              class:list={[
+                'flex items-center gap-3 px-3 py-2.5 rounded-btn text-[14px] font-medium no-underline transition-colors',
+                activeSection === item.key
+                  ? 'bg-oq-black text-white'
+                  : 'text-oq-text hover:bg-oq-bg hover:text-oq-black',
+              ]}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-5 h-5 shrink-0">
+                <path stroke-linecap="round" stroke-linejoin="round" d={ICONS[item.key]} />
+              </svg>
+              {item.label}
+            </a>
+            {item.key === 'campagnes' && inCampagnes && (
+              <div class="ml-4 pl-4 border-l border-oq-border space-y-0.5 py-1">
+                {campaignSubItems.map((sub) => (
+                  <a
+                    href={sub.href}
+                    aria-current={sub.active ? 'page' : undefined}
+                    class:list={[
+                      'block px-3 py-2 rounded-btn text-[13px] no-underline transition-colors',
+                      sub.active
+                        ? 'bg-brand-50 text-brand-700 font-semibold'
+                        : 'text-oq-muted hover:bg-oq-bg hover:text-oq-black',
+                    ]}
+                  >
+                    {sub.label}
+                  </a>
+                ))}
+              </div>
+            )}
+          </>
+        ))}
+      </nav>
+      <div class="border-t border-oq-border px-3 py-4 shrink-0">
+        {user && (
+          <div class="px-3 pb-3 text-[12px] text-oq-muted truncate" title={user.email}>
+            {user.email}
+          </div>
+        )}
+        <form method="POST" action="/admin/logout">
+          <button
+            type="submit"
+            class="w-full flex items-center gap-3 px-3 py-2.5 rounded-btn text-[14px] font-medium text-oq-text hover:bg-oq-bg hover:text-oq-black transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-5 h-5 shrink-0">
+              <path stroke-linecap="round" stroke-linejoin="round" d={ICONS.logout} />
+            </svg>
+            Déconnexion
+          </button>
+        </form>
+      </div>
+    </aside>
+
+    <!-- ═══ Header mobile (< lg) ═══ -->
+    <header class="lg:hidden sticky top-0 z-40 bg-white border-b border-oq-border">
+      <div class="flex items-center justify-between h-14 px-4">
+        <a href="/admin" class="flex items-center gap-2.5 no-underline">
+          <span class="font-extrabold text-oq-black text-lg tracking-tight">OQORO</span>
+          <span class="text-oq-border">|</span>
+          <span class="text-[11px] font-bold uppercase tracking-wider text-oq-text">Admin</span>
+        </a>
+        <button
+          id="oq-burger"
+          type="button"
+          aria-label="Ouvrir le menu"
+          aria-expanded="false"
+          aria-controls="oq-drawer"
+          class="w-11 h-11 -mr-1.5 flex items-center justify-center rounded-btn text-oq-black hover:bg-oq-bg"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ═══ Drawer mobile ═══ -->
+    <div id="oq-drawer" class="lg:hidden fixed inset-0 z-50 hidden" aria-hidden="true">
+      <div id="oq-drawer-overlay" class="absolute inset-0 bg-black/40"></div>
+      <div class="absolute inset-y-0 left-0 w-[85%] max-w-xs bg-white shadow-xl flex flex-col">
+        <div class="h-14 px-4 flex items-center justify-between border-b border-oq-border shrink-0">
+          <a href="/admin" class="flex items-center gap-2.5 no-underline">
             <span class="font-extrabold text-oq-black text-lg tracking-tight">OQORO</span>
             <span class="text-oq-border">|</span>
-            <span class="text-[13px] font-bold uppercase tracking-wider text-oq-text">Admin</span>
+            <span class="text-[11px] font-bold uppercase tracking-wider text-oq-text">Admin</span>
           </a>
-          <nav class="flex gap-1">
-            {navItems.map((item) => (
+          <button
+            id="oq-drawer-close"
+            type="button"
+            aria-label="Fermer le menu"
+            class="w-11 h-11 -mr-1.5 flex items-center justify-center rounded-btn text-oq-muted hover:bg-oq-bg hover:text-oq-black"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1" aria-label="Navigation principale">
+          {navItems.map((item) => (
+            <>
               <a
                 href={item.href}
+                aria-current={activeSection === item.key ? 'page' : undefined}
                 class:list={[
-                  'px-3 py-1.5 rounded-btn text-[14px] no-underline transition-colors',
+                  'flex items-center gap-3 px-3 py-3 rounded-btn text-[15px] font-medium no-underline transition-colors',
                   activeSection === item.key
                     ? 'bg-oq-black text-white'
-                    : 'text-oq-text hover:bg-oq-bg',
+                    : 'text-oq-text hover:bg-oq-bg hover:text-oq-black',
                 ]}
               >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-5 h-5 shrink-0">
+                  <path stroke-linecap="round" stroke-linejoin="round" d={ICONS[item.key]} />
+                </svg>
                 {item.label}
               </a>
-            ))}
-          </nav>
-        </div>
-        <div class="flex items-center gap-4">
+              {item.key === 'campagnes' && inCampagnes && (
+                <div class="ml-4 pl-4 border-l border-oq-border space-y-0.5 py-1">
+                  {campaignSubItems.map((sub) => (
+                    <a
+                      href={sub.href}
+                      aria-current={sub.active ? 'page' : undefined}
+                      class:list={[
+                        'block px-3 py-2.5 rounded-btn text-[14px] no-underline transition-colors',
+                        sub.active
+                          ? 'bg-brand-50 text-brand-700 font-semibold'
+                          : 'text-oq-muted hover:bg-oq-bg hover:text-oq-black',
+                      ]}
+                    >
+                      {sub.label}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </>
+          ))}
+        </nav>
+        <div class="border-t border-oq-border px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] shrink-0">
           {user && (
-            <span class="text-[13px] text-oq-muted">{user.email}</span>
+            <div class="pb-3 text-[13px] text-oq-muted truncate" title={user.email}>
+              {user.email}
+            </div>
           )}
           <form method="POST" action="/admin/logout">
-            <button type="submit" class="text-[13px] text-oq-text hover:text-oq-black">
-              Déconnexion
-            </button>
+            <button type="submit" class="oq-btn-secondary w-full">Déconnexion</button>
           </form>
         </div>
       </div>
-    </header>
-    <main class="max-w-container mx-auto px-6 py-8">
-      <slot />
+    </div>
+
+    <main class="lg:pl-64">
+      <div class="mx-auto max-w-container px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
+        <slot />
+      </div>
     </main>
+
+    <script>
+      const burger = document.getElementById('oq-burger');
+      const drawer = document.getElementById('oq-drawer');
+      const overlay = document.getElementById('oq-drawer-overlay');
+      const closeBtn = document.getElementById('oq-drawer-close');
+
+      function setOpen(open: boolean) {
+        if (!drawer || !burger) return;
+        drawer.classList.toggle('hidden', !open);
+        drawer.setAttribute('aria-hidden', String(!open));
+        burger.setAttribute('aria-expanded', String(open));
+        document.body.classList.toggle('overflow-hidden', open);
+      }
+
+      burger?.addEventListener('click', () => {
+        setOpen(drawer?.classList.contains('hidden') ?? false);
+      });
+      overlay?.addEventListener('click', () => setOpen(false));
+      closeBtn?.addEventListener('click', () => setOpen(false));
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') setOpen(false);
+      });
+    </script>
   </body>
 </html>

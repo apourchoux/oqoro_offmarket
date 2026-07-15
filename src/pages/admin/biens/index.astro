@@ -36,71 +36,115 @@ function getYield(propId: string): number {
 ---
 
 <Admin title="Biens" activeSection="biens">
-  <div class="flex items-center justify-between mb-8">
-    <h1 class="text-[28px] font-extrabold text-oq-black">Biens</h1>
-    <div class="flex gap-3">
-      <form method="POST" action="/admin/biens/rebuild">
-        <button type="submit" class="oq-btn-secondary">Regénérer le site</button>
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 lg:mb-8">
+    <h1 class="text-[24px] sm:text-[28px] font-extrabold text-oq-black">Biens</h1>
+    <div class="flex flex-col sm:flex-row gap-3">
+      <form method="POST" action="/admin/biens/rebuild" class="contents">
+        <button type="submit" class="oq-btn-secondary w-full sm:w-auto">Regénérer le site</button>
       </form>
-      <a href="/admin/biens/new" class="oq-btn-dark">Ajouter un bien</a>
+      <a href="/admin/biens/new" class="oq-btn-dark w-full sm:w-auto">Ajouter un bien</a>
     </div>
   </div>
 
   <div class="bg-white border border-oq-border rounded-card overflow-hidden">
     {properties && properties.length > 0 ? (
-      <table class="w-full text-[14px]">
-        <thead>
-          <tr class="text-left text-[12px] uppercase tracking-wider text-oq-muted bg-oq-bg">
-            <th class="px-4 py-3 font-semibold w-16">Photo</th>
-            <th class="px-4 py-3 font-semibold">Titre</th>
-            <th class="px-4 py-3 font-semibold">Ville</th>
-            <th class="px-4 py-3 font-semibold text-right">Prix</th>
-            <th class="px-4 py-3 font-semibold text-right">Rendement</th>
-            <th class="px-4 py-3 font-semibold">Statut</th>
-            <th class="px-4 py-3 font-semibold text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
+      <>
+        <!-- Mobile : cartes empilées -->
+        <div class="md:hidden divide-y divide-oq-border">
           {properties.map((p: any) => (
-            <tr class="border-t border-oq-border">
-              <td class="px-4 py-3">
+            <div class="p-4">
+              <a href={`/admin/biens/${p.id}`} class="flex gap-3 no-underline">
                 {getPrimaryPhoto(p.id) ? (
-                  <img src={getPrimaryPhoto(p.id)!} alt="" class="w-12 h-12 rounded-btn object-cover" />
+                  <img src={getPrimaryPhoto(p.id)!} alt="" class="w-16 h-16 rounded-btn object-cover shrink-0" />
                 ) : (
-                  <div class="w-12 h-12 rounded-btn bg-oq-bg" />
+                  <div class="w-16 h-16 rounded-btn bg-oq-bg shrink-0" />
                 )}
-              </td>
-              <td class="px-4 py-3">
-                <div class="font-medium text-oq-black line-clamp-1">{p.title}</div>
-                <div class="text-[12px] text-oq-muted">
-                  {p.property_type ? PROPERTY_TYPE_LABELS[p.property_type as keyof typeof PROPERTY_TYPE_LABELS] : '—'}
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-start justify-between gap-2">
+                    <span class="font-semibold text-oq-black text-[15px] leading-snug line-clamp-2">{p.title}</span>
+                    <span class:list={[
+                      'inline-flex items-center rounded-badge px-2.5 py-1 text-[12px] font-semibold shrink-0',
+                      p.status === 'published' ? 'bg-oq-green-soft text-green-700' : 'bg-oq-bg text-oq-muted',
+                    ]}>
+                      {p.status === 'published' ? 'Publié' : 'Brouillon'}
+                    </span>
+                  </div>
+                  <div class="text-[13px] text-oq-muted mt-0.5">
+                    {p.property_type ? PROPERTY_TYPE_LABELS[p.property_type as keyof typeof PROPERTY_TYPE_LABELS] : '—'}
+                    {p.city ? ` · ${p.city}` : ''}
+                  </div>
+                  <div class="flex items-baseline gap-3 mt-1">
+                    <span class="font-semibold text-oq-black text-[15px]">{formatEur(p.sale_price)}</span>
+                    <span class="font-semibold text-oq-orange text-[14px]">
+                      {getYield(p.id).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} %
+                    </span>
+                  </div>
                 </div>
-              </td>
-              <td class="px-4 py-3 text-oq-text">{p.city ?? '—'}</td>
-              <td class="px-4 py-3 text-right font-semibold text-oq-black">
-                {formatEur(p.sale_price)}
-              </td>
-              <td class="px-4 py-3 text-right font-semibold text-oq-orange">
-                {getYield(p.id).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} %
-              </td>
-              <td class="px-4 py-3">
-                <span class:list={[
-                  'inline-flex items-center rounded-badge px-2.5 py-0.5 text-[12px] font-semibold',
-                  p.status === 'published' ? 'bg-oq-green-soft text-green-700' : 'bg-oq-bg text-oq-muted',
-                ]}>
-                  {p.status === 'published' ? 'Publié' : 'Brouillon'}
-                </span>
-              </td>
-              <td class="px-4 py-3 text-right">
-                <div class="flex justify-end gap-3">
-                  <a href={`/biens/${p.slug}`} target="_blank" class="text-[13px] text-oq-muted hover:text-oq-black no-underline">Voir</a>
-                  <a href={`/admin/biens/${p.id}`} class="text-[13px] text-oq-orange no-underline">Éditer</a>
-                </div>
-              </td>
-            </tr>
+              </a>
+              <div class="flex gap-2 mt-3">
+                <a href={`/admin/biens/${p.id}`} class="oq-btn-secondary oq-btn-sm flex-1">Éditer</a>
+                <a href={`/biens/${p.slug}`} target="_blank" class="oq-btn-secondary oq-btn-sm flex-1">Voir la fiche ↗</a>
+              </div>
+            </div>
           ))}
-        </tbody>
-      </table>
+        </div>
+        <!-- Desktop : table -->
+        <div class="hidden md:block overflow-x-auto">
+          <table class="w-full text-[14px]">
+            <thead>
+              <tr class="text-left text-[12px] uppercase tracking-wider text-oq-muted bg-oq-bg">
+                <th class="px-4 py-3 font-semibold w-16">Photo</th>
+                <th class="px-4 py-3 font-semibold">Titre</th>
+                <th class="px-4 py-3 font-semibold">Ville</th>
+                <th class="px-4 py-3 font-semibold text-right">Prix</th>
+                <th class="px-4 py-3 font-semibold text-right">Rendement</th>
+                <th class="px-4 py-3 font-semibold">Statut</th>
+                <th class="px-4 py-3 font-semibold text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {properties.map((p: any) => (
+                <tr class="border-t border-oq-border">
+                  <td class="px-4 py-3">
+                    {getPrimaryPhoto(p.id) ? (
+                      <img src={getPrimaryPhoto(p.id)!} alt="" class="w-12 h-12 rounded-btn object-cover" />
+                    ) : (
+                      <div class="w-12 h-12 rounded-btn bg-oq-bg" />
+                    )}
+                  </td>
+                  <td class="px-4 py-3">
+                    <div class="font-medium text-oq-black line-clamp-1">{p.title}</div>
+                    <div class="text-[12px] text-oq-muted">
+                      {p.property_type ? PROPERTY_TYPE_LABELS[p.property_type as keyof typeof PROPERTY_TYPE_LABELS] : '—'}
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-oq-text">{p.city ?? '—'}</td>
+                  <td class="px-4 py-3 text-right font-semibold text-oq-black">
+                    {formatEur(p.sale_price)}
+                  </td>
+                  <td class="px-4 py-3 text-right font-semibold text-oq-orange">
+                    {getYield(p.id).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} %
+                  </td>
+                  <td class="px-4 py-3">
+                    <span class:list={[
+                      'inline-flex items-center rounded-badge px-2.5 py-0.5 text-[12px] font-semibold',
+                      p.status === 'published' ? 'bg-oq-green-soft text-green-700' : 'bg-oq-bg text-oq-muted',
+                    ]}>
+                      {p.status === 'published' ? 'Publié' : 'Brouillon'}
+                    </span>
+                  </td>
+                  <td class="px-4 py-3 text-right">
+                    <div class="flex justify-end gap-3">
+                      <a href={`/biens/${p.slug}`} target="_blank" class="text-[13px] text-oq-muted hover:text-oq-black no-underline">Voir</a>
+                      <a href={`/admin/biens/${p.id}`} class="text-[13px] text-oq-orange no-underline">Éditer</a>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </>
     ) : (
       <div class="p-16 text-center">
         <p class="text-oq-muted mb-6">Aucun bien pour le moment.</p>

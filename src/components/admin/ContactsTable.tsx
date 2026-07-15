@@ -281,25 +281,26 @@ export default function ContactsTable({ initialContacts, lists = [] }: Props) {
         })}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        <input
-          type="search"
-          className="oq-input max-w-xs"
-          placeholder="Rechercher (nom, email)…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <select
-          className="oq-input w-auto"
-          value={regionFilter}
-          onChange={(e) => setRegionFilter(e.target.value)}
-        >
-          <option value="all">Toutes les zones</option>
-          {REGIONS.map((r) => (
-            <option key={r.code} value={r.code}>{r.name}</option>
-          ))}
-        </select>
-        <div className="flex-1" />
+      <div className="space-y-3 mb-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <input
+            type="search"
+            className="oq-input sm:max-w-xs"
+            placeholder="Rechercher (nom, email)…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <select
+            className="oq-input sm:w-auto"
+            value={regionFilter}
+            onChange={(e) => setRegionFilter(e.target.value)}
+          >
+            <option value="all">Toutes les zones</option>
+            {REGIONS.map((r) => (
+              <option key={r.code} value={r.code}>{r.name}</option>
+            ))}
+          </select>
+        </div>
         <input
           ref={fileInputRef}
           type="file"
@@ -311,24 +312,26 @@ export default function ContactsTable({ initialContacts, lists = [] }: Props) {
             e.target.value = '';
           }}
         />
-        <button type="button" onClick={() => fileInputRef.current?.click()} className="oq-btn-secondary">
-          Importer CSV
-        </button>
-        <button type="button" onClick={exportCsv} className="oq-btn-secondary">
-          Exporter CSV ({filtered.length})
-        </button>
-        <button type="button" onClick={() => setAdding(true)} className="oq-btn-dark">
-          Ajouter un contact
-        </button>
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end sm:gap-3">
+          <button type="button" onClick={() => fileInputRef.current?.click()} className="oq-btn-secondary">
+            Importer CSV
+          </button>
+          <button type="button" onClick={exportCsv} className="oq-btn-secondary">
+            Exporter CSV ({filtered.length})
+          </button>
+          <button type="button" onClick={() => setAdding(true)} className="oq-btn-dark col-span-2 sm:col-span-1">
+            Ajouter un contact
+          </button>
+        </div>
       </div>
 
       {selectedIds.size > 0 && lists.length > 0 && (
-        <div className="mb-4 px-4 py-3 bg-brand-600/5 border border-brand-600/30 rounded-btn flex flex-wrap items-center gap-3 text-[13px]">
+        <div className="mb-4 px-4 py-3 bg-brand-600/5 border border-brand-600/30 rounded-btn flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 text-[13px]">
           <span className="font-semibold text-oq-black">
             {selectedIds.size} contact{selectedIds.size > 1 ? 's' : ''} sélectionné{selectedIds.size > 1 ? 's' : ''}
           </span>
           <select
-            className="oq-input w-auto"
+            className="oq-input sm:w-auto"
             value={targetList}
             onChange={(e) => setTargetList(e.target.value)}
           >
@@ -339,7 +342,7 @@ export default function ContactsTable({ initialContacts, lists = [] }: Props) {
           </select>
           <button
             type="button"
-            className="oq-btn-dark oq-btn-sm"
+            className="oq-btn-dark oq-btn-sm w-full sm:w-auto"
             disabled={!targetList || addingToList}
             onClick={addSelectionToList}
           >
@@ -347,7 +350,7 @@ export default function ContactsTable({ initialContacts, lists = [] }: Props) {
           </button>
           <button
             type="button"
-            className="text-oq-muted hover:text-oq-black"
+            className="min-h-[44px] sm:min-h-0 text-oq-muted hover:text-oq-black"
             onClick={() => setSelectedIds(new Set())}
           >
             Tout désélectionner
@@ -372,6 +375,60 @@ export default function ContactsTable({ initialContacts, lists = [] }: Props) {
             </div>
           </div>
         ) : (
+          <>
+          {/* Mobile : cartes empilées, tap = ouvre le détail */}
+          <div className="md:hidden">
+            <div className="px-4 py-2.5 bg-oq-bg border-b border-oq-border flex items-center gap-3">
+              <input
+                type="checkbox"
+                className="w-4 h-4"
+                checked={filtered.length > 0 && filtered.every((c) => selectedIds.has(c.id))}
+                onChange={toggleSelectAll}
+              />
+              <span className="text-[12px] uppercase tracking-wider text-oq-muted font-semibold">
+                Tout sélectionner
+              </span>
+            </div>
+            <div className="divide-y divide-oq-border">
+              {filtered.map((contact) => (
+                <div key={contact.id} className="p-4 flex gap-3">
+                  <div className="pt-1 shrink-0">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4"
+                      checked={selectedIds.has(contact.id)}
+                      onChange={() => toggleSelect(contact.id)}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="flex-1 min-w-0 text-left"
+                    onClick={() => setSelectedId(contact.id)}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="font-semibold text-oq-black text-[15px]">
+                        {contact.first_name} {contact.last_name}
+                      </span>
+                      <span className={`inline-flex items-center text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded-full shrink-0 ${TYPE_TONES[contact.contact_type].badge}`}>
+                        {CONTACT_TYPE_LABELS[contact.contact_type]}
+                      </span>
+                    </div>
+                    <div className="text-[14px] text-oq-text mt-0.5 break-all">{contact.email}</div>
+                    <div className="flex items-center gap-2 mt-1.5 text-[13px] text-oq-muted">
+                      <span className="truncate">{zonesSummary(contact.zones)}</span>
+                      {!contact.subscribed && (
+                        <span className="inline-flex items-center rounded-badge bg-oq-bg px-2 py-0.5 text-[11px] font-semibold text-oq-muted shrink-0">
+                          Désabonné
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Desktop : table */}
+          <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-[14px]">
             <thead>
               <tr className="text-left text-[12px] uppercase tracking-wider text-oq-muted bg-oq-bg">
@@ -432,6 +489,8 @@ export default function ContactsTable({ initialContacts, lists = [] }: Props) {
               ))}
             </tbody>
           </table>
+          </div>
+          </>
         )}
       </div>
 
@@ -441,13 +500,19 @@ export default function ContactsTable({ initialContacts, lists = [] }: Props) {
             className="fixed top-0 right-0 h-full w-full max-w-md bg-white border-l border-oq-border overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6 border-b border-oq-border flex items-center justify-between">
-              <h2 className="text-[18px] font-bold text-oq-black">
+            <div className="p-4 sm:p-6 border-b border-oq-border flex items-center justify-between gap-3">
+              <h2 className="text-[18px] font-bold text-oq-black min-w-0 truncate">
                 {selected.first_name} {selected.last_name}
               </h2>
-              <button onClick={() => setSelectedId(null)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-oq-bg text-oq-muted">×</button>
+              <button
+                onClick={() => setSelectedId(null)}
+                aria-label="Fermer"
+                className="w-11 h-11 shrink-0 flex items-center justify-center rounded-full hover:bg-oq-bg text-oq-muted text-[20px]"
+              >
+                ×
+              </button>
             </div>
-            <div className="p-6 space-y-4 text-[14px]">
+            <div className="p-4 sm:p-6 space-y-4 text-[14px] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
               <div>
                 <div className="text-[12px] uppercase tracking-wider text-oq-muted mb-1">Email</div>
                 <a href={`mailto:${selected.email}`}>{selected.email}</a>
@@ -497,7 +562,7 @@ export default function ContactsTable({ initialContacts, lists = [] }: Props) {
                 </button>
                 <button
                   type="button"
-                  className="w-full text-[13px] text-red-600 hover:text-red-700"
+                  className="w-full min-h-[44px] text-[13px] text-red-600 hover:text-red-700"
                   onClick={() => deleteContact(selected.id)}
                 >
                   Supprimer ce contact
@@ -514,12 +579,18 @@ export default function ContactsTable({ initialContacts, lists = [] }: Props) {
             className="fixed top-0 right-0 h-full w-full max-w-md bg-white border-l border-oq-border overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6 border-b border-oq-border flex items-center justify-between">
+            <div className="p-4 sm:p-6 border-b border-oq-border flex items-center justify-between gap-3">
               <h2 className="text-[18px] font-bold text-oq-black">Nouveau contact</h2>
-              <button onClick={() => setAdding(false)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-oq-bg text-oq-muted">×</button>
+              <button
+                onClick={() => setAdding(false)}
+                aria-label="Fermer"
+                className="w-11 h-11 shrink-0 flex items-center justify-center rounded-full hover:bg-oq-bg text-oq-muted text-[20px]"
+              >
+                ×
+              </button>
             </div>
             <form
-              className="p-6 space-y-4 text-[14px]"
+              className="p-4 sm:p-6 space-y-4 text-[14px] pb-[max(1.5rem,env(safe-area-inset-bottom))]"
               onSubmit={(e) => {
                 e.preventDefault();
                 createContact();
