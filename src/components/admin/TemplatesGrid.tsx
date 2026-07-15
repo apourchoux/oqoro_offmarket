@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { EmailTemplate } from '../../lib/types';
+import { BASE_TEMPLATES } from '../../lib/base-templates';
 
 interface Props {
   initialTemplates: EmailTemplate[];
@@ -8,6 +9,36 @@ interface Props {
 export default function TemplatesGrid({ initialTemplates }: Props) {
   const [templates, setTemplates] = useState(initialTemplates);
   const [busy, setBusy] = useState<string | null>(null);
+  const [seeding, setSeeding] = useState(false);
+
+  /** Amorce la bibliothèque avec les 3 modèles de base (parité Mailer). */
+  async function seedBaseTemplates() {
+    setSeeding(true);
+    try {
+      const created: EmailTemplate[] = [];
+      for (const t of BASE_TEMPLATES) {
+        const res = await fetch('/admin/api/templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(t),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.error ?? "Échec de l'ajout des modèles de base");
+          break;
+        }
+        created.push(data.template);
+      }
+      if (created.length > 0) {
+        setTemplates((current) => [...created, ...current]);
+      }
+    } catch (err) {
+      alert("Échec de l'ajout des modèles de base");
+      console.error(err);
+    } finally {
+      setSeeding(false);
+    }
+  }
 
   async function duplicateTemplate(t: EmailTemplate) {
     setBusy(t.id);
@@ -54,9 +85,22 @@ export default function TemplatesGrid({ initialTemplates }: Props) {
           (variables : {'{{first_name}}'}, {'{{last_name}}'}, {'{{email}}'},{' '}
           {'{{unsubscribe_url}}'}).
         </p>
-        <a href="/admin/campagnes/templates/new" className="oq-btn-dark">
-          Créer le premier template
-        </a>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <button
+            type="button"
+            className="oq-btn-dark"
+            disabled={seeding}
+            onClick={seedBaseTemplates}
+          >
+            {seeding ? 'Ajout…' : 'Ajouter les modèles de base'}
+          </button>
+          <a href="/admin/campagnes/templates/new" className="oq-btn-secondary">
+            Créer un template vierge
+          </a>
+        </div>
+        <p className="text-[12px] text-oq-muted mt-4">
+          3 modèles prêts à l'emploi : Email simple, Email avec CTA, Email texte pur.
+        </p>
       </div>
     );
   }

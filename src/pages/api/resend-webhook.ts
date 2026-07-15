@@ -82,7 +82,7 @@ export const POST: APIRoute = async ({ request }) => {
     data?: {
       email_id?: string;
       created_at?: string;
-      bounce?: { message?: string };
+      bounce?: { message?: string; type?: string; subType?: string };
       click?: { link?: string; timestamp?: string };
     };
   };
@@ -188,6 +188,24 @@ export const POST: APIRoute = async ({ request }) => {
       );
       if (clickError) {
         console.error('[resend-webhook] click insert error', clickError);
+        writeError = true;
+      }
+    }
+  }
+
+  // Hygiène de délivrabilité : un bounce PERMANENT (adresse inexistante,
+  // domaine mort…) désabonne le contact — inutile et nocif de le recibler.
+  // Les bounces transitoires (boîte pleine, greylisting) ne désabonnent pas.
+  if (type === 'email.bounced' && row.contact_id) {
+    const bounceType = `${event.data?.bounce?.type ?? ''} ${event.data?.bounce?.subType ?? ''}`;
+    if (/permanent|suppress/i.test(bounceType)) {
+      const { error: bounceUnsubError } = await supabase
+        .from('contacts')
+        .update({ subscribed: false, unsubscribed_at: occurredAt })
+        .eq('id', row.contact_id)
+        .eq('subscribed', true);
+      if (bounceUnsubError) {
+        console.error('[resend-webhook] bounce unsubscribe error', bounceUnsubError);
         writeError = true;
       }
     }

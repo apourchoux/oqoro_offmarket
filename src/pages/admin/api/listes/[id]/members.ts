@@ -6,24 +6,28 @@ export const prerender = false;
 
 const MAX_BATCH = 2000;
 
-// GET : membres de la liste (500 premiers, pour le drawer d'édition).
+// GET : TOUS les membres de la liste (paginé en interne — PostgREST plafonne
+// à ~1000 lignes par requête ; garde-fou à 50 000).
 export const GET: APIRoute = async ({ params, locals }) => {
   if (!locals.user) return json({ error: 'Non authentifié' }, 401);
   const id = params.id;
   if (!id || !UUID_REGEX.test(id)) return json({ error: 'ID invalide' }, 400);
 
   const supabase = getAdminClient();
-  const { data, error } = await supabase
-    .from('contact_list_members')
-    .select('contact_id, contacts(id, first_name, last_name, email, subscribed)')
-    .eq('list_id', id)
-    .order('created_at', { ascending: false })
-    .limit(500);
-  if (error) return json({ error: error.message }, 500);
-
-  const members = (data ?? [])
-    .map((m: any) => m.contacts)
-    .filter(Boolean);
+  const PAGE = 1000;
+  const MAX_MEMBERS = 50000;
+  const members: unknown[] = [];
+  for (let from = 0; from < MAX_MEMBERS; from += PAGE) {
+    const { data, error } = await supabase
+      .from('contact_list_members')
+      .select('contact_id, contacts(id, first_name, last_name, email, phone, subscribed)')
+      .eq('list_id', id)
+      .order('created_at', { ascending: false })
+      .range(from, from + PAGE - 1);
+    if (error) return json({ error: error.message }, 500);
+    members.push(...(data ?? []).map((m: any) => m.contacts).filter(Boolean));
+    if (!data || data.length < PAGE) break;
+  }
   return json({ members });
 };
 

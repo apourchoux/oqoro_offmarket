@@ -12,10 +12,27 @@ if (!Astro.locals.user) {
 }
 
 const supabase = getAdminClient();
-const [{ data: contacts }, { data: lists }] = await Promise.all([
-  supabase.from('contacts').select('*').order('created_at', { ascending: false }),
-  supabase.from('contact_lists').select('id, name').order('name'),
-]);
+
+// PostgREST plafonne chaque requête à ~1000 lignes : au-delà, un `select`
+// simple TRONQUE silencieusement la base. On pagine donc jusqu'à tout charger
+// (garde-fou à 50 000 contacts).
+const PAGE = 1000;
+const MAX_CONTACTS = 50000;
+const contacts: Contact[] = [];
+for (let from = 0; from < MAX_CONTACTS; from += PAGE) {
+  const { data: page } = await supabase
+    .from('contacts')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .range(from, from + PAGE - 1);
+  contacts.push(...(((page ?? []) as Contact[])));
+  if (!page || page.length < PAGE) break;
+}
+
+const { data: lists } = await supabase
+  .from('contact_lists')
+  .select('id, name')
+  .order('name');
 ---
 
 <Admin title="Contacts" activeSection="campagnes">
@@ -23,14 +40,14 @@ const [{ data: contacts }, { data: lists }] = await Promise.all([
     <div>
       <h1 class="text-[24px] sm:text-[28px] font-extrabold text-oq-black">Contacts</h1>
       <p class="text-oq-muted text-[14px] mt-1">
-        {(contacts ?? []).length} au total
+        {contacts.length.toLocaleString('fr-FR')} au total
       </p>
     </div>
     <CampaignsNav active="contacts" />
   </div>
   <ContactsTable
     client:load
-    initialContacts={(contacts ?? []) as Contact[]}
+    initialContacts={contacts}
     lists={(lists ?? []) as Array<{ id: string; name: string }>}
   />
 </Admin>

@@ -218,6 +218,68 @@ export default function ContactsTable({ initialContacts, lists = [] }: Props) {
     }
   }
 
+  async function removeSelectionFromList() {
+    if (!targetList || selectedIds.size === 0) return;
+    setAddingToList(true);
+    try {
+      const res = await fetch(`/admin/api/listes/${targetList}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ remove: [...selectedIds] }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error ?? 'Échec du retrait de la liste');
+        return;
+      }
+      const listName = lists.find((l) => l.id === targetList)?.name ?? 'la liste';
+      alert(`Sélection retirée de « ${listName} ».`);
+      setSelectedIds(new Set());
+    } catch (err) {
+      alert('Échec du retrait de la liste');
+      console.error(err);
+    } finally {
+      setAddingToList(false);
+    }
+  }
+
+  async function unsubscribeSelection() {
+    if (selectedIds.size === 0) return;
+    if (
+      !confirm(
+        `Désabonner ${selectedIds.size} contact${selectedIds.size > 1 ? 's' : ''} ? ` +
+          'Ils ne recevront plus aucune campagne.',
+      )
+    ) {
+      return;
+    }
+    setAddingToList(true);
+    try {
+      const res = await fetch('/admin/api/contacts/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'unsubscribe', ids: [...selectedIds] }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error ?? 'Échec du désabonnement groupé');
+        return;
+      }
+      const now = new Date().toISOString();
+      setContacts((current) =>
+        current.map((c) =>
+          selectedIds.has(c.id) ? { ...c, subscribed: false, unsubscribed_at: now } : c,
+        ),
+      );
+      setSelectedIds(new Set());
+    } catch (err) {
+      alert('Échec du désabonnement groupé');
+      console.error(err);
+    } finally {
+      setAddingToList(false);
+    }
+  }
+
   function exportCsv() {
     const headers = ['prenom', 'nom', 'email', 'telephone', 'type', 'zones', 'abonne', 'source'];
     const rows = filtered.map((c) => [
@@ -325,28 +387,48 @@ export default function ContactsTable({ initialContacts, lists = [] }: Props) {
         </div>
       </div>
 
-      {selectedIds.size > 0 && lists.length > 0 && (
+      {selectedIds.size > 0 && (
         <div className="mb-4 px-4 py-3 bg-brand-600/5 border border-brand-600/30 rounded-btn flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 text-[13px]">
           <span className="font-semibold text-oq-black">
             {selectedIds.size} contact{selectedIds.size > 1 ? 's' : ''} sélectionné{selectedIds.size > 1 ? 's' : ''}
           </span>
-          <select
-            className="oq-input sm:w-auto"
-            value={targetList}
-            onChange={(e) => setTargetList(e.target.value)}
-          >
-            <option value="">Choisir une liste…</option>
-            {lists.map((l) => (
-              <option key={l.id} value={l.id}>{l.name}</option>
-            ))}
-          </select>
+          {lists.length > 0 && (
+            <>
+              <select
+                className="oq-input sm:w-auto"
+                value={targetList}
+                onChange={(e) => setTargetList(e.target.value)}
+              >
+                <option value="">Choisir une liste…</option>
+                {lists.map((l) => (
+                  <option key={l.id} value={l.id}>{l.name}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="oq-btn-dark oq-btn-sm w-full sm:w-auto"
+                disabled={!targetList || addingToList}
+                onClick={addSelectionToList}
+              >
+                {addingToList ? '…' : 'Ajouter à la liste'}
+              </button>
+              <button
+                type="button"
+                className="oq-btn-secondary oq-btn-sm w-full sm:w-auto"
+                disabled={!targetList || addingToList}
+                onClick={removeSelectionFromList}
+              >
+                Retirer de la liste
+              </button>
+            </>
+          )}
           <button
             type="button"
-            className="oq-btn-dark oq-btn-sm w-full sm:w-auto"
-            disabled={!targetList || addingToList}
-            onClick={addSelectionToList}
+            className="oq-btn-secondary oq-btn-sm w-full sm:w-auto !text-red-600"
+            disabled={addingToList}
+            onClick={unsubscribeSelection}
           >
-            {addingToList ? 'Ajout…' : 'Ajouter à la liste'}
+            Désabonner la sélection
           </button>
           <button
             type="button"
