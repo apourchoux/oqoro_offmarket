@@ -44,6 +44,7 @@ const rows: CampaignRow[] = (campaigns ?? []).map((c: any) => {
           opened: stats.opened,
           clicked: stats.clicked,
           bounced: stats.bounced + stats.failed,
+          unsubscribed: stats.unsubscribed ?? 0,
         }
       : null,
     target_list_names: (c.target_list_ids ?? [])

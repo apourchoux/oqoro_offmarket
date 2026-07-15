@@ -8,6 +8,10 @@ const UUID_REGEX =
 
 const token = Astro.url.searchParams.get('token');
 const validToken = token && UUID_REGEX.test(token) ? token : null;
+// Campagne d'origine (optionnelle) : ré-injectée dans le POST pour attribuer
+// le désabonnement à la campagne dans les statistiques.
+const campaign = Astro.url.searchParams.get('c');
+const validCampaign = campaign && UUID_REGEX.test(campaign) ? campaign : null;
 const done = Astro.url.searchParams.get('done') === '1';
 ---
 
@@ -36,6 +40,9 @@ const done = Astro.url.searchParams.get('done') === '1';
           </p>
           <form method="POST" action="/api/unsubscribe">
             <input type="hidden" name="token" value={validToken} />
+            {validCampaign && (
+              <input type="hidden" name="campaign" value={validCampaign} />
+            )}
             <button type="submit" class="oq-btn-dark w-full">
               Confirmer le désabonnement
             </button>

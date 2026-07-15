@@ -37,18 +37,22 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
 
   // Seuls les brouillons sont éditables : le filtre status fait office de
   // verrou (0 ligne modifiée = campagne déjà partie ou inexistante).
-  const { data, error } = await supabase
-    .from('campaigns')
-    .update(fields)
-    .eq('id', id)
-    .eq('status', 'draft')
-    .select();
+  // Exception : `name` et `folder` (métadonnées internes, sans effet sur le
+  // contenu envoyé) restent renommables à tout statut — parité Mailer.
+  const RENAME_ONLY_KEYS = ['name', 'folder'];
+  const renameOnly = Object.keys(fields).every((k) => RENAME_ONLY_KEYS.includes(k));
+  let query = supabase.from('campaigns').update(fields).eq('id', id);
+  if (!renameOnly) query = query.eq('status', 'draft');
+  const { data, error } = await query.select();
   if (error) {
     console.error('[admin campagnes update] error', error);
     return json({ error: `Mise à jour impossible : ${error.message}` }, 500);
   }
   if (!data || data.length === 0) {
-    return json({ error: 'Seuls les brouillons sont modifiables' }, 409);
+    return json(
+      { error: renameOnly ? 'Campagne introuvable' : 'Seuls les brouillons sont modifiables' },
+      renameOnly ? 404 : 409,
+    );
   }
   return json({ success: true, campaign: data[0] });
 };

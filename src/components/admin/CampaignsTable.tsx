@@ -15,6 +15,7 @@ export interface CampaignRow extends Campaign {
     opened: number;
     clicked: number;
     bounced: number;
+    unsubscribed: number;
   } | null;
   target_list_names: string[];
 }
@@ -28,6 +29,7 @@ const STATUS_FILTERS: Array<CampaignStatus | 'all'> = [
   'draft',
   'scheduled',
   'sending',
+  'paused',
   'sent',
   'failed',
 ];
@@ -36,22 +38,33 @@ export default function CampaignsTable({ initialCampaigns }: Props) {
   const [campaigns, setCampaigns] = useState(initialCampaigns);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<CampaignStatus | 'all'>('all');
+  const [folderFilter, setFolderFilter] = useState<string>('all');
   const [busy, setBusy] = useState<string | null>(null);
+
+  const folders = useMemo(
+    () =>
+      [...new Set(campaigns.map((c) => c.folder).filter((f): f is string => Boolean(f)))].sort(
+        (a, b) => a.localeCompare(b, 'fr'),
+      ),
+    [campaigns],
+  );
 
   const filtered = useMemo(() => {
     let list = campaigns;
     if (statusFilter !== 'all') list = list.filter((c) => c.status === statusFilter);
+    if (folderFilter !== 'all') list = list.filter((c) => c.folder === folderFilter);
     const q = search.trim().toLowerCase();
     if (q) {
       list = list.filter(
         (c) =>
           c.name.toLowerCase().includes(q) ||
           c.subject.toLowerCase().includes(q) ||
+          (c.folder ?? '').toLowerCase().includes(q) ||
           (c.property_title ?? '').toLowerCase().includes(q),
       );
     }
     return list;
-  }, [campaigns, search, statusFilter]);
+  }, [campaigns, search, statusFilter, folderFilter]);
 
   async function duplicateCampaign(c: CampaignRow) {
     setBusy(c.id);
@@ -61,6 +74,7 @@ export default function CampaignsTable({ initialCampaigns }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: `${c.name} (copie)`,
+          folder: c.folder,
           subject: c.subject,
           preview_text: c.preview_text,
           intro_text: c.intro_text,
@@ -143,6 +157,18 @@ export default function CampaignsTable({ initialCampaigns }: Props) {
             </option>
           ))}
         </select>
+        {folders.length > 0 && (
+          <select
+            className="oq-input sm:w-auto"
+            value={folderFilter}
+            onChange={(e) => setFolderFilter(e.target.value)}
+          >
+            <option value="all">Tous les dossiers ({folders.length})</option>
+            {folders.map((f) => (
+              <option key={f} value={f}>{f}</option>
+            ))}
+          </select>
+        )}
         <div className="hidden sm:block sm:flex-1" />
         <span className="text-[13px] text-oq-muted">
           {filtered.length} campagne{filtered.length > 1 ? 's' : ''}
@@ -260,6 +286,7 @@ export default function CampaignsTable({ initialCampaigns }: Props) {
                 <th className="px-4 py-3 font-semibold text-right">Dest.</th>
                 <th className="px-4 py-3 font-semibold text-right">Ouvert.</th>
                 <th className="px-4 py-3 font-semibold text-right">Clics</th>
+                <th className="px-4 py-3 font-semibold text-right">Désinsc.</th>
                 <th className="px-4 py-3 font-semibold text-right">Rejets</th>
                 <th className="px-4 py-3" />
               </tr>
@@ -279,13 +306,16 @@ export default function CampaignsTable({ initialCampaigns }: Props) {
                     <td className="px-4 py-3">
                       <div className="font-medium text-oq-black">{c.name}</div>
                       <div className="text-[12px] text-oq-muted">
+                        {c.folder ? `${c.folder} · ` : ''}
                         {c.subject || audience.main}
                         {c.property_title ? ` · ${c.property_title}` : ''}
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${CAMPAIGN_STATUS_TONES[c.status]}`}>
-                        {CAMPAIGN_STATUS_LABELS[c.status]}
+                      <span className={`inline-flex items-center text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded-full whitespace-nowrap ${CAMPAIGN_STATUS_TONES[c.status]}`}>
+                        {c.status === 'scheduled' && c.scheduled_at
+                          ? `prog : ${new Date(c.scheduled_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} · ${new Date(c.scheduled_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+                          : CAMPAIGN_STATUS_LABELS[c.status]}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-oq-muted text-[13px] whitespace-nowrap">
@@ -308,6 +338,9 @@ export default function CampaignsTable({ initialCampaigns }: Props) {
                     </td>
                     <td className="px-4 py-3 text-right text-oq-text whitespace-nowrap">
                       {c.stats ? `${c.stats.clicked} (${formatRate(c.stats.clicked, c.stats.delivered)})` : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-right text-oq-text whitespace-nowrap">
+                      {c.stats ? `${c.stats.unsubscribed} (${formatRate(c.stats.unsubscribed, c.stats.delivered)})` : '—'}
                     </td>
                     <td className="px-4 py-3 text-right text-oq-text">
                       {c.stats ? c.stats.bounced : '—'}

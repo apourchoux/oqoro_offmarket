@@ -2,31 +2,18 @@
 export const prerender = false;
 
 import Admin from '../../../layouts/Admin.astro';
-import CampaignComposer from '../../../components/admin/CampaignComposer.tsx';
-import { getAdminClient } from '../../../lib/supabase';
-import { loadComposerData } from '../../../lib/campaigns';
+import CampaignCreate from '../../../components/admin/CampaignCreate.tsx';
 
 if (!Astro.locals.user) {
   return Astro.redirect('/admin/login');
 }
-
-const supabase = getAdminClient();
-const { properties, lists, templates } = await loadComposerData(supabase);
-const defaultFrom = import.meta.env.RESEND_FROM || '';
 ---
 
 <Admin title="Nouvelle campagne" activeSection="campagnes">
   <div class="mb-6">
-    <a href="/admin/campagnes" class="inline-flex items-center min-h-[32px] text-[13px] text-oq-muted hover:text-oq-black no-underline mb-2">
+    <a href="/admin/campagnes" class="inline-flex items-center min-h-[32px] text-[13px] text-oq-muted hover:text-oq-black no-underline">
       ← Retour aux campagnes
     </a>
-    <h1 class="text-[22px] sm:text-[24px] font-extrabold text-oq-black">Nouvelle campagne</h1>
   </div>
-  <CampaignComposer
-    client:load
-    properties={properties}
-    lists={lists}
-    templates={templates}
-    defaultFrom={defaultFrom}
-  />
+  <CampaignCreate client:load />
 </Admin>

@@ -4,10 +4,20 @@ export const prerender = false;
 import { Resend } from 'resend';
 import Admin from '../../../layouts/Admin.astro';
 import CampaignsNav from '../../../components/admin/CampaignsNav.astro';
+import SendersManager from '../../../components/admin/SendersManager.tsx';
+import { getAdminClient } from '../../../lib/supabase';
+import type { CampaignSender } from '../../../lib/types';
 
 if (!Astro.locals.user) {
   return Astro.redirect('/admin/login');
 }
+
+// Expéditeurs pré-enregistrés (cartes de l'étape Expéditeur du composer).
+const { data: senderRows } = await getAdminClient()
+  .from('campaign_senders')
+  .select('*')
+  .order('created_at', { ascending: true });
+const senders = (senderRows ?? []) as CampaignSender[];
 
 // Diagnostic des domaines Resend : statut de vérification + tracking
 // opens/clicks (nécessaire pour les statistiques d'ouverture/clic).
@@ -195,6 +205,15 @@ const allEnvOk = envChecks.every((c) => c.ok);
         })}
       </div>
     )}
+  </div>
+
+  <div class="bg-white border border-oq-border rounded-card p-4 sm:p-6 mb-6">
+    <h2 class="text-[17px] font-bold text-oq-black mb-1">Expéditeurs pré-enregistrés</h2>
+    <p class="text-[13px] text-oq-muted mb-5">
+      Ces expéditeurs sont proposés en un clic dans l'étape « Expéditeur » de
+      l'assistant de campagne.
+    </p>
+    <SendersManager client:load initialSenders={senders} />
   </div>
 
   <div class="bg-white border border-oq-border rounded-card p-4 sm:p-6">

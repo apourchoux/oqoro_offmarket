@@ -154,7 +154,14 @@ export default async function handler(req: Request): Promise<Response> {
     }
     await supabase
       .from('campaigns')
-      .update({ total_recipients: totalRecipients })
+      .update({
+        total_recipients: totalRecipients,
+        // Timeline d'historique : premier démarrage d'envoi uniquement (une
+        // reprise après pause/crash ne réécrit pas la date d'origine).
+        ...(typedCampaign.sending_started_at
+          ? {}
+          : { sending_started_at: new Date().toISOString() }),
+      })
       .eq('id', campaignId);
 
     // ─── Envoi par pages de destinataires `pending` ───
@@ -178,6 +185,22 @@ export default async function handler(req: Request): Promise<Response> {
           `Boucle d'envoi anormale (${iterations} itérations pour ${totalRecipients} destinataires) — arrêt de sécurité`,
         );
       }
+      // Pause demandée depuis l'admin (sending → paused) : arrêt propre AVANT
+      // le batch suivant. Les destinataires déjà servis gardent leur statut,
+      // les `pending` restants seront traités à la reprise (resume → worker,
+      // idempotent). Ne surtout pas marquer sent/failed ici.
+      const { data: current } = await supabase
+        .from('campaigns')
+        .select('status')
+        .eq('id', campaignId)
+        .maybeSingle();
+      if (current?.status !== 'sending') {
+        console.log(
+          `[send-campaign] ${campaignId} interrompu (statut ${current?.status ?? 'inconnu'}) après ${sentCount} envoi(s)`,
+        );
+        return new Response('Paused', { status: 200 });
+      }
+
       const { data: recipients, error: fetchError } = await supabase
         .from('campaign_recipients')
         .select(
@@ -216,9 +239,10 @@ export default async function handler(req: Request): Promise<Response> {
       const payload = sendable.map((r) => {
         const token = r.contacts!.unsubscribe_token;
         // Lien visible (footer) : page de confirmation. Header one-click
-        // RFC 8058 : le endpoint POST directement.
-        const unsubscribeUrl = `${siteUrl}/desabonnement?token=${token}`;
-        const oneClickUrl = `${siteUrl}/api/unsubscribe?token=${token}`;
+        // RFC 8058 : le endpoint POST directement. `c` = campagne d'origine,
+        // pour attribuer le désabonnement dans les statistiques.
+        const unsubscribeUrl = `${siteUrl}/desabonnement?token=${token}&c=${campaignId}`;
+        const oneClickUrl = `${siteUrl}/api/unsubscribe?token=${token}&c=${campaignId}`;
 
         const { html, text } =
           typedCampaign.content_mode === 'custom'

@@ -2,23 +2,21 @@
 export const prerender = false;
 
 import Admin from '../../../layouts/Admin.astro';
-import CampaignComposer from '../../../components/admin/CampaignComposer.tsx';
+import CampaignWizard from '../../../components/admin/CampaignWizard.tsx';
+import CampaignReport from '../../../components/admin/CampaignReport.tsx';
+import type { ReportCampaign } from '../../../components/admin/CampaignReport.tsx';
 import { getAdminClient } from '../../../lib/supabase';
-import { loadComposerData } from '../../../lib/campaigns';
-import { zonesSummary } from '../../../lib/zones';
 import {
-  CAMPAIGN_STATUS_LABELS,
-  CAMPAIGN_STATUS_TONES,
-  CAMPAIGN_TARGET_TYPE_LABELS,
-  RECIPIENT_STATUS_LABELS,
-} from '../../../lib/types';
-import { formatRate } from '../../../lib/format';
-import type {
-  Campaign,
-  CampaignRecipient,
-  CampaignStats,
-  RecipientStatus,
-} from '../../../lib/types';
+  audienceExcludedQuery,
+  audienceQuery,
+  loadCampaignPropertyData,
+  loadComposerData,
+} from '../../../lib/campaigns';
+import {
+  renderCampaignEmail,
+  renderCustomEmail,
+} from '../../../lib/campaign-email';
+import type { Campaign, CampaignSender, CampaignStats } from '../../../lib/types';
 
 if (!Astro.locals.user) {
   return Astro.redirect('/admin/login');
@@ -44,255 +42,101 @@ const campaign = campaignRow as Campaign & {
   properties: { title: string; slug: string } | null;
 };
 const isDraft = campaign.status === 'draft';
-const isScheduled = campaign.status === 'scheduled';
-
-let composerData: Awaited<ReturnType<typeof loadComposerData>> | null = null;
-let recipients: Array<CampaignRecipient & { contacts: { first_name: string; last_name: string } | null }> = [];
-let stats: CampaignStats | null = null;
-
-if (isDraft) {
-  composerData = await loadComposerData(supabase);
-} else if (!isScheduled) {
-  const [{ data: recipientRows }, { data: statsRows }] = await Promise.all([
-    supabase
-      .from('campaign_recipients')
-      .select('*, contacts(first_name, last_name)')
-      .eq('campaign_id', id)
-      .order('created_at', { ascending: true })
-      .limit(1000),
-    supabase.from('campaign_stats').select('*').eq('campaign_id', id),
-  ]);
-  recipients = (recipientRows ?? []) as typeof recipients;
-  stats = ((statsRows ?? [])[0] as CampaignStats) ?? null;
-}
 
 const defaultFrom = import.meta.env.RESEND_FROM || '';
+const SITE_URL = import.meta.env.PUBLIC_SITE_URL || 'https://offmarket.oqoro.com';
 
-const RECIPIENT_TONES: Record<RecipientStatus, string> = {
-  pending: 'bg-gray-100 text-gray-700',
-  sent: 'bg-blue-100 text-blue-800',
-  delivered: 'bg-sky-100 text-sky-800',
-  opened: 'bg-emerald-100 text-emerald-800',
-  clicked: 'bg-violet-100 text-violet-800',
-  bounced: 'bg-red-100 text-red-800',
-  complained: 'bg-red-100 text-red-800',
-  failed: 'bg-red-100 text-red-800',
+// ─── Mode brouillon : assistant 4 étapes ───
+let composerData: Awaited<ReturnType<typeof loadComposerData>> | null = null;
+let senders: CampaignSender[] = [];
+
+// ─── Autres statuts : rapport à onglets ───
+let stats: CampaignStats | null = null;
+let listNames: string[] = [];
+let contentHtml: string | null = null;
+let audienceCount: { active: number; excluded: number } | null = null;
+
+if (isDraft) {
+  const [data, { data: senderRows }] = await Promise.all([
+    loadComposerData(supabase),
+    supabase.from('campaign_senders').select('*').order('created_at', { ascending: true }),
+  ]);
+  composerData = data;
+  senders = (senderRows ?? []) as CampaignSender[];
+} else {
+  const [{ data: statsRows }, { data: listRows }] = await Promise.all([
+    supabase.from('campaign_stats').select('*').eq('campaign_id', id),
+    campaign.target_list_ids && campaign.target_list_ids.length > 0
+      ? supabase.from('contact_lists').select('id, name').in('id', campaign.target_list_ids)
+      : Promise.resolve({ data: [] as Array<{ id: string; name: string }> }),
+  ]);
+  stats = ((statsRows ?? [])[0] as CampaignStats) ?? null;
+  listNames = (listRows ?? []).map((l: any) => l.name);
+
+  // Aperçu du contenu envoyé (onglet Contenu) : variables remplacées par des
+  // données de démonstration, lien de désabonnement inerte.
+  const demoContact = { first_name: 'Jean', last_name: 'Dupont', email: 'jean.dupont@exemple.fr' };
+  if (campaign.content_mode === 'custom' && campaign.custom_html?.trim()) {
+    contentHtml = renderCustomEmail({
+      html: campaign.custom_html,
+      previewText: campaign.preview_text,
+      contact: demoContact,
+      unsubscribeUrl: '#',
+    }).html;
+  } else if (campaign.content_mode !== 'custom' && campaign.property_id) {
+    const data = await loadCampaignPropertyData(supabase, campaign.property_id);
+    if (data) {
+      contentHtml = renderCampaignEmail({
+        campaign: {
+          subject: campaign.subject,
+          intro_text: campaign.intro_text,
+          preview_text: campaign.preview_text,
+        },
+        property: data.property,
+        financials: data.financials,
+        photoUrl: data.photoUrl,
+        contact: { first_name: demoContact.first_name },
+        siteUrl: SITE_URL,
+        unsubscribeUrl: '#',
+      }).html;
+    }
+  }
+
+  // Campagne programmée : compteur d'audience courant (actifs + exclus).
+  if (campaign.status === 'scheduled') {
+    const [{ count: active }, { count: excluded }] = await Promise.all([
+      audienceQuery(supabase, campaign, 'id', { count: 'exact', head: true }),
+      audienceExcludedQuery(supabase, campaign, 'id', { count: 'exact', head: true }),
+    ]);
+    audienceCount = { active: active ?? 0, excluded: excluded ?? 0 };
+  }
+}
+
+const reportCampaign: ReportCampaign = {
+  ...campaign,
+  property_title: campaign.properties?.title ?? null,
+  property_slug: campaign.properties?.slug ?? null,
 };
-
-const tiles = stats
-  ? [
-      { label: 'Destinataires', value: stats.total, sub: '' },
-      { label: 'Délivrés', value: stats.delivered, sub: formatRate(stats.delivered, stats.total) },
-      { label: 'Ouverts', value: stats.opened, sub: formatRate(stats.opened, stats.delivered) },
-      { label: 'Cliqués', value: stats.clicked, sub: formatRate(stats.clicked, stats.delivered) },
-      { label: 'Rejetés', value: stats.bounced + stats.failed, sub: '' },
-    ]
-  : [];
-
-const audienceLine =
-  campaign.target_list_ids && campaign.target_list_ids.length > 0
-    ? `${campaign.target_list_ids.length} liste${campaign.target_list_ids.length > 1 ? 's' : ''}`
-    : `${CAMPAIGN_TARGET_TYPE_LABELS[campaign.target_contact_type]} · ${zonesSummary(campaign.target_zones)}`;
 ---
 
 <Admin title={campaign.name} activeSection="campagnes">
-  {campaign.status === 'sending' && (
-    <meta http-equiv="refresh" content="10" />
-  )}
-
-  <div class="mb-6">
-    <a href="/admin/campagnes" class="inline-flex items-center min-h-[32px] text-[13px] text-oq-muted hover:text-oq-black no-underline mb-2">
-      ← Retour aux campagnes
-    </a>
-    <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
-      <h1 class="text-[22px] sm:text-[24px] font-extrabold text-oq-black break-words min-w-0">{campaign.name}</h1>
-      <span class:list={[
-        'inline-flex items-center text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded-full shrink-0',
-        CAMPAIGN_STATUS_TONES[campaign.status],
-      ]}>
-        {CAMPAIGN_STATUS_LABELS[campaign.status]}
-      </span>
-    </div>
-  </div>
-
-  {campaign.status === 'sending' && (
-    <div class="mb-6 px-4 py-3 bg-amber-50 border border-amber-200 rounded-btn text-[13px] text-amber-800">
-      Envoi en cours — cette page se rafraîchit automatiquement toutes les 10 secondes.
-    </div>
-  )}
-  {campaign.status === 'failed' && (
-    <div class="mb-6 px-4 py-3 bg-red-50 border border-red-200 rounded-btn text-[13px] text-red-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-      <span>Échec de l'envoi{campaign.error ? ` : ${campaign.error}` : ''}. Seuls les destinataires encore en attente seront traités lors d'une relance.</span>
-      <button
-        type="button"
-        class="oq-btn-dark whitespace-nowrap w-full sm:w-auto"
-        onclick={`if(confirm('Relancer l\\'envoi de cette campagne ?')){fetch('/admin/api/campagnes/${campaign.id}/send',{method:'POST'}).then(r=>r.json()).then(d=>{if(d.error){alert(d.error)}else{window.location.reload()}})}`}
-      >
-        Relancer l'envoi
-      </button>
-    </div>
-  )}
-
-  {isScheduled ? (
-    <div>
-      <div class="mb-6 px-4 sm:px-5 py-4 bg-blue-50 border border-blue-200 rounded-card flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-        <div class="text-[14px] text-blue-900">
-          <span class="font-bold">Envoi programmé le
-            {' '}{new Date(campaign.scheduled_at!).toLocaleString('fr-FR', {
-              weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-              hour: '2-digit', minute: '2-digit',
-            })}</span>
-          <div class="text-[13px] text-blue-800 mt-0.5">
-            La campagne partira automatiquement (précision ± 5 minutes).
-            Annulez la programmation pour la modifier.
-          </div>
-        </div>
-        <button
-          type="button"
-          class="oq-btn-secondary whitespace-nowrap w-full sm:w-auto"
-          onclick={`fetch('/admin/api/campagnes/${campaign.id}/schedule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cancel:true})}).then(r=>r.json()).then(d=>{if(d.error){alert(d.error)}else{window.location.reload()}})`}
-        >
-          Annuler la programmation
-        </button>
-      </div>
-
-      <div class="bg-white border border-oq-border rounded-card p-4 sm:p-6">
-        <h2 class="text-[16px] font-bold text-oq-black mb-3">Récapitulatif</h2>
-        <div class="text-[14px] text-oq-text space-y-1">
-          <div><span class="text-oq-muted">Objet :</span> {campaign.subject || '—'}</div>
-          <div><span class="text-oq-muted">Audience :</span> {audienceLine}</div>
-          <div><span class="text-oq-muted">Contenu :</span> {campaign.content_mode === 'custom' ? 'HTML personnalisé' : `Bien mis en avant${campaign.properties?.title ? ` — ${campaign.properties.title}` : ''}`}</div>
-          {campaign.from_email && (
-            <div><span class="text-oq-muted">Expéditeur :</span> {campaign.from_name ? `${campaign.from_name} <${campaign.from_email}>` : campaign.from_email}</div>
-          )}
-        </div>
-      </div>
-    </div>
-  ) : isDraft ? (
-    <CampaignComposer
+  {isDraft ? (
+    <CampaignWizard
       client:load
+      initialCampaign={campaign}
       properties={composerData!.properties}
       lists={composerData!.lists}
-      templates={composerData!.templates}
-      initialCampaign={campaign}
+      senders={senders}
       defaultFrom={defaultFrom}
     />
   ) : (
-    <div>
-      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-8">
-        {tiles.map((t) => (
-          <div class="bg-white border border-oq-border rounded-card p-4 sm:p-5">
-            <div class="text-[12px] uppercase tracking-wider text-oq-muted font-semibold">
-              {t.label}
-            </div>
-            <div class="text-[24px] sm:text-[28px] font-extrabold text-oq-black mt-1">{t.value}</div>
-            {t.sub && <div class="text-[13px] text-oq-muted">{t.sub}</div>}
-          </div>
-        ))}
-      </div>
-
-      <div class="bg-white border border-oq-border rounded-card p-4 sm:p-6 mb-8">
-        <h2 class="text-[16px] font-bold text-oq-black mb-3">Contenu envoyé</h2>
-        <div class="text-[14px] text-oq-text space-y-1">
-          <div><span class="text-oq-muted">Objet :</span> {campaign.subject || '—'}</div>
-          {campaign.preview_text && (
-            <div><span class="text-oq-muted">Texte d'aperçu :</span> {campaign.preview_text}</div>
-          )}
-          <div><span class="text-oq-muted">Audience :</span> {audienceLine}</div>
-          <div>
-            <span class="text-oq-muted">Contenu :</span>{' '}
-            {campaign.content_mode === 'custom' ? 'HTML personnalisé' : 'Bien mis en avant'}
-            {campaign.properties?.title && ` — ${campaign.properties.title}`}
-            {campaign.properties?.slug && (
-              <a href={`/biens/${campaign.properties.slug}`} target="_blank" class="text-[13px] ml-2">Voir la fiche</a>
-            )}
-          </div>
-          {campaign.from_email && (
-            <div><span class="text-oq-muted">Expéditeur :</span> {campaign.from_name ? `${campaign.from_name} <${campaign.from_email}>` : campaign.from_email}</div>
-          )}
-          {campaign.sent_at && (
-            <div><span class="text-oq-muted">Envoyée le :</span> {new Date(campaign.sent_at).toLocaleString('fr-FR')}</div>
-          )}
-        </div>
-      </div>
-
-      <div class="bg-white border border-oq-border rounded-card overflow-hidden">
-        <div class="px-4 py-3 border-b border-oq-border text-[12px] uppercase tracking-wider text-oq-muted font-semibold">
-          Destinataires ({campaign.total_recipients}{recipients.length < campaign.total_recipients ? ` — 1000 premiers affichés` : ''})
-        </div>
-        {recipients.length === 0 ? (
-          <div class="p-10 text-center text-oq-muted">Aucun destinataire.</div>
-        ) : (
-          <>
-            <!-- Mobile : cartes empilées -->
-            <div class="md:hidden divide-y divide-oq-border">
-              {recipients.map((r) => (
-                <div class="p-4">
-                  <div class="flex items-start justify-between gap-3">
-                    <div class="min-w-0">
-                      <div class="font-medium text-oq-black text-[14px]">
-                        {r.contacts ? `${r.contacts.first_name} ${r.contacts.last_name}` : '—'}
-                      </div>
-                      <div class="text-[13px] text-oq-text break-all">{r.email}</div>
-                    </div>
-                    <span class:list={[
-                      'inline-flex items-center text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded-full shrink-0',
-                      RECIPIENT_TONES[r.status],
-                    ]}>
-                      {RECIPIENT_STATUS_LABELS[r.status]}
-                    </span>
-                  </div>
-                  <div class="text-[12px] text-oq-muted mt-1.5">
-                    {r.error ??
-                      (r.clicked_at ? `cliqué le ${new Date(r.clicked_at).toLocaleString('fr-FR')}` :
-                       r.opened_at ? `ouvert le ${new Date(r.opened_at).toLocaleString('fr-FR')}` :
-                       r.delivered_at ? `délivré le ${new Date(r.delivered_at).toLocaleString('fr-FR')}` :
-                       r.sent_at ? `envoyé le ${new Date(r.sent_at).toLocaleString('fr-FR')}` : '—')}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <!-- Desktop : table -->
-            <div class="hidden md:block overflow-x-auto">
-              <table class="w-full text-[14px]">
-                <thead>
-                  <tr class="text-left text-[12px] uppercase tracking-wider text-oq-muted bg-oq-bg">
-                    <th class="px-4 py-3 font-semibold">Contact</th>
-                    <th class="px-4 py-3 font-semibold">Email</th>
-                    <th class="px-4 py-3 font-semibold">Statut</th>
-                    <th class="px-4 py-3 font-semibold">Détail</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recipients.map((r) => (
-                    <tr class="border-t border-oq-border">
-                      <td class="px-4 py-3 font-medium text-oq-black">
-                        {r.contacts ? `${r.contacts.first_name} ${r.contacts.last_name}` : '—'}
-                      </td>
-                      <td class="px-4 py-3 text-oq-text">{r.email}</td>
-                      <td class="px-4 py-3">
-                        <span class:list={[
-                          'inline-flex items-center text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded-full',
-                          RECIPIENT_TONES[r.status],
-                        ]}>
-                          {RECIPIENT_STATUS_LABELS[r.status]}
-                        </span>
-                      </td>
-                      <td class="px-4 py-3 text-[13px] text-oq-muted">
-                        {r.error ??
-                          (r.clicked_at ? `cliqué le ${new Date(r.clicked_at).toLocaleString('fr-FR')}` :
-                           r.opened_at ? `ouvert le ${new Date(r.opened_at).toLocaleString('fr-FR')}` :
-                           r.delivered_at ? `délivré le ${new Date(r.delivered_at).toLocaleString('fr-FR')}` :
-                           r.sent_at ? `envoyé le ${new Date(r.sent_at).toLocaleString('fr-FR')}` : '—')}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+    <CampaignReport
+      client:load
+      initialCampaign={reportCampaign}
+      initialStats={stats}
+      listNames={listNames}
+      contentHtml={contentHtml}
+      audienceCount={audienceCount}
+    />
   )}
 </Admin>

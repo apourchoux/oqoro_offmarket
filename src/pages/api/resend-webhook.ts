@@ -45,6 +45,7 @@ const NEXT_STATUS: Partial<Record<string, RecipientStatus>> = {
 
 interface RecipientRow {
   id: string;
+  campaign_id: string;
   contact_id: string;
   status: RecipientStatus;
   delivered_at: string | null;
@@ -78,7 +79,12 @@ export const POST: APIRoute = async ({ request }) => {
   let event: {
     type?: string;
     created_at?: string;
-    data?: { email_id?: string; created_at?: string; bounce?: { message?: string } };
+    data?: {
+      email_id?: string;
+      created_at?: string;
+      bounce?: { message?: string };
+      click?: { link?: string; timestamp?: string };
+    };
   };
   try {
     event = JSON.parse(rawBody);
@@ -95,7 +101,7 @@ export const POST: APIRoute = async ({ request }) => {
 
   const supabase = getAdminClient();
   const select =
-    'id, contact_id, status, delivered_at, opened_at, clicked_at, bounced_at, complained_at';
+    'id, campaign_id, contact_id, status, delivered_at, opened_at, clicked_at, bounced_at, complained_at';
 
   let { data: recipient } = await supabase
     .from('campaign_recipients')
@@ -162,6 +168,29 @@ export const POST: APIRoute = async ({ request }) => {
   if (statusError) {
     console.error('[resend-webhook] status update error', statusError);
     writeError = true;
+  }
+
+  // Détail des clics : chaque clic est enregistré avec son URL (onglet
+  // « Liens cliqués » du rapport). Upsert ignoreDuplicates : un rejeu du même
+  // événement (même destinataire + URL + timestamp) n'insère pas de doublon.
+  if (type === 'email.clicked') {
+    const link = event.data?.click?.link;
+    if (typeof link === 'string' && link) {
+      const clickedAt = event.data?.click?.timestamp ?? occurredAt;
+      const { error: clickError } = await supabase.from('campaign_clicks').upsert(
+        {
+          campaign_id: row.campaign_id,
+          recipient_id: row.id,
+          url: link.slice(0, 2048),
+          clicked_at: clickedAt,
+        },
+        { onConflict: 'recipient_id,url,clicked_at', ignoreDuplicates: true },
+      );
+      if (clickError) {
+        console.error('[resend-webhook] click insert error', clickError);
+        writeError = true;
+      }
+    }
   }
 
   // Suppression list : une plainte spam désabonne définitivement le contact.
