@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Contact, ContactType } from '../../lib/types';
 import {
   CONTACT_SOURCE_LABELS,
@@ -44,6 +44,57 @@ export default function ContactsTable({ initialContacts, lists = [] }: Props) {
   const [saving, setSaving] = useState(false);
   const [importReport, setImportReport] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Listes du contact ouvert dans le drawer (null = chargement en cours).
+  const [memberListIds, setMemberListIds] = useState<string[] | null>(null);
+  const [listBusy, setListBusy] = useState(false);
+
+  useEffect(() => {
+    if (!selectedId) {
+      setMemberListIds(null);
+      return;
+    }
+    let cancelled = false;
+    setMemberListIds(null);
+    fetch(`/admin/api/contacts/${selectedId}/lists`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled) setMemberListIds(data.list_ids ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setMemberListIds([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId]);
+
+  /** Ajoute ou retire le contact ouvert d'une liste (depuis son drawer). */
+  async function toggleContactList(listId: string, add: boolean) {
+    if (!selectedId || listBusy) return;
+    setListBusy(true);
+    // Optimiste : l'appartenance est mise à jour immédiatement.
+    setMemberListIds((current) =>
+      add ? [...(current ?? []), listId] : (current ?? []).filter((l) => l !== listId),
+    );
+    try {
+      const res = await fetch(`/admin/api/listes/${listId}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(add ? { add: [selectedId] } : { remove: [selectedId] }),
+      });
+      if (!res.ok) throw new Error('list toggle failed');
+    } catch (err) {
+      console.error(err);
+      alert(add ? "Échec de l'ajout à la liste" : 'Échec du retrait de la liste');
+      // Rollback de la mise à jour optimiste.
+      setMemberListIds((current) =>
+        add ? (current ?? []).filter((l) => l !== listId) : [...(current ?? []), listId],
+      );
+    } finally {
+      setListBusy(false);
+    }
+  }
 
   const filtered = useMemo(() => {
     let list = contacts;
@@ -621,6 +672,69 @@ export default function ContactsTable({ initialContacts, lists = [] }: Props) {
                   value={selected.zones}
                   onChange={(zones) => updateContact(selected.id, { zones })}
                 />
+              </div>
+              <div>
+                <div className="text-[12px] uppercase tracking-wider text-oq-muted mb-1">Listes</div>
+                {lists.length === 0 ? (
+                  <p className="text-[13px] text-oq-muted">
+                    Aucune liste. <a href="/admin/campagnes/listes">Créez-en une</a> pour y
+                    ajouter ce contact.
+                  </p>
+                ) : memberListIds === null ? (
+                  <p className="text-[13px] text-oq-muted">Chargement…</p>
+                ) : (
+                  <div className="space-y-2">
+                    {memberListIds.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {memberListIds.map((listId) => {
+                          const list = lists.find((l) => l.id === listId);
+                          if (!list) return null;
+                          return (
+                            <span
+                              key={listId}
+                              className="inline-flex items-center gap-1.5 text-[12px] font-medium bg-brand-600/10 text-brand-700 pl-2.5 pr-1 py-1 rounded-full"
+                            >
+                              {list.name}
+                              <button
+                                type="button"
+                                aria-label={`Retirer de ${list.name}`}
+                                title={`Retirer de ${list.name}`}
+                                className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-brand-600/20"
+                                disabled={listBusy}
+                                onClick={() => toggleContactList(listId, false)}
+                              >
+                                ×
+                              </button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {memberListIds.length === 0 && (
+                      <p className="text-[13px] text-oq-muted">
+                        Ce contact n'appartient à aucune liste.
+                      </p>
+                    )}
+                    {lists.some((l) => !memberListIds.includes(l.id)) && (
+                      <select
+                        className="oq-input"
+                        value=""
+                        disabled={listBusy}
+                        onChange={(e) => {
+                          if (e.target.value) toggleContactList(e.target.value, true);
+                          e.target.value = '';
+                        }}
+                      >
+                        <option value="">Ajouter à une liste…</option>
+                        {lists
+                          .filter((l) => !memberListIds.includes(l.id))
+                          .map((l) => (
+                            <option key={l.id} value={l.id}>{l.name}</option>
+                          ))}
+                      </select>
+                    )}
+                  </div>
+                )}
               </div>
               <div>
                 <div className="text-[12px] uppercase tracking-wider text-oq-muted mb-1">Notes</div>
