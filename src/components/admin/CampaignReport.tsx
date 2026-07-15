@@ -277,6 +277,10 @@ export default function CampaignReport({
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [scheduleValue, setScheduleValue] = useState('');
 
+  // Resynchronisation Resend en cours : horodatage de fin estimée (le worker
+  // tourne en arrière-plan ; on rafraîchit les stats jusqu'à cette échéance).
+  const [resyncUntil, setResyncUntil] = useState<number | null>(null);
+
   const status = campaign.status as CampaignStatus;
   const isSent = status === 'sent';
   const isSending = status === 'sending';
@@ -286,6 +290,57 @@ export default function CampaignReport({
   const hasStats = Boolean(stats) && !isScheduled;
 
   const [tab, setTab] = useState<TabKey>('overview');
+
+  // ─── Rafraîchissement pendant une resynchronisation Resend ───
+  useEffect(() => {
+    if (resyncUntil === null) return;
+    const timer = setInterval(async () => {
+      if (Date.now() >= resyncUntil) {
+        setResyncUntil(null);
+        setNotice('Synchronisation terminée — statistiques à jour.');
+        return;
+      }
+      try {
+        const res = await fetch(`/admin/api/campagnes/${campaign.id}/stats`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.stats) setStats(data.stats);
+        }
+      } catch {
+        /* réseau : on retentera au tick suivant */
+      }
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [resyncUntil, campaign.id]);
+
+  async function startResync() {
+    setBusy(true);
+    setNotice(null);
+    try {
+      const res = await fetch(`/admin/api/campagnes/${campaign.id}/resync`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        setNotice(data.error ?? 'Synchronisation impossible');
+        return;
+      }
+      if (!data.queued) {
+        setNotice(data.message ?? 'Rien à synchroniser : tous les statuts sont à jour.');
+        return;
+      }
+      // ≈ 8 vérifications/s côté worker (limite API Resend) + marge.
+      const estimatedMs = Math.min(10 * 60_000, (data.queued / 8) * 1000 + 15_000);
+      setResyncUntil(Date.now() + estimatedMs);
+      setNotice(
+        `Synchronisation lancée : ${fmtNum(data.queued)} email${data.queued > 1 ? 's' : ''} à vérifier auprès de Resend. ` +
+          'Les statistiques se mettent à jour au fil de l’eau.',
+      );
+    } catch (err) {
+      console.error(err);
+      setNotice('Erreur réseau');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   // ─── Rafraîchissement live pendant l'envoi (5 s, comme Mailer) ───
   useEffect(() => {
@@ -481,6 +536,16 @@ export default function CampaignReport({
         </div>
 
         <div className="flex flex-wrap gap-2 shrink-0">
+          {(isSent || isPaused) && (
+            <button
+              type="button"
+              className="oq-btn-secondary"
+              disabled={busy || resyncUntil !== null}
+              onClick={startResync}
+            >
+              {resyncUntil !== null ? 'Synchronisation…' : '⟳ Synchroniser'}
+            </button>
+          )}
           {isSent && (
             <a
               href={`/admin/api/campagnes/${campaign.id}/export`}
