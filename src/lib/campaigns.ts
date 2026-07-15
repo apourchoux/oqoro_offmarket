@@ -25,8 +25,9 @@ export function applySegmentFilter<T>(
   query: T,
   targetType: CampaignTargetType,
   targetZones: string[] | null,
+  subscribed = true,
 ): T {
-  let q: any = (query as any).eq('subscribed', true);
+  let q: any = (query as any).eq('subscribed', subscribed);
   if (targetType !== 'tous') {
     q = q.in('contact_type', [targetType, 'mixte']);
   }
@@ -119,6 +120,33 @@ export function audienceQuery(
     supabase.from('contacts').select(select, options),
     target.target_contact_type,
     target.target_zones,
+  );
+}
+
+/**
+ * Miroir d'`audienceQuery` pour les contacts EXCLUS (désabonnés) du même
+ * ciblage — alimente le « (N exclus) » affiché à côté du compteur de
+ * destinataires actifs, comme dans Mailer.
+ */
+export function audienceExcludedQuery(
+  supabase: SupabaseClient<any, any, any, any, any>,
+  target: AudienceTarget,
+  select: string,
+  options?: { count?: 'exact'; head?: boolean },
+): any {
+  if (target.target_list_ids && target.target_list_ids.length > 0) {
+    const embedded = `${select}, contact_list_members!inner(list_id)`;
+    return supabase
+      .from('contacts')
+      .select(embedded, options)
+      .in('contact_list_members.list_id', target.target_list_ids)
+      .eq('subscribed', false);
+  }
+  return applySegmentFilter(
+    supabase.from('contacts').select(select, options),
+    target.target_contact_type,
+    target.target_zones,
+    false,
   );
 }
 

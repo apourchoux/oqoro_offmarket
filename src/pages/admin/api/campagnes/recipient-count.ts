@@ -1,6 +1,10 @@
 import type { APIRoute } from 'astro';
 import { getAdminClient } from '../../../../lib/supabase';
-import { audienceQuery, type AudienceTarget } from '../../../../lib/campaigns';
+import {
+  audienceExcludedQuery,
+  audienceQuery,
+  type AudienceTarget,
+} from '../../../../lib/campaigns';
 import { json, validateCampaignFields } from './_helpers';
 
 export const prerender = false;
@@ -23,15 +27,18 @@ export const POST: APIRoute = async ({ request, locals }) => {
   if ('error' in result) return json({ error: result.error }, 400);
 
   const supabase = getAdminClient();
-  const { count, error } = await audienceQuery(
-    supabase,
-    result.fields as AudienceTarget,
-    'id',
-    { count: 'exact', head: true },
-  );
+  const target = result.fields as AudienceTarget;
+  const [{ count, error }, { count: excluded, error: excludedError }] =
+    await Promise.all([
+      audienceQuery(supabase, target, 'id', { count: 'exact', head: true }),
+      audienceExcludedQuery(supabase, target, 'id', { count: 'exact', head: true }),
+    ]);
   if (error) {
     console.error('[admin campagnes recipient-count] error', error);
     return json({ error: error.message }, 500);
   }
-  return json({ count: count ?? 0 });
+  if (excludedError) {
+    console.error('[admin campagnes recipient-count] excluded error', excludedError);
+  }
+  return json({ count: count ?? 0, excluded: excluded ?? 0 });
 };

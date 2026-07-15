@@ -4,6 +4,18 @@ import { json } from '../_helpers';
 
 export const prerender = false;
 
+// Liste des templates (modal « Charger un template » de l'éditeur de design).
+export const GET: APIRoute = async ({ locals }) => {
+  if (!locals.user) return json({ error: 'Non authentifié' }, 401);
+  const supabase = getAdminClient();
+  const { data, error } = await supabase
+    .from('email_templates')
+    .select('id, name, html, created_at, updated_at')
+    .order('updated_at', { ascending: false });
+  if (error) return json({ error: error.message }, 500);
+  return json({ templates: data ?? [] });
+};
+
 export const POST: APIRoute = async ({ request, locals }) => {
   if (!locals.user) return json({ error: 'Non authentifié' }, 401);
 

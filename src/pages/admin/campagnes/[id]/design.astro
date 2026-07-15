@@ -1,0 +1,40 @@
+---
+export const prerender = false;
+
+import Admin from '../../../../layouts/Admin.astro';
+import DesignEditor from '../../../../components/admin/DesignEditor.tsx';
+import { getAdminClient } from '../../../../lib/supabase';
+
+if (!Astro.locals.user) {
+  return Astro.redirect('/admin/login');
+}
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const id = Astro.params.id;
+if (!id || !UUID_REGEX.test(id)) {
+  return Astro.redirect('/admin/campagnes');
+}
+
+const supabase = getAdminClient();
+const { data: campaign } = await supabase
+  .from('campaigns')
+  .select('id, name, status, custom_html')
+  .eq('id', id)
+  .maybeSingle();
+if (!campaign) {
+  return Astro.redirect('/admin/campagnes');
+}
+// Le design n'est éditable que sur un brouillon (ou une campagne en échec,
+// relançable). Sinon, retour à la page de la campagne.
+if (campaign.status !== 'draft' && campaign.status !== 'failed') {
+  return Astro.redirect(`/admin/campagnes/${id}`);
+}
+---
+
+<Admin title={`Design — ${campaign.name}`} activeSection="campagnes">
+  <DesignEditor
+    client:only="react"
+    campaign={{ id: campaign.id, name: campaign.name, custom_html: campaign.custom_html }}
+  />
+</Admin>

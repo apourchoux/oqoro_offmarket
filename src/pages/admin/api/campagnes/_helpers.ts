@@ -33,6 +33,15 @@ export function validateCampaignFields(
     }
     fields.name = body.name.trim();
   }
+  if ('folder' in body) {
+    if (body.folder !== null && (typeof body.folder !== 'string' || body.folder.length > 100)) {
+      return { error: 'Dossier invalide' };
+    }
+    fields.folder =
+      typeof body.folder === 'string' && body.folder.trim()
+        ? body.folder.trim()
+        : null;
+  }
   if ('subject' in body) {
     if (typeof body.subject !== 'string' || body.subject.length > 300) {
       return { error: 'Objet invalide' };

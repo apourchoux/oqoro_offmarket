@@ -10,6 +10,7 @@ interface MemberRow {
   first_name: string;
   last_name: string;
   email: string;
+  phone: string | null;
   subscribed: boolean;
 }
 
@@ -96,6 +97,30 @@ export default function ListsTable({ initialLists }: Props) {
     } catch {
       setMembers([]);
     }
+  }
+
+  /** Export CSV des membres de la liste ouverte (mêmes règles qu'Excel FR : BOM + ;). */
+  function exportMembers() {
+    if (!openList || !members || members.length === 0) return;
+    const cell = (v: string | null | undefined) => {
+      const s = v ?? '';
+      return /[",;\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [
+      ['prenom', 'nom', 'email', 'telephone', 'abonne'].join(';'),
+      ...members.map((m) =>
+        [cell(m.first_name), cell(m.last_name), cell(m.email), cell(m.phone), m.subscribed ? 'oui' : 'non'].join(';'),
+      ),
+    ];
+    const blob = new Blob([`﻿${lines.join('\r\n')}`], {
+      type: 'text/csv;charset=utf-8;',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${openList.name.replace(/[^a-zA-Z0-9_-]/g, '_')}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   async function removeMember(contactId: string) {
@@ -315,6 +340,15 @@ export default function ListsTable({ initialLists }: Props) {
                   {openList.member_count} contact{openList.member_count > 1 ? 's' : ''}
                 </p>
               </div>
+              {members !== null && members.length > 0 && (
+                <button
+                  type="button"
+                  className="oq-btn-secondary oq-btn-sm shrink-0"
+                  onClick={exportMembers}
+                >
+                  Exporter CSV
+                </button>
+              )}
               <button
                 onClick={() => setOpenListId(null)}
                 aria-label="Fermer"
