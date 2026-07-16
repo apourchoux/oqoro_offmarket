@@ -99,7 +99,8 @@ export default function TemplatesGrid({ initialTemplates }: Props) {
           </a>
         </div>
         <p className="text-[12px] text-oq-muted mt-4">
-          3 modèles prêts à l'emploi : Email simple, Email avec CTA, Email texte pur.
+          4 modèles prêts à l'emploi : À la Une (bien mis en avant), Email simple, Email avec
+          CTA, Email texte pur.
         </p>
       </div>
     );
