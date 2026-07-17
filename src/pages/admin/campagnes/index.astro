@@ -6,6 +6,7 @@ import CampaignsNav from '../../../components/admin/CampaignsNav.astro';
 import CampaignsTable from '../../../components/admin/CampaignsTable.tsx';
 import type { CampaignRow } from '../../../components/admin/CampaignsTable.tsx';
 import { getAdminClient } from '../../../lib/supabase';
+import { triggerDueScheduledCampaigns } from '../../../lib/campaign-trigger';
 import { formatRate } from '../../../lib/format';
 import type { CampaignStats } from '../../../lib/types';
 
@@ -14,6 +15,10 @@ if (!Astro.locals.user) {
 }
 
 const supabase = getAdminClient();
+
+// Filet de sécurité du cron : les campagnes programmées dont l'échéance est
+// passée partent dès l'ouverture de cette page (claim atomique, best-effort).
+await triggerDueScheduledCampaigns(supabase);
 const [{ data: campaigns }, { data: lists }] = await Promise.all([
   supabase
     .from('campaigns')
