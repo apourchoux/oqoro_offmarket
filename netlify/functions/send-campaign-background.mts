@@ -18,7 +18,8 @@ import {
 } from '../../src/lib/campaign-email';
 import {
   audienceQuery,
-  loadCampaignPropertyData,
+  campaignPropertyIds,
+  loadCampaignPropertiesData,
   type CampaignPropertyData,
 } from '../../src/lib/campaigns';
 import type { Campaign, Contact } from '../../src/lib/types';
@@ -90,25 +91,30 @@ export default async function handler(req: Request): Promise<Response> {
         : typedCampaign.from_email
       : defaultFrom;
 
-    // Contenu : bien généré ou HTML custom.
-    let propertyData: CampaignPropertyData | null = null;
+    // Contenu : bien(s) généré(s) ou HTML custom.
+    let propertiesData: CampaignPropertyData[] = [];
     if (typedCampaign.content_mode !== 'custom') {
-      if (!typedCampaign.property_id) {
+      const propertyIds = campaignPropertyIds(typedCampaign);
+      if (propertyIds.length === 0) {
         await markFailed(supabase, campaignId, 'Campagne sans bien associé');
         return new Response('OK', { status: 200 });
       }
-      propertyData = await loadCampaignPropertyData(
-        supabase,
-        typedCampaign.property_id,
-      );
-      if (!propertyData) {
+      propertiesData = await loadCampaignPropertiesData(supabase, propertyIds);
+      if (propertiesData.length !== propertyIds.length) {
         await markFailed(supabase, campaignId, 'Bien introuvable');
         return new Response('OK', { status: 200 });
       }
       // Revérifié au moment RÉEL de l'envoi : un bien peut avoir été dépublié
       // entre la programmation et l'échéance du cron.
-      if (propertyData.property.status !== 'published') {
-        await markFailed(supabase, campaignId, "Le bien n'est plus publié");
+      const unpublished = propertiesData.find(
+        (p) => p.property.status !== 'published',
+      );
+      if (unpublished) {
+        await markFailed(
+          supabase,
+          campaignId,
+          `Le bien « ${unpublished.property.title} » n'est plus publié`,
+        );
         return new Response('OK', { status: 200 });
       }
     } else if (!typedCampaign.custom_html?.trim()) {
@@ -262,9 +268,7 @@ export default async function handler(req: Request): Promise<Response> {
                   intro_text: typedCampaign.intro_text,
                   preview_text: typedCampaign.preview_text,
                 },
-                property: propertyData!.property,
-                financials: propertyData!.financials,
-                photoUrl: propertyData!.photoUrl,
+                properties: propertiesData,
                 contact: { first_name: r.contacts!.first_name },
                 siteUrl,
                 unsubscribeUrl,

@@ -694,7 +694,9 @@ export default function CampaignReport({
                     'HTML personnalisé'
                   ) : (
                     <>
-                      Bien mis en avant
+                      {(campaign.property_ids?.length ?? 0) > 1
+                        ? `${campaign.property_ids!.length} biens mis en avant`
+                        : 'Bien mis en avant'}
                       {campaign.property_title ? ` — ${campaign.property_title}` : ''}
                       {campaign.property_slug && (
                         <a

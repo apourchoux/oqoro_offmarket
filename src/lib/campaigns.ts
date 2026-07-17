@@ -206,6 +206,35 @@ export interface CampaignPropertyData {
 }
 
 /**
+ * Biens mis en avant d'une campagne, dans l'ordre d'affichage de l'email.
+ * `property_ids` est la source de vérité ; `property_id` seul couvre les
+ * campagnes antérieures au multi-biens.
+ */
+export function campaignPropertyIds(
+  campaign: Pick<Campaign, 'property_id' | 'property_ids'>,
+): string[] {
+  if (campaign.property_ids && campaign.property_ids.length > 0) {
+    return campaign.property_ids;
+  }
+  return campaign.property_id ? [campaign.property_id] : [];
+}
+
+/**
+ * Charge les biens d'une campagne multi-biens (3 max), dans l'ordre demandé.
+ * Les ids introuvables sont omis — l'appelant compare les longueurs s'il
+ * doit exiger que tous existent.
+ */
+export async function loadCampaignPropertiesData(
+  supabase: SupabaseClient<any, any, any, any, any>,
+  propertyIds: string[],
+): Promise<CampaignPropertyData[]> {
+  const results = await Promise.all(
+    propertyIds.map((id) => loadCampaignPropertyData(supabase, id)),
+  );
+  return results.filter((r): r is CampaignPropertyData => r !== null);
+}
+
+/**
  * Charge le bien d'une campagne avec ses financials (vue property_financials)
  * et sa photo principale — les trois entrées du template email.
  */

@@ -3,6 +3,7 @@ import { getAdminClient } from '../../../../../lib/supabase';
 import { isSameOrigin } from '../../../../../lib/security';
 import {
   UUID_REGEX,
+  assertPropertiesExist,
   assertPropertyExists,
   json,
   validateCampaignFields,
@@ -30,7 +31,10 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
   }
 
   const supabase = getAdminClient();
-  if (typeof fields.property_id === 'string') {
+  if (Array.isArray(fields.property_ids)) {
+    const propError = await assertPropertiesExist(supabase, fields.property_ids as string[]);
+    if (propError) return json({ error: propError }, 400);
+  } else if (typeof fields.property_id === 'string') {
     const propError = await assertPropertyExists(supabase, fields.property_id);
     if (propError) return json({ error: propError }, 400);
   }

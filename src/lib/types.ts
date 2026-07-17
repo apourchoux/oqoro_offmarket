@@ -211,7 +211,10 @@ export interface Campaign {
   name: string;
   subject: string;
   intro_text: string | null;
+  /** Premier bien (compat) — la source de vérité est `property_ids`. */
   property_id: string | null;
+  /** Biens mis en avant, dans l'ordre d'affichage de l'email (3 max). */
+  property_ids: string[] | null;
   target_contact_type: CampaignTargetType;
   // null = toute la France ; sinon codes département ciblés.
   target_zones: string[] | null;

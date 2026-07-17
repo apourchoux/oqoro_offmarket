@@ -78,7 +78,11 @@ export default function CampaignsTable({ initialCampaigns }: Props) {
           subject: c.subject,
           preview_text: c.preview_text,
           intro_text: c.intro_text,
-          ...(c.property_id ? { property_id: c.property_id } : {}),
+          property_ids: c.property_ids?.length
+            ? c.property_ids
+            : c.property_id
+              ? [c.property_id]
+              : null,
           content_mode: c.content_mode,
           custom_html: c.custom_html,
           from_name: c.from_name,
