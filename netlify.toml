@@ -10,6 +10,12 @@
 [functions]
   directory = "netlify/functions"
 
+# Cron des campagnes programmées : déclaré ICI en plus du `config.schedule`
+# du fichier — la déclaration TOML est la référence documentée par Netlify,
+# et rend la planification visible d'un coup d'œil.
+[functions."campaign-scheduler"]
+  schedule = "*/5 * * * *"
+
 # Headers de sécurité globaux. Appliqués par Netlify avant les routes Astro.
 [[headers]]
   for = "/*"

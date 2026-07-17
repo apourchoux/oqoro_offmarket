@@ -12,6 +12,7 @@ import {
   loadCampaignPropertyData,
   loadComposerData,
 } from '../../../lib/campaigns';
+import { triggerDueScheduledCampaigns } from '../../../lib/campaign-trigger';
 import {
   renderCampaignEmail,
   renderCustomEmail,
@@ -30,6 +31,11 @@ if (!id || !UUID_REGEX.test(id)) {
 }
 
 const supabase = getAdminClient();
+
+// Filet de sécurité du cron : une campagne programmée en retard part dès
+// qu'un admin ouvre sa page (claim atomique, best-effort).
+await triggerDueScheduledCampaigns(supabase);
+
 const { data: campaignRow } = await supabase
   .from('campaigns')
   .select('*, properties(title, slug)')
