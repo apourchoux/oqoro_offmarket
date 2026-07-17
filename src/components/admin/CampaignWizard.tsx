@@ -130,7 +130,14 @@ export default function CampaignWizard({
   const [subject, setSubject] = useState(initialCampaign.subject ?? '');
   const [previewText, setPreviewText] = useState(initialCampaign.preview_text ?? '');
   const [introText, setIntroText] = useState(initialCampaign.intro_text ?? '');
-  const [propertyId, setPropertyId] = useState<string | null>(initialCampaign.property_id);
+  // Biens mis en avant (3 max), dans l'ordre de sélection = ordre dans l'email.
+  const [propertyIds, setPropertyIds] = useState<string[]>(
+    initialCampaign.property_ids?.length
+      ? initialCampaign.property_ids
+      : initialCampaign.property_id
+        ? [initialCampaign.property_id]
+        : [],
+  );
   const [contentMode, setContentMode] = useState<CampaignContentMode>(
     initialCampaign.content_mode ?? 'property',
   );
@@ -179,7 +186,7 @@ export default function CampaignWizard({
     subject,
     preview_text: previewText || null,
     intro_text: introText || null,
-    ...(propertyId ? { property_id: propertyId } : {}),
+    property_ids: propertyIds.length > 0 ? propertyIds : null,
     content_mode: contentMode,
     from_name: fromName || null,
     from_email: fromEmail || null,
@@ -237,7 +244,7 @@ export default function CampaignWizard({
 
   // ─── Étapes ───
   const designDone =
-    contentMode === 'custom' ? customHtml.trim().length > 0 : Boolean(propertyId);
+    contentMode === 'custom' ? customHtml.trim().length > 0 : propertyIds.length > 0;
   const steps = useMemo(
     () => [
       { key: 'expediteur', label: 'Expéditeur', done: Boolean(fromEmail.trim() || defaultFrom) },
@@ -303,8 +310,9 @@ export default function CampaignWizard({
   }, [audienceKey]);
 
   // ─── Aperçu live du mode « bien » (debounce 600 ms) ───
+  const propertyIdsKey = propertyIds.join(',');
   useEffect(() => {
-    if (contentMode !== 'property' || !propertyId) {
+    if (contentMode !== 'property' || propertyIds.length === 0) {
       setPreviewHtml(null);
       return;
     }
@@ -317,7 +325,7 @@ export default function CampaignWizard({
           signal: controller.signal,
           body: JSON.stringify({
             content_mode: 'property',
-            property_id: propertyId,
+            property_ids: propertyIds,
             subject,
             intro_text: introText || null,
             preview_text: previewText || null,
@@ -335,7 +343,8 @@ export default function CampaignWizard({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [contentMode, propertyId, subject, introText, previewText]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contentMode, propertyIdsKey, subject, introText, previewText]);
 
   // ─── Actions ───
   async function sendTest() {
@@ -886,48 +895,76 @@ export default function CampaignWizard({
 
           {contentMode === 'property' ? (
             <div className="space-y-4">
+              <p className="text-[13px] text-oq-muted -mt-1">
+                Sélectionnez <span className="font-semibold text-oq-black">1 à 3 biens</span> —
+                ils apparaîtront à la suite dans l'email, dans l'ordre de sélection.
+                <span className="ml-2 font-semibold text-oq-black">
+                  {propertyIds.length}/3 sélectionné{propertyIds.length > 1 ? 's' : ''}
+                </span>
+              </p>
               {properties.length === 0 ? (
                 <p className="text-oq-muted text-[14px]">
                   Aucun bien publié. Publiez un bien ou passez en HTML personnalisé.
                 </p>
               ) : (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {properties.map((p) => (
-                    <label
-                      key={p.id}
-                      className={`flex items-center gap-3 p-3 border rounded-btn cursor-pointer transition-colors ${
-                        propertyId === p.id
-                          ? 'border-brand-600 bg-brand-600/5'
-                          : 'border-oq-border hover:bg-oq-bg'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="property"
-                        checked={propertyId === p.id}
-                        onChange={() => {
-                          setPropertyId(p.id);
-                          markDirty();
-                        }}
-                      />
-                      {p.photo_url ? (
-                        <img src={p.photo_url} alt="" className="w-12 h-12 rounded-btn object-cover" />
-                      ) : (
-                        <div className="w-12 h-12 rounded-btn bg-oq-bg" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-oq-black text-[14px] truncate">{p.title}</div>
-                        <div className="text-[12px] text-oq-muted">
-                          {p.city ?? '—'} · {formatEur(p.sale_price)}
-                          {p.gross_yield > 0 && (
-                            <span className="text-oq-orange font-semibold">
-                              {' '}· {formatPercent(p.gross_yield)}
-                            </span>
-                          )}
+                  {properties.map((p) => {
+                    const position = propertyIds.indexOf(p.id);
+                    const checked = position !== -1;
+                    const full = propertyIds.length >= 3 && !checked;
+                    return (
+                      <label
+                        key={p.id}
+                        className={`flex items-center gap-3 p-3 border rounded-btn transition-colors ${
+                          checked
+                            ? 'border-brand-600 bg-brand-600/5'
+                            : full
+                              ? 'border-oq-border opacity-50'
+                              : 'border-oq-border hover:bg-oq-bg cursor-pointer'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={full}
+                          onChange={() => {
+                            setPropertyIds((current) =>
+                              checked
+                                ? current.filter((id) => id !== p.id)
+                                : current.length >= 3
+                                  ? current
+                                  : [...current, p.id],
+                            );
+                            markDirty();
+                          }}
+                        />
+                        {p.photo_url ? (
+                          <img src={p.photo_url} alt="" className="w-12 h-12 rounded-btn object-cover" />
+                        ) : (
+                          <div className="w-12 h-12 rounded-btn bg-oq-bg" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-oq-black text-[14px] truncate">{p.title}</div>
+                          <div className="text-[12px] text-oq-muted">
+                            {p.city ?? '—'} · {formatEur(p.sale_price)}
+                            {p.gross_yield > 0 && (
+                              <span className="text-oq-orange font-semibold">
+                                {' '}· {formatPercent(p.gross_yield)}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </label>
-                  ))}
+                        {checked && (
+                          <span
+                            className="w-6 h-6 rounded-full bg-oq-black text-white flex items-center justify-center text-[12px] font-bold shrink-0"
+                            title={`Position ${position + 1} dans l'email`}
+                          >
+                            {position + 1}
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
                 </div>
               )}
               <div>
@@ -1087,9 +1124,12 @@ export default function CampaignWizard({
               <div className="text-[14px] font-medium text-oq-black">
                 {contentMode === 'custom'
                   ? 'HTML personnalisé'
-                  : `Bien mis en avant${
-                      properties.find((p) => p.id === propertyId)?.title
-                        ? ` — ${properties.find((p) => p.id === propertyId)!.title}`
+                  : `${propertyIds.length > 1 ? `${propertyIds.length} biens mis en avant` : 'Bien mis en avant'}${
+                      propertyIds.length > 0
+                        ? ` — ${propertyIds
+                            .map((id) => properties.find((p) => p.id === id)?.title)
+                            .filter(Boolean)
+                            .join(', ')}`
                         : ''
                     }`}
               </div>

@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getAdminClient } from '../../../../../lib/supabase';
+import { campaignPropertyIds } from '../../../../../lib/campaigns';
 import { UUID_REGEX, json } from '../_helpers';
 
 export const prerender = false;
@@ -51,7 +52,7 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
   // Une campagne doit être envoyable pour être programmée.
   const { data: campaign } = await supabase
     .from('campaigns')
-    .select('subject, content_mode, custom_html, property_id')
+    .select('subject, content_mode, custom_html, property_id, property_ids')
     .eq('id', id)
     .maybeSingle();
   if (!campaign) return json({ error: 'Campagne introuvable' }, 404);
@@ -61,7 +62,10 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
   if (campaign.content_mode === 'custom' && !campaign.custom_html?.trim()) {
     return json({ error: 'Le contenu HTML est vide' }, 400);
   }
-  if (campaign.content_mode === 'property' && !campaign.property_id) {
+  if (
+    campaign.content_mode === 'property' &&
+    campaignPropertyIds(campaign).length === 0
+  ) {
     return json({ error: 'Sélectionnez un bien avant de programmer' }, 400);
   }
 

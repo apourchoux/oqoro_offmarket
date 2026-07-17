@@ -21,12 +21,17 @@ export function escapeHtml(input: string): string {
     .replace(/'/g, '&#39;');
 }
 
-export interface CampaignEmailInput {
-  campaign: Pick<Campaign, 'subject' | 'intro_text'> &
-    Partial<Pick<Campaign, 'preview_text'>>;
+export interface CampaignEmailProperty {
   property: Property;
   financials: PropertyFinancials | null;
   photoUrl: string | null;
+}
+
+export interface CampaignEmailInput {
+  campaign: Pick<Campaign, 'subject' | 'intro_text'> &
+    Partial<Pick<Campaign, 'preview_text'>>;
+  /** Biens mis en avant, dans l'ordre d'affichage (1 à 3 cartes à la suite). */
+  properties: CampaignEmailProperty[];
   contact: Pick<Contact, 'first_name'>;
   siteUrl: string;
   unsubscribeUrl: string;
@@ -45,23 +50,19 @@ const DEFAULT_INTRO =
   'Nous avons sélectionné pour vous une nouvelle opportunité ' +
   "d'investissement locatif off-market, avant sa mise sur le marché.";
 
+const DEFAULT_INTRO_PLURAL =
+  'Nous avons sélectionné pour vous de nouvelles opportunités ' +
+  "d'investissement locatif off-market, avant leur mise sur le marché.";
+
 const BRAND = '#1A1A2E';
 
-/**
- * Rend l'email « bien mis en avant » d'une campagne : layout table 600 px,
- * styles inline (compatibilité clients email), version texte en fallback.
- * Toute donnée interpolée passe par escapeHtml ; les URLs sont construites
- * côté serveur uniquement (slug + token).
- */
-export function renderCampaignEmail(input: CampaignEmailInput): {
-  html: string;
-  text: string;
-} {
-  const { campaign, property, financials, photoUrl, contact, siteUrl, unsubscribeUrl } = input;
-
+/** Carte d'un bien (photo, badges, chiffres, CTA) + sa version texte. */
+function renderPropertyCard(
+  entry: CampaignEmailProperty,
+  siteUrl: string,
+): { html: string; text: string } {
+  const { property, financials, photoUrl } = entry;
   const propertyUrl = `${siteUrl}/biens/${property.slug}`;
-  const intro = campaign.intro_text?.trim() || DEFAULT_INTRO;
-  const introHtml = escapeHtml(intro).replace(/\n/g, '<br/>');
 
   const typeLabel = property.property_type
     ? PROPERTY_TYPE_LABELS[property.property_type]
@@ -115,6 +116,65 @@ export function renderCampaignEmail(input: CampaignEmailInput): {
     ? `<tr><td><a href="${propertyUrl}"><img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(property.title)}" width="600" style="width:100%;max-width:600px;height:auto;display:block;border-radius:12px 12px 0 0" /></a></td></tr>`
     : '';
 
+  const html = `
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #ECECF1;border-radius:12px;overflow:hidden">
+            ${photoBlock}
+            <tr><td style="padding:20px">
+              <div style="font-size:19px;font-weight:800;color:${BRAND};line-height:1.3">${escapeHtml(property.title)}</div>
+              ${cityLine ? `<div style="font-size:14px;color:#77778C;margin-top:4px">${escapeHtml(cityLine)}</div>` : ''}
+              ${badgesHtml ? `<div style="margin-top:12px">${badgesHtml}</div>` : ''}
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:18px"><tr>${figureCells}</tr></table>
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:20px"><tr>
+                <td style="background:${BRAND};border-radius:10px">
+                  <a href="${propertyUrl}" style="display:inline-block;padding:13px 26px;color:#fff;font-size:15px;font-weight:700;text-decoration:none">Découvrir ce bien</a>
+                </td>
+              </tr></table>
+            </td></tr>
+          </table>`;
+
+  const text = [
+    property.title,
+    cityLine,
+    badges.join(' · '),
+    '',
+    figures.map((f) => `- ${f.label} : ${f.value}`).join('\n'),
+    '',
+    `Découvrir ce bien : ${propertyUrl}`,
+  ]
+    .filter((line, i) => line !== '' || i > 0)
+    .join('\n');
+
+  return { html, text };
+}
+
+/**
+ * Rend l'email « bien(s) mis en avant » d'une campagne : layout table 600 px,
+ * styles inline (compatibilité clients email), version texte en fallback.
+ * 1 à 3 biens rendus en cartes à la suite, chacune avec son bouton.
+ * Toute donnée interpolée passe par escapeHtml ; les URLs sont construites
+ * côté serveur uniquement (slug + token).
+ */
+export function renderCampaignEmail(input: CampaignEmailInput): {
+  html: string;
+  text: string;
+} {
+  const { campaign, properties, contact, siteUrl, unsubscribeUrl } = input;
+
+  const intro =
+    campaign.intro_text?.trim() ||
+    (properties.length > 1 ? DEFAULT_INTRO_PLURAL : DEFAULT_INTRO);
+  const introHtml = escapeHtml(intro).replace(/\n/g, '<br/>');
+
+  const cards = properties.map((p) => renderPropertyCard(p, siteUrl));
+  const cardsHtml = cards
+    .map(
+      (c, i) => `
+        <tr><td style="background:#fff;padding:${i === 0 ? '0' : '20px'} 28px 0 28px">
+          ${c.html}
+        </td></tr>`,
+    )
+    .join('');
+
   const html = `<!doctype html>
 <html lang="fr">
 <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head>
@@ -134,22 +194,7 @@ export function renderCampaignEmail(input: CampaignEmailInput): {
           <p style="margin:0 0 20px 0">${introHtml}</p>
         </td></tr>
 
-        <tr><td style="background:#fff;padding:0 28px">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #ECECF1;border-radius:12px;overflow:hidden">
-            ${photoBlock}
-            <tr><td style="padding:20px">
-              <div style="font-size:19px;font-weight:800;color:${BRAND};line-height:1.3">${escapeHtml(property.title)}</div>
-              ${cityLine ? `<div style="font-size:14px;color:#77778C;margin-top:4px">${escapeHtml(cityLine)}</div>` : ''}
-              ${badgesHtml ? `<div style="margin-top:12px">${badgesHtml}</div>` : ''}
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:18px"><tr>${figureCells}</tr></table>
-              <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:20px"><tr>
-                <td style="background:${BRAND};border-radius:10px">
-                  <a href="${propertyUrl}" style="display:inline-block;padding:13px 26px;color:#fff;font-size:15px;font-weight:700;text-decoration:none">Découvrir ce bien</a>
-                </td>
-              </tr></table>
-            </td></tr>
-          </table>
-        </td></tr>
+        ${cardsHtml}
 
         <tr><td style="background:#fff;border-radius:0 0 12px 12px;padding:24px 28px 28px 28px">
           <p style="margin:0;font-size:12px;color:#9A9AAF;line-height:1.6">
@@ -165,29 +210,20 @@ export function renderCampaignEmail(input: CampaignEmailInput): {
 </body>
 </html>`;
 
-  const textFigures = figures.map((f) => `- ${f.label} : ${f.value}`).join('\n');
-  return { html, text: buildText(textFigures) };
+  const text = [
+    `Bonjour ${contact.first_name},`,
+    '',
+    intro,
+    '',
+    cards.map((c) => c.text).join('\n\n————————————\n\n'),
+    '',
+    '—',
+    'OQORO Off Market · offmarket@oqoro.com',
+    'Vous recevez cet email car vous êtes inscrit à nos opportunités off-market.',
+    `Se désabonner : ${unsubscribeUrl}`,
+  ].join('\n');
 
-  function buildText(figuresBlock: string): string {
-    return [
-      `Bonjour ${contact.first_name},`,
-      '',
-      intro,
-      '',
-      property.title,
-      cityLine,
-      badges.join(' · '),
-      '',
-      figuresBlock,
-      '',
-      `Découvrir ce bien : ${propertyUrl}`,
-      '',
-      '—',
-      'OQORO Off Market · offmarket@oqoro.com',
-      'Vous recevez cet email car vous êtes inscrit à nos opportunités off-market.',
-      `Se désabonner : ${unsubscribeUrl}`,
-    ].join('\n');
-  }
+  return { html, text };
 }
 
 // ─────────── Mode HTML custom (templates avec variables) ───────────

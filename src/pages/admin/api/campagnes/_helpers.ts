@@ -65,6 +65,27 @@ export function validateCampaignFields(
     }
     fields.property_id = body.property_id;
   }
+  if ('property_ids' in body) {
+    if (body.property_ids === null) {
+      fields.property_ids = null;
+      fields.property_id = null;
+    } else if (
+      !Array.isArray(body.property_ids) ||
+      body.property_ids.some((id) => typeof id !== 'string' || !UUID_REGEX.test(id))
+    ) {
+      return { error: 'Biens invalides' };
+    } else {
+      // Dédoublonné en préservant l'ordre de sélection (= ordre dans l'email).
+      const ids = [...new Set(body.property_ids as string[])];
+      if (ids.length > 3) {
+        return { error: '3 biens maximum par campagne' };
+      }
+      fields.property_ids = ids.length > 0 ? ids : null;
+      // `property_id` reste synchronisé sur le premier bien (compat listes,
+      // jointure du titre, anciennes campagnes).
+      fields.property_id = ids[0] ?? null;
+    }
+  }
   if ('target_contact_type' in body) {
     if (
       typeof body.target_contact_type !== 'string' ||
@@ -189,6 +210,19 @@ export async function assertPropertyExists(
     .eq('id', propertyId)
     .maybeSingle();
   return data ? null : 'Bien introuvable';
+}
+
+/** Tous les biens d'une campagne multi-biens doivent exister. */
+export async function assertPropertiesExist(
+  supabase: SupabaseClient,
+  propertyIds: string[],
+): Promise<string | null> {
+  if (propertyIds.length === 0) return null;
+  const { data } = await supabase
+    .from('properties')
+    .select('id')
+    .in('id', propertyIds);
+  return (data ?? []).length === propertyIds.length ? null : 'Bien introuvable';
 }
 
 /** Le bien d'une campagne doit exister et être publié pour un envoi. */

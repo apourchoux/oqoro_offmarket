@@ -9,7 +9,8 @@ import { getAdminClient } from '../../../lib/supabase';
 import {
   audienceExcludedQuery,
   audienceQuery,
-  loadCampaignPropertyData,
+  campaignPropertyIds,
+  loadCampaignPropertiesData,
   loadComposerData,
 } from '../../../lib/campaigns';
 import { triggerDueScheduledCampaigns } from '../../../lib/campaign-trigger';
@@ -61,6 +62,7 @@ let stats: CampaignStats | null = null;
 let listNames: string[] = [];
 let contentHtml: string | null = null;
 let audienceCount: { active: number; excluded: number } | null = null;
+let multiPropertyTitle: string | null = null;
 
 if (isDraft) {
   const [data, { data: senderRows }] = await Promise.all([
@@ -89,22 +91,25 @@ if (isDraft) {
       contact: demoContact,
       unsubscribeUrl: '#',
     }).html;
-  } else if (campaign.content_mode !== 'custom' && campaign.property_id) {
-    const data = await loadCampaignPropertyData(supabase, campaign.property_id);
-    if (data) {
-      contentHtml = renderCampaignEmail({
-        campaign: {
-          subject: campaign.subject,
-          intro_text: campaign.intro_text,
-          preview_text: campaign.preview_text,
-        },
-        property: data.property,
-        financials: data.financials,
-        photoUrl: data.photoUrl,
-        contact: { first_name: demoContact.first_name },
-        siteUrl: SITE_URL,
-        unsubscribeUrl: '#',
-      }).html;
+  } else if (campaign.content_mode !== 'custom') {
+    const ids = campaignPropertyIds(campaign);
+    if (ids.length > 0) {
+      const propertiesData = await loadCampaignPropertiesData(supabase, ids);
+      if (propertiesData.length > 0) {
+        contentHtml = renderCampaignEmail({
+          campaign: {
+            subject: campaign.subject,
+            intro_text: campaign.intro_text,
+            preview_text: campaign.preview_text,
+          },
+          properties: propertiesData,
+          contact: { first_name: demoContact.first_name },
+          siteUrl: SITE_URL,
+          unsubscribeUrl: '#',
+        }).html;
+        // Libellé multi-biens du rapport : tous les titres, dans l'ordre.
+        multiPropertyTitle = propertiesData.map((p) => p.property.title).join(', ');
+      }
     }
   }
 
@@ -118,10 +123,12 @@ if (isDraft) {
   }
 }
 
+const propertyCount = campaignPropertyIds(campaign).length;
 const reportCampaign: ReportCampaign = {
   ...campaign,
-  property_title: campaign.properties?.title ?? null,
-  property_slug: campaign.properties?.slug ?? null,
+  property_title: multiPropertyTitle ?? campaign.properties?.title ?? null,
+  // Le lien « Voir la fiche » n'a de sens que pour un bien unique.
+  property_slug: propertyCount === 1 ? (campaign.properties?.slug ?? null) : null,
 };
 ---
 

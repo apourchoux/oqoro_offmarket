@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getAdminClient } from '../../../../../lib/supabase';
 import { isSameOrigin } from '../../../../../lib/security';
+import { campaignPropertyIds } from '../../../../../lib/campaigns';
 import { UUID_REGEX, assertPublishedProperty, json } from '../_helpers';
 
 export const prerender = false;
@@ -57,14 +58,17 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
       return json({ error: "Le contenu HTML est vide" }, 400);
     }
   } else {
-    if (!claimed.property_id) {
+    const propertyIds = campaignPropertyIds(claimed);
+    if (propertyIds.length === 0) {
       await revertToDraft();
       return json({ error: "Sélectionnez un bien avant l'envoi" }, 400);
     }
-    const propError = await assertPublishedProperty(supabase, claimed.property_id);
-    if (propError) {
-      await revertToDraft();
-      return json({ error: propError }, 400);
+    for (const propertyId of propertyIds) {
+      const propError = await assertPublishedProperty(supabase, propertyId);
+      if (propError) {
+        await revertToDraft();
+        return json({ error: propError }, 400);
+      }
     }
   }
 

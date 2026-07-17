@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getAdminClient } from '../../../../lib/supabase';
-import { loadCampaignPropertyData } from '../../../../lib/campaigns';
+import { loadCampaignPropertiesData } from '../../../../lib/campaigns';
 import {
   renderCampaignEmail,
   renderCustomEmail,
@@ -46,8 +46,18 @@ export const POST: APIRoute = async ({ request, locals }) => {
     return json({ html });
   }
 
-  const propertyId = body.property_id;
-  if (typeof propertyId !== 'string' || !UUID_REGEX.test(propertyId)) {
+  // Multi-biens : `property_ids` (1 à 3, ordre = ordre d'affichage) ;
+  // `property_id` seul reste accepté (compat).
+  let propertyIds: string[] = [];
+  if (Array.isArray(body.property_ids)) {
+    propertyIds = body.property_ids.filter(
+      (id): id is string => typeof id === 'string' && UUID_REGEX.test(id),
+    );
+  } else if (typeof body.property_id === 'string' && UUID_REGEX.test(body.property_id)) {
+    propertyIds = [body.property_id];
+  }
+  propertyIds = [...new Set(propertyIds)].slice(0, 3);
+  if (propertyIds.length === 0) {
     return json({ error: 'Bien requis pour l’aperçu' }, 400);
   }
   const intro =
@@ -55,14 +65,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
   const subject = typeof body.subject === 'string' ? body.subject.slice(0, 300) : '';
 
   const supabase = getAdminClient();
-  const data = await loadCampaignPropertyData(supabase, propertyId);
-  if (!data) return json({ error: 'Bien introuvable' }, 404);
+  const properties = await loadCampaignPropertiesData(supabase, propertyIds);
+  if (properties.length === 0) return json({ error: 'Bien introuvable' }, 404);
 
   const { html } = renderCampaignEmail({
     campaign: { subject, intro_text: intro, preview_text: previewText },
-    property: data.property,
-    financials: data.financials,
-    photoUrl: data.photoUrl,
+    properties,
     contact: { first_name: PREVIEW_CONTACT.first_name },
     siteUrl: SITE_URL,
     unsubscribeUrl: '#',

@@ -1,7 +1,10 @@
 import type { APIRoute } from 'astro';
 import { Resend } from 'resend';
 import { getAdminClient } from '../../../../../lib/supabase';
-import { loadCampaignPropertyData } from '../../../../../lib/campaigns';
+import {
+  campaignPropertyIds,
+  loadCampaignPropertiesData,
+} from '../../../../../lib/campaigns';
 import {
   renderCampaignEmail,
   renderCustomEmail,
@@ -81,20 +84,19 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
       unsubscribeUrl: `${SITE_URL}/desabonnement`,
     });
   } else {
-    if (!campaign.property_id) {
+    const propertyIds = campaignPropertyIds(campaign);
+    if (propertyIds.length === 0) {
       return json({ error: 'Sélectionnez un bien avant le test' }, 400);
     }
-    const data = await loadCampaignPropertyData(supabase, campaign.property_id);
-    if (!data) return json({ error: 'Bien introuvable' }, 404);
+    const properties = await loadCampaignPropertiesData(supabase, propertyIds);
+    if (properties.length === 0) return json({ error: 'Bien introuvable' }, 404);
     rendered = renderCampaignEmail({
       campaign: {
         subject: campaign.subject,
         intro_text: campaign.intro_text,
         preview_text: campaign.preview_text,
       },
-      property: data.property,
-      financials: data.financials,
-      photoUrl: data.photoUrl,
+      properties,
       contact: { first_name: 'Test' },
       siteUrl: SITE_URL,
       unsubscribeUrl: `${SITE_URL}/desabonnement`,
