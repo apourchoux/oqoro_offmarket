@@ -253,6 +253,28 @@ function ClickedLinks({ campaignId }: { campaignId: string }) {
 }
 
 /**
+ * Bandeau d'aide affiché quand des emails ont bien été délivrés mais qu'aucun
+ * événement d'ouverture / de clic n'a été enregistré — cause quasi toujours le
+ * suivi désactivé côté Resend (réglage au niveau du domaine, pas du code).
+ */
+function TrackingHint({ kind }: { kind: 'opens' | 'clicks' }) {
+  const label = kind === 'opens' ? 'ouvertures' : 'clics';
+  const toggle = kind === 'opens' ? 'Open Tracking' : 'Click Tracking';
+  return (
+    <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-btn text-[13px] text-amber-900">
+      <p className="font-semibold mb-1">Aucun {kind === 'opens' ? 'ouverture' : 'clic'} enregistré — le suivi est-il activé ?</p>
+      <p className="leading-snug">
+        Les emails ont été délivrés, mais aucun événement de {label} n'a été reçu. Le suivi des {label}
+        {' '}se règle <span className="font-medium">au niveau du domaine dans Resend</span> (Domaines → votre
+        domaine → activer « {toggle} »). Une fois activé, les prochaines campagnes remonteront les {label} ;
+        cliquez ensuite sur « Synchroniser » pour rafraîchir. Les campagnes déjà envoyées ne peuvent pas être
+        rétro-remplies.
+      </p>
+    </div>
+  );
+}
+
+/**
  * Rapport de campagne (parité Mailer) : onglets Vue d'ensemble /
  * Délivrabilité / Ouvertures / Clics / Désinscriptions / Contenu, timeline
  * d'historique, pause/reprise pendant l'envoi, export CSV et renommage
@@ -793,6 +815,7 @@ export default function CampaignReport({
               {stats.opened > 1 ? 's' : ''} ({formatRate(stats.opened, stats.delivered)})
             </p>
           </Card>
+          {stats.delivered > 0 && stats.opened === 0 && <TrackingHint kind="opens" />}
           <ContactsTable
             campaignId={campaign.id}
             status="opened"
@@ -806,6 +829,7 @@ export default function CampaignReport({
       {tab === 'clicks' && stats && (
         <div className="space-y-4">
           <ClickedLinks campaignId={campaign.id} />
+          {stats.delivered > 0 && stats.clicked === 0 && <TrackingHint kind="clicks" />}
           <ContactsTable
             campaignId={campaign.id}
             status="clicked"
