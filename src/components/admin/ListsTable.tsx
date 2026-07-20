@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ContactList } from '../../lib/types';
 
 interface ListWithCount extends ContactList {
@@ -36,6 +36,11 @@ export default function ListsTable({ initialLists }: Props) {
   const [pickedIds, setPickedIds] = useState<Set<string>>(new Set());
   const [addBusy, setAddBusy] = useState(false);
   const [newContact, setNewContact] = useState({ first_name: '', last_name: '', email: '' });
+
+  // Import CSV dans la liste ouverte.
+  const [importReport, setImportReport] = useState<string | null>(null);
+  const [importBusy, setImportBusy] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!addOpen || searchQ.trim().length < 2) {
@@ -120,12 +125,13 @@ export default function ListsTable({ initialLists }: Props) {
     }
   }
 
-  async function openMembers(id: string) {
+  async function openMembers(id: string, opts?: { keepReport?: boolean }) {
     setOpenListId(id);
     setMembers(null);
     setAddOpen(false);
     setSearchQ('');
     setPickedIds(new Set());
+    if (!opts?.keepReport) setImportReport(null);
     try {
       const res = await fetch(`/admin/api/listes/${id}/members`);
       const data = await res.json();
@@ -137,6 +143,43 @@ export default function ListsTable({ initialLists }: Props) {
       );
     } catch {
       setMembers([]);
+    }
+  }
+
+  /** Importe un CSV et associe tous ses contacts à la liste ouverte. */
+  async function importCsvToList(file: File) {
+    if (!openListId || importBusy) return;
+    setImportBusy(true);
+    setImportReport('Import en cours…');
+    try {
+      const res = await fetch(`/admin/api/listes/${openListId}/import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/csv' },
+        body: await file.text(),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setImportReport(data.error ?? "Échec de l'import");
+        return;
+      }
+      const errLines = (data.errors ?? [])
+        .slice(0, 10)
+        .map((e: { line: number; reason: string }) => `ligne ${e.line} : ${e.reason}`)
+        .join(' · ');
+      const extraErrs = (data.errors?.length ?? 0) > 10 ? ` (+${data.errors.length - 10} autres)` : '';
+      setImportReport(
+        `${data.linked} contact${data.linked > 1 ? 's' : ''} ajouté${data.linked > 1 ? 's' : ''} à la liste ` +
+          `— ${data.created} nouveau${data.created > 1 ? 'x' : ''}, ${data.linked - data.created} déjà en base` +
+          (data.skipped ? `, ${data.skipped} doublon(s) ignoré(s)` : '') +
+          (errLines ? ` — erreurs : ${errLines}${extraErrs}` : ''),
+      );
+      // Recharge les membres de la liste et le compteur (garde le rapport).
+      await openMembers(openListId, { keepReport: true });
+    } catch (err) {
+      setImportReport("Échec de l'import");
+      console.error(err);
+    } finally {
+      setImportBusy(false);
     }
   }
 
@@ -472,6 +515,45 @@ export default function ListsTable({ initialLists }: Props) {
               </button>
             </div>
             <div className="p-4 sm:p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+              {/* ─── Import CSV dans cette liste ─── */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) importCsvToList(file);
+                  e.target.value = '';
+                }}
+              />
+              <div className="mb-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  className="oq-btn-secondary oq-btn-sm flex-1"
+                  disabled={importBusy}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {importBusy ? 'Import…' : '↑ Importer un CSV'}
+                </button>
+              </div>
+              <p className="mb-3 text-[12px] text-oq-muted leading-snug">
+                Colonnes : <span className="font-medium">email</span> (requis), prenom, nom,
+                telephone. Les contacts sont créés si besoin puis ajoutés à cette liste.
+              </p>
+              {importReport && (
+                <div className="mb-4 px-3 py-2.5 bg-oq-bg border border-oq-border rounded-btn text-[13px] text-oq-text">
+                  {importReport}
+                  <button
+                    type="button"
+                    onClick={() => setImportReport(null)}
+                    className="ml-2 text-oq-muted"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+
               {/* ─── Ajouter des contacts (recherche + sélection multiple) ─── */}
               <div className="mb-4">
                 {!addOpen ? (
