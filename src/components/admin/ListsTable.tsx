@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ContactList } from '../../lib/types';
+import { detectDelimiter, normalizeHeader, parseCsv } from '../../lib/csv';
 
 interface ListWithCount extends ContactList {
   member_count: number;
@@ -16,6 +17,34 @@ interface MemberRow {
 
 interface Props {
   initialLists: ListWithCount[];
+}
+
+type ImportField = 'email' | 'first_name' | 'last_name' | 'phone';
+type ImportMapping = Record<ImportField, string>;
+
+interface ImportResult {
+  created: number;
+  updated: number;
+  linked: number;
+  skipped: number;
+  errors: Array<{ line: number; reason: string }>;
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Devine la colonne source d'un champ à partir des en-têtes (sans accents). */
+function guessColumn(headers: string[], candidates: string[]): string {
+  const norm = headers.map((h) => normalizeHeader(h));
+  for (const cand of candidates) {
+    const i = norm.indexOf(cand);
+    if (i !== -1) return headers[i];
+  }
+  // Repli : correspondance partielle (ex. « adresse email »).
+  for (const cand of candidates) {
+    const i = norm.findIndex((h) => h.includes(cand));
+    if (i !== -1) return headers[i];
+  }
+  return '';
 }
 
 export default function ListsTable({ initialLists }: Props) {
@@ -37,9 +66,22 @@ export default function ListsTable({ initialLists }: Props) {
   const [addBusy, setAddBusy] = useState(false);
   const [newContact, setNewContact] = useState({ first_name: '', last_name: '', email: '' });
 
-  // Import CSV dans la liste ouverte.
-  const [importReport, setImportReport] = useState<string | null>(null);
+  // ─── Import CSV par étapes (modale) ───
+  const [importOpen, setImportOpen] = useState(false);
+  const [importStep, setImportStep] = useState<1 | 2 | 3>(1);
+  const [importFileName, setImportFileName] = useState('');
+  const [importHeaders, setImportHeaders] = useState<string[] | null>(null);
+  const [importDataRows, setImportDataRows] = useState<string[][]>([]);
+  const [mapping, setMapping] = useState<ImportMapping>({
+    email: '',
+    first_name: '',
+    last_name: '',
+    phone: '',
+  });
   const [importBusy, setImportBusy] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -65,6 +107,12 @@ export default function ListsTable({ initialLists }: Props) {
       controller.abort();
     };
   }, [addOpen, searchQ]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const filtered = search.trim()
     ? lists.filter((l) => l.name.toLowerCase().includes(search.trim().toLowerCase()))
@@ -125,13 +173,16 @@ export default function ListsTable({ initialLists }: Props) {
     }
   }
 
-  async function openMembers(id: string, opts?: { keepReport?: boolean }) {
+  async function openMembers(id: string, opts?: { keepImport?: boolean }) {
     setOpenListId(id);
     setMembers(null);
     setAddOpen(false);
     setSearchQ('');
     setPickedIds(new Set());
-    if (!opts?.keepReport) setImportReport(null);
+    if (!opts?.keepImport) {
+      setImportOpen(false);
+      setImportResult(null);
+    }
     try {
       const res = await fetch(`/admin/api/listes/${id}/members`);
       const data = await res.json();
@@ -146,38 +197,139 @@ export default function ListsTable({ initialLists }: Props) {
     }
   }
 
-  /** Importe un CSV et associe tous ses contacts à la liste ouverte. */
-  async function importCsvToList(file: File) {
-    if (!openListId || importBusy) return;
+  /** Ouvre la modale d'import (étape 1 : choix du fichier). */
+  function openImport() {
+    setImportOpen(true);
+    setImportStep(1);
+    setImportFileName('');
+    setImportHeaders(null);
+    setImportDataRows([]);
+    setMapping({ email: '', first_name: '', last_name: '', phone: '' });
+    setImportError(null);
+    setImportResult(null);
+  }
+
+  /** Étape 1 : lit le fichier, en extrait les colonnes et pré-remplit le mapping. */
+  async function handleImportFile(file: File) {
+    setImportError(null);
+    setImportResult(null);
+    setImportFileName(file.name);
+    setImportHeaders(null);
+    setImportDataRows([]);
+    try {
+      const text = (await file.text()).replace(/^﻿/, '');
+      if (!text.trim()) {
+        setImportError('Le fichier est vide.');
+        return;
+      }
+      const rows = parseCsv(text, detectDelimiter(text));
+      const rawHeader = rows[0] ?? [];
+      // Fichier « en-tête + lignes » classique ; on tolère une colonne d'emails
+      // sans en-tête (l'unique colonne devient « Email »).
+      const looksHeaderless =
+        rawHeader.length === 1 && EMAIL_RE.test((rawHeader[0] ?? '').trim());
+      const headers = looksHeaderless ? ['Email'] : rawHeader.map((h) => h.trim() || '(sans nom)');
+      const dataRows = (looksHeaderless ? rows : rows.slice(1)).filter((r) =>
+        r.some((c) => c.trim()),
+      );
+
+      if (dataRows.length === 0) {
+        setImportError('Aucune ligne de données trouvée (en-tête seul ?).');
+        return;
+      }
+      if (dataRows.length > 5000) {
+        setImportError(`Trop de lignes : ${dataRows.length} (max 5000).`);
+        return;
+      }
+
+      setImportHeaders(headers);
+      setImportDataRows(dataRows);
+      setMapping({
+        email: guessColumn(headers, ['email', 'e-mail', 'mail', 'courriel']),
+        first_name: guessColumn(headers, ['prenom', 'first_name', 'firstname', 'first']),
+        last_name: guessColumn(headers, ['nom', 'last_name', 'lastname', 'name', 'last']),
+        phone: guessColumn(headers, ['telephone', 'phone', 'tel', 'mobile', 'portable']),
+      });
+    } catch (err) {
+      console.error(err);
+      setImportError('Fichier illisible.');
+    }
+  }
+
+  /** Aperçu de validation du mapping courant (emails valides / invalides). */
+  function mapPreview(): { valid: number; invalid: number } {
+    const iEmail = importHeaders && mapping.email ? importHeaders.indexOf(mapping.email) : -1;
+    if (iEmail === -1) return { valid: 0, invalid: 0 };
+    let valid = 0;
+    let invalid = 0;
+    const seen = new Set<string>();
+    for (const cells of importDataRows) {
+      const email = (cells[iEmail] ?? '').trim().toLowerCase();
+      if (EMAIL_RE.test(email) && !seen.has(email)) {
+        seen.add(email);
+        valid += 1;
+      } else {
+        invalid += 1;
+      }
+    }
+    return { valid, invalid };
+  }
+
+  /** Étape 3 : applique le mapping et envoie les contacts à la liste ouverte. */
+  async function runImport() {
+    if (!openListId || !importHeaders || importBusy) return;
+    if (!mapping.email) {
+      setImportError('Sélectionnez la colonne « Email ».');
+      return;
+    }
+    const idx = (col: string) => (col ? importHeaders.indexOf(col) : -1);
+    const iEmail = idx(mapping.email);
+    const iFirst = idx(mapping.first_name);
+    const iLast = idx(mapping.last_name);
+    const iPhone = idx(mapping.phone);
+
+    const contacts = importDataRows
+      .filter((cells) => cells.some((c) => c.trim()))
+      .map((cells) => ({
+        email: (cells[iEmail] ?? '').trim(),
+        first_name: iFirst === -1 ? '' : (cells[iFirst] ?? '').trim(),
+        last_name: iLast === -1 ? '' : (cells[iLast] ?? '').trim(),
+        phone: iPhone === -1 ? '' : (cells[iPhone] ?? '').trim(),
+      }));
+
+    if (contacts.length === 0) {
+      setImportError('Aucune ligne à importer.');
+      return;
+    }
+
     setImportBusy(true);
-    setImportReport('Import en cours…');
+    setImportError(null);
+    setImportStep(3);
     try {
       const res = await fetch(`/admin/api/listes/${openListId}/import`, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/csv' },
-        body: await file.text(),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contacts }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setImportReport(data.error ?? "Échec de l'import");
+        setImportError(data.error ?? "Échec de l'import");
         return;
       }
-      const errLines = (data.errors ?? [])
-        .slice(0, 10)
-        .map((e: { line: number; reason: string }) => `ligne ${e.line} : ${e.reason}`)
-        .join(' · ');
-      const extraErrs = (data.errors?.length ?? 0) > 10 ? ` (+${data.errors.length - 10} autres)` : '';
-      setImportReport(
-        `${data.linked} contact${data.linked > 1 ? 's' : ''} ajouté${data.linked > 1 ? 's' : ''} à la liste ` +
-          `— ${data.created} nouveau${data.created > 1 ? 'x' : ''}, ${data.linked - data.created} déjà en base` +
-          (data.skipped ? `, ${data.skipped} doublon(s) ignoré(s)` : '') +
-          (errLines ? ` — erreurs : ${errLines}${extraErrs}` : ''),
-      );
-      // Recharge les membres de la liste et le compteur (garde le rapport).
-      await openMembers(openListId, { keepReport: true });
+      const result: ImportResult = {
+        created: data.created ?? 0,
+        updated: data.updated ?? 0,
+        linked: data.linked ?? 0,
+        skipped: data.skipped ?? 0,
+        errors: data.errors ?? [],
+      };
+      setImportResult(result);
+      setToast(`Import terminé — ${result.created} créé(s), ${result.updated} déjà connu(s)`);
+      // Rafraîchit la liste ouverte (membres + compteur) sans fermer la modale.
+      await openMembers(openListId, { keepImport: true });
     } catch (err) {
-      setImportReport("Échec de l'import");
       console.error(err);
+      setImportError("Échec de l'import");
     } finally {
       setImportBusy(false);
     }
@@ -515,44 +667,16 @@ export default function ListsTable({ initialLists }: Props) {
               </button>
             </div>
             <div className="p-4 sm:p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-              {/* ─── Import CSV dans cette liste ─── */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv,text/csv"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) importCsvToList(file);
-                  e.target.value = '';
-                }}
-              />
-              <div className="mb-3 flex items-center gap-2">
+              {/* ─── Import CSV dans cette liste (modale par étapes) ─── */}
+              <div className="mb-4">
                 <button
                   type="button"
-                  className="oq-btn-secondary oq-btn-sm flex-1"
-                  disabled={importBusy}
-                  onClick={() => fileInputRef.current?.click()}
+                  className="oq-btn-secondary w-full"
+                  onClick={openImport}
                 >
-                  {importBusy ? 'Import…' : '↑ Importer un CSV'}
+                  ↑ Importer un CSV
                 </button>
               </div>
-              <p className="mb-3 text-[12px] text-oq-muted leading-snug">
-                Colonnes : <span className="font-medium">email</span> (requis), prenom, nom,
-                telephone. Les contacts sont créés si besoin puis ajoutés à cette liste.
-              </p>
-              {importReport && (
-                <div className="mb-4 px-3 py-2.5 bg-oq-bg border border-oq-border rounded-btn text-[13px] text-oq-text">
-                  {importReport}
-                  <button
-                    type="button"
-                    onClick={() => setImportReport(null)}
-                    className="ml-2 text-oq-muted"
-                  >
-                    ×
-                  </button>
-                </div>
-              )}
 
               {/* ─── Ajouter des contacts (recherche + sélection multiple) ─── */}
               <div className="mb-4">
@@ -726,6 +850,303 @@ export default function ListsTable({ initialLists }: Props) {
               )}
             </div>
           </aside>
+        </div>
+      )}
+
+      {/* ─── Modale d'import CSV (étapes : fichier → mapping → résultat) ─── */}
+      {openList && importOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+          onClick={() => setImportOpen(false)}
+        >
+          <div
+            className="bg-white rounded-card border border-oq-border w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5 sm:p-6 border-b border-oq-border flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-[18px] font-bold text-oq-black">Importer des contacts (CSV)</h3>
+                <p className="text-[13px] text-oq-muted mt-0.5">
+                  Ajoutez des contacts à « {openList.name} » depuis un fichier CSV.
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="Fermer"
+                className="w-9 h-9 shrink-0 flex items-center justify-center rounded-full hover:bg-oq-bg text-oq-muted text-[20px]"
+                onClick={() => setImportOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Indicateur d'étapes */}
+            <div className="px-5 sm:px-6 pt-4 flex items-center gap-2">
+              {[
+                { n: 1 as const, label: 'Fichier' },
+                { n: 2 as const, label: 'Colonnes' },
+                { n: 3 as const, label: 'Import' },
+              ].map((s, i) => {
+                const done = importStep > s.n || (s.n === 3 && Boolean(importResult));
+                const active = importStep === s.n;
+                return (
+                  <div key={s.n} className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`w-6 h-6 rounded-full flex items-center justify-center text-[12px] font-bold ${
+                          done
+                            ? 'bg-green-600 text-white'
+                            : active
+                              ? 'bg-oq-black text-white'
+                              : 'bg-oq-bg text-oq-muted'
+                        }`}
+                      >
+                        {done ? '✓' : s.n}
+                      </span>
+                      <span
+                        className={`text-[13px] ${active || done ? 'text-oq-black font-medium' : 'text-oq-muted'}`}
+                      >
+                        {s.label}
+                      </span>
+                    </div>
+                    {i < 2 && <div className="w-6 h-px bg-oq-border" />}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="p-5 sm:p-6 space-y-4">
+              {/* ── Étape 1 : fichier ── */}
+              {importStep === 1 && (
+                <div className="space-y-3">
+                  <label className="oq-label">Fichier CSV</label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv,text/csv"
+                    className="block w-full text-[13px] text-oq-text file:mr-3 file:py-2 file:px-3 file:rounded-btn file:border file:border-oq-border file:bg-oq-bg file:text-oq-black file:text-[13px] file:font-medium file:cursor-pointer"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleImportFile(file);
+                    }}
+                  />
+                  {importFileName && (
+                    <p className="text-[12px] text-oq-black font-medium truncate">📄 {importFileName}</p>
+                  )}
+                  <p className="text-[12px] text-oq-muted leading-snug">
+                    Séparateur « , » ou « ; » détecté automatiquement. Une colonne{' '}
+                    <span className="font-medium">email</span> est requise ; un simple fichier
+                    d'emails (une colonne) est aussi accepté.
+                  </p>
+                  {importError ? (
+                    <div className="px-3 py-2.5 bg-red-50 border border-red-200 rounded-btn text-[13px] text-red-700">
+                      ✗ {importError}
+                    </div>
+                  ) : importHeaders ? (
+                    <div className="px-3 py-2.5 bg-oq-green-soft border border-green-200 rounded-btn text-[13px] text-green-800">
+                      ✓ Fichier validé — {importDataRows.length} ligne
+                      {importDataRows.length > 1 ? 's' : ''} · {importHeaders.length} colonne
+                      {importHeaders.length > 1 ? 's' : ''} détectée{importHeaders.length > 1 ? 's' : ''}.
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
+              {/* ── Étape 2 : mapping des colonnes ── */}
+              {importStep === 2 && importHeaders && (
+                <div className="space-y-3">
+                  <p className="text-[13px] text-oq-text">
+                    Associez les colonnes de votre fichier aux champs de contact.
+                  </p>
+                  <div className="space-y-2.5">
+                    {(
+                      [
+                        { key: 'email', label: 'Email', required: true },
+                        { key: 'first_name', label: 'Prénom', required: false },
+                        { key: 'last_name', label: 'Nom', required: false },
+                        { key: 'phone', label: 'Téléphone', required: false },
+                      ] as Array<{ key: ImportField; label: string; required: boolean }>
+                    ).map(({ key, label, required }) => (
+                      <div key={key} className="flex items-center gap-3">
+                        <span className="text-[13px] text-oq-text w-24 shrink-0">
+                          {label}
+                          {required && <span className="text-red-500"> *</span>}
+                        </span>
+                        <select
+                          className="oq-input flex-1"
+                          value={mapping[key]}
+                          onChange={(e) => setMapping((m) => ({ ...m, [key]: e.target.value }))}
+                        >
+                          <option value="">{required ? '— Choisir —' : 'Ignorer'}</option>
+                          {importHeaders.map((h, i) => (
+                            <option key={`${h}-${i}`} value={h}>
+                              {h}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Validation live du mapping */}
+                  {(() => {
+                    if (!mapping.email) {
+                      return (
+                        <div className="px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-btn text-[13px] text-amber-800">
+                          Sélectionnez la colonne « Email » pour continuer.
+                        </div>
+                      );
+                    }
+                    const p = mapPreview();
+                    return p.valid === 0 ? (
+                      <div className="px-3 py-2.5 bg-red-50 border border-red-200 rounded-btn text-[13px] text-red-700">
+                        ✗ Aucun email valide dans la colonne choisie.
+                      </div>
+                    ) : (
+                      <div className="px-3 py-2.5 bg-oq-green-soft border border-green-200 rounded-btn text-[13px] text-green-800">
+                        ✓ {p.valid} contact{p.valid > 1 ? 's' : ''} prêt{p.valid > 1 ? 's' : ''} à l'import
+                        {p.invalid > 0 && (
+                          <>
+                            {' '}
+                            · {p.invalid} ligne{p.invalid > 1 ? 's' : ''} ignorée
+                            {p.invalid > 1 ? 's' : ''} (email invalide ou doublon)
+                          </>
+                        )}
+                        .
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* ── Étape 3 : import / résultat ── */}
+              {importStep === 3 && (
+                <div className="space-y-3">
+                  {importBusy ? (
+                    <div className="py-8 text-center text-oq-muted text-[14px]">
+                      Import en cours…
+                    </div>
+                  ) : importResult ? (
+                    <div className="px-4 py-3 bg-oq-green-soft border border-green-200 rounded-btn text-[13px] text-green-800">
+                      <p className="font-bold text-[14px] mb-1">✓ Import terminé</p>
+                      <p>
+                        <span className="font-bold">{importResult.created}</span> contact
+                        {importResult.created > 1 ? 's' : ''} créé{importResult.created > 1 ? 's' : ''}
+                      </p>
+                      <p>
+                        <span className="font-bold">{importResult.updated}</span> déjà connu
+                        {importResult.updated > 1 ? 's' : ''} (ajouté{importResult.updated > 1 ? 's' : ''} à la liste)
+                      </p>
+                      <p>
+                        <span className="font-bold">
+                          {importResult.skipped + importResult.errors.length}
+                        </span>{' '}
+                        ignoré{importResult.skipped + importResult.errors.length > 1 ? 's' : ''} (emails
+                        invalides ou doublons)
+                      </p>
+                      {importResult.errors.length > 0 && (
+                        <details className="mt-1.5">
+                          <summary className="cursor-pointer text-green-900/80">
+                            Voir les {importResult.errors.length} erreur(s)
+                          </summary>
+                          <ul className="mt-1 space-y-0.5 max-h-32 overflow-y-auto">
+                            {importResult.errors.slice(0, 50).map((er, i) => (
+                              <li key={i} className="text-green-900/70">
+                                ligne {er.line} : {er.reason}
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+                    </div>
+                  ) : importError ? (
+                    <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-btn text-[13px] text-red-700">
+                      <p className="font-bold mb-0.5">✗ Échec de l'import</p>
+                      <p>{importError}</p>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
+
+            {/* Pied : navigation entre étapes */}
+            <div className="p-5 sm:p-6 border-t border-oq-border flex justify-between gap-2">
+              <div>
+                {importStep === 2 && (
+                  <button
+                    type="button"
+                    className="oq-btn-secondary"
+                    onClick={() => {
+                      setImportStep(1);
+                      setImportError(null);
+                    }}
+                  >
+                    ← Retour
+                  </button>
+                )}
+                {importStep === 3 && !importBusy && (
+                  <button type="button" className="oq-btn-secondary" onClick={openImport}>
+                    Importer un autre fichier
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="oq-btn-secondary"
+                  onClick={() => setImportOpen(false)}
+                >
+                  {importStep === 3 && importResult ? 'Terminer' : 'Fermer'}
+                </button>
+                {importStep === 1 && (
+                  <button
+                    type="button"
+                    className="oq-btn-dark"
+                    disabled={!importHeaders || Boolean(importError)}
+                    onClick={() => setImportStep(2)}
+                  >
+                    Continuer →
+                  </button>
+                )}
+                {importStep === 2 && (
+                  <button
+                    type="button"
+                    className="oq-btn-dark"
+                    disabled={!mapping.email || mapPreview().valid === 0 || importBusy}
+                    onClick={runImport}
+                  >
+                    Importer {mapPreview().valid > 0 ? `(${mapPreview().valid})` : ''}
+                  </button>
+                )}
+                {importStep === 3 && importError && !importBusy && (
+                  <button
+                    type="button"
+                    className="oq-btn-dark"
+                    onClick={() => {
+                      setImportStep(2);
+                      setImportError(null);
+                    }}
+                  >
+                    Réessayer
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Toast de confirmation ─── */}
+      {toast && (
+        <div className="fixed bottom-4 right-4 z-[60] max-w-xs px-4 py-3 bg-oq-black text-white rounded-card shadow-lg text-[13px] flex items-start gap-3">
+          <span className="flex-1">{toast}</span>
+          <button
+            type="button"
+            aria-label="Fermer"
+            className="text-white/70 hover:text-white"
+            onClick={() => setToast(null)}
+          >
+            ×
+          </button>
         </div>
       )}
     </div>
