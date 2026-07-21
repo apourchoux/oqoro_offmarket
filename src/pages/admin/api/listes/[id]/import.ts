@@ -4,35 +4,35 @@ import { isValidDepartement } from '../../../../../lib/zones';
 import { detectDelimiter, normalizeHeader, parseCsv } from '../../../../../lib/csv';
 import { CONTACT_TYPES, EMAIL_REGEX } from '../../contacts/_helpers';
 import { UUID_REGEX, json } from '../../_helpers';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export const prerender = false;
 
 const MAX_BODY_BYTES = 1024 * 1024; // 1 Mo
 const MAX_ROWS = 5000;
 
-// Import CSV directement dans une liste (bouton « Importer un CSV » du panneau
-// de liste). Chaque ligne du fichier :
-//   - crée le contact s'il n'existe pas encore (dédoublonné sur lower(email)),
-//   - puis l'associe à CETTE liste.
+// Import CSV directement dans une liste (modale « Importer CSV » du panneau de
+// liste). Chaque ligne du fichier crée le contact s'il n'existe pas (dédoublonné
+// sur lower(email)) puis l'associe à CETTE liste.
 //
-// Colonnes reconnues (en-tête insensible à la casse/accents) :
-//   email (requis), prenom, nom, telephone, type, zones
-// `type` ∈ proprietaire|investisseur|mixte (défaut proprietaire).
-// `zones` = codes département séparés par `|`. Délimiteur `,`/`;` autodétecté.
-// Tolérance : un fichier d'une seule colonne d'emails (sans en-tête) est accepté.
+// Deux entrées possibles :
+//   - application/json : { contacts: [{ email, first_name?, last_name?, phone? }] }
+//     (le client a déjà appliqué le mapping des colonnes — chemin de la modale).
+//   - text/csv : CSV brut, en-tête auto-détecté (email requis ; prenom, nom,
+//     telephone, type, zones optionnels) ; tolère une colonne d'emails sans
+//     en-tête. Chemin historique / import direct.
+
+interface Candidate {
+  line: number;
+  email: string;
+  row: Record<string, unknown>;
+}
 
 export const POST: APIRoute = async ({ request, params, locals }) => {
   if (!locals.user) return json({ error: 'Non authentifié' }, 401);
 
   const listId = params.id;
   if (!listId || !UUID_REGEX.test(listId)) return json({ error: 'ID de liste invalide' }, 400);
-
-  // Retire le BOM UTF-8 qu'Excel écrit systématiquement en « CSV UTF-8 ».
-  const raw = (await request.text()).replace(/^\uFEFF/, '');
-  if (!raw.trim()) return json({ error: 'CSV vide' }, 400);
-  if (new TextEncoder().encode(raw).length > MAX_BODY_BYTES) {
-    return json({ error: 'Fichier trop volumineux (max 1 Mo)' }, 400);
-  }
 
   const supabase = getAdminClient();
 
@@ -45,11 +45,79 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
   if (listError) return json({ error: listError.message }, 500);
   if (!list) return json({ error: 'Liste introuvable' }, 404);
 
-  const delimiter = detectDelimiter(raw);
-  const rows = parseCsv(raw, delimiter);
-  if (rows.length === 0) return json({ error: 'CSV vide' }, 400);
+  const contentType = request.headers.get('content-type') ?? '';
+  const parsed = contentType.includes('application/json')
+    ? await candidatesFromJson(request)
+    : await candidatesFromCsv(request);
+  if ('error' in parsed) return json({ error: parsed.error }, parsed.status);
 
-  // ─── Détection de l'en-tête (avec repli « liste d'emails sans en-tête ») ───
+  const { candidates, errors, skipped } = parsed;
+  if (candidates.length === 0) {
+    return json({ success: true, created: 0, linked: 0, skipped, errors });
+  }
+
+  return finishImport(supabase, listId, candidates, errors, skipped);
+};
+
+// ─────────────────────────── Entrée JSON (mapping client) ───────────────────
+async function candidatesFromJson(
+  request: Request,
+): Promise<{ candidates: Candidate[]; errors: LineError[]; skipped: number } | ErrOut> {
+  let body: { contacts?: unknown };
+  try {
+    body = await request.json();
+  } catch {
+    return { error: 'JSON invalide', status: 400 };
+  }
+  const rows = body.contacts;
+  if (!Array.isArray(rows)) return { error: 'Champ « contacts » manquant', status: 400 };
+  if (rows.length > MAX_ROWS) return { error: `Trop de lignes (max ${MAX_ROWS})`, status: 400 };
+
+  const candidates: Candidate[] = [];
+  const errors: LineError[] = [];
+  const seen = new Set<string>();
+  let skipped = 0;
+
+  rows.forEach((raw, index) => {
+    const line = index + 1;
+    const c = (raw ?? {}) as Record<string, unknown>;
+    const email = String(c.email ?? '').trim().toLowerCase();
+    const first_name = String(c.first_name ?? '').trim();
+    const last_name = String(c.last_name ?? '').trim();
+    const phone = String(c.phone ?? '').trim();
+
+    if (!email && !first_name && !last_name && !phone) return; // ligne vide
+    const bad = validateCore(email, first_name, last_name);
+    if (bad) {
+      errors.push({ line, reason: bad });
+      return;
+    }
+    if (seen.has(email)) {
+      skipped += 1;
+      return;
+    }
+    seen.add(email);
+    candidates.push({ line, email, row: contactRow({ email, first_name, last_name, phone }) });
+  });
+
+  return { candidates, errors, skipped };
+}
+
+// ─────────────────────────── Entrée CSV brute ───────────────────────────────
+async function candidatesFromCsv(
+  request: Request,
+): Promise<{ candidates: Candidate[]; errors: LineError[]; skipped: number } | ErrOut> {
+  // Retire le BOM UTF-8 qu'Excel écrit systématiquement en « CSV UTF-8 ».
+  const rawText = (await request.text()).replace(/^\uFEFF/, '');
+  if (!rawText.trim()) return { error: 'CSV vide', status: 400 };
+  if (new TextEncoder().encode(rawText).length > MAX_BODY_BYTES) {
+    return { error: 'Fichier trop volumineux (max 1 Mo)', status: 400 };
+  }
+
+  const delimiter = detectDelimiter(rawText);
+  const rows = parseCsv(rawText, delimiter);
+  if (rows.length === 0) return { error: 'CSV vide', status: 400 };
+
   const header = rows[0].map(normalizeHeader);
   const col = {
     email: header.indexOf('email'),
@@ -63,30 +131,20 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
   let dataRows: string[][];
   let hasHeader: boolean;
   if (col.email !== -1) {
-    dataRows = rows.slice(1); // en-tête présent
+    dataRows = rows.slice(1);
     hasHeader = true;
-  } else if (
-    rows[0].length === 1 &&
-    EMAIL_REGEX.test((rows[0][0] ?? '').trim().toLowerCase())
-  ) {
-    // Fichier d'une seule colonne d'emails, sans ligne d'en-tête.
+  } else if (rows[0].length === 1 && EMAIL_REGEX.test((rows[0][0] ?? '').trim().toLowerCase())) {
     col.email = 0;
-    dataRows = rows; // la première ligne est déjà un email
+    dataRows = rows;
     hasHeader = false;
   } else {
-    return json(
-      { error: 'En-tête invalide : une colonne « email » est requise.' },
-      400,
-    );
+    return { error: 'En-tête invalide : une colonne « email » est requise.', status: 400 };
   }
+  if (dataRows.length > MAX_ROWS) return { error: `Trop de lignes (max ${MAX_ROWS})`, status: 400 };
 
-  if (dataRows.length > MAX_ROWS) {
-    return json({ error: `Trop de lignes (max ${MAX_ROWS})` }, 400);
-  }
-
-  const candidates: Array<{ line: number; email: string; row: Record<string, unknown> }> = [];
-  const errors: Array<{ line: number; reason: string }> = [];
-  const seenInFile = new Set<string>();
+  const candidates: Candidate[] = [];
+  const errors: LineError[] = [];
+  const seen = new Set<string>();
   let skipped = 0;
 
   dataRows.forEach((cells, index) => {
@@ -100,52 +158,46 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
     const typeRaw = col.type === -1 ? '' : (cells[col.type] ?? '').trim().toLowerCase();
     const zonesRaw = col.zones === -1 ? '' : (cells[col.zones] ?? '').trim();
 
-    if (!email || email.length > 254 || !EMAIL_REGEX.test(email)) {
-      errors.push({ line, reason: `Email invalide : « ${email || '(vide)'} »` });
+    const bad = validateCore(email, first_name, last_name);
+    if (bad) {
+      errors.push({ line, reason: bad });
       return;
     }
-    if (first_name.length > 100 || last_name.length > 100) {
-      errors.push({ line, reason: 'Prénom ou nom trop long (max 100)' });
-      return;
-    }
-    if (seenInFile.has(email)) {
-      skipped += 1; // doublon interne au fichier
+    if (seen.has(email)) {
+      skipped += 1;
       return;
     }
     if (typeRaw && !(CONTACT_TYPES as readonly string[]).includes(typeRaw)) {
       errors.push({ line, reason: `Type inconnu : « ${typeRaw} »` });
       return;
     }
-    const zones = zonesRaw
-      ? zonesRaw.split('|').map((z) => z.trim()).filter(Boolean)
-      : [];
+    const zones = zonesRaw ? zonesRaw.split('|').map((z) => z.trim()).filter(Boolean) : [];
     const badZone = zones.find((z) => !isValidDepartement(z));
     if (badZone !== undefined) {
       errors.push({ line, reason: `Code département invalide : « ${badZone} »` });
       return;
     }
 
-    seenInFile.add(email);
+    seen.add(email);
     candidates.push({
       line,
       email,
-      row: {
-        first_name,
-        last_name,
-        email,
-        phone: phone || null,
-        contact_type: typeRaw || 'proprietaire',
-        zones: [...new Set(zones)],
-        source: 'import_csv',
-      },
+      row: contactRow({ email, first_name, last_name, phone, contact_type: typeRaw, zones }),
     });
   });
 
-  if (candidates.length === 0) {
-    return json({ success: true, created: 0, linked: 0, skipped, errors });
-  }
+  return { candidates, errors, skipped };
+}
 
-  // ─── Map email → contact_id (existants + créés) ───
+// ─────────────────────────── Création + association ─────────────────────────
+async function finishImport(
+  supabase: SupabaseClient<any, any, any, any, any>,
+  listId: string,
+  candidates: Candidate[],
+  errors: LineError[],
+  skipped: number,
+): Promise<Response> {
+  // Map email → contact_id (existants + créés).
   const emailToId = new Map<string, string>();
   const candidateEmails = candidates.map((c) => c.email);
   for (let i = 0; i < candidateEmails.length; i += 500) {
@@ -193,7 +245,6 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
         created += 1;
         emailToId.set(String((one as any).email).toLowerCase(), String((one as any).id));
       } else if (rowError?.code === '23505') {
-        // Course : le contact vient d'exister — on relit son id pour l'associer.
         const { data: found } = await supabase
           .from('contacts')
           .select('id, email')
@@ -206,23 +257,70 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
     }
   }
 
-  // ─── Association à la liste (upsert idempotent) ───
-  const contactIds = [...new Set(candidates.map((c) => emailToId.get(c.email)).filter(Boolean))] as string[];
+  // Nombre de contacts qui existaient déjà en base (≈ « mis à jour » du Mailer).
+  const existingMatched = candidates.length - toInsert.length;
+
+  // Association à la liste (upsert idempotent).
+  const contactIds = [
+    ...new Set(candidates.map((c) => emailToId.get(c.email)).filter(Boolean)),
+  ] as string[];
   let linked = 0;
   for (let i = 0; i < contactIds.length; i += 500) {
     const chunk = contactIds.slice(i, i + 500);
-    const { error } = await supabase
-      .from('contact_list_members')
-      .upsert(
-        chunk.map((contact_id) => ({ list_id: listId, contact_id })),
-        { onConflict: 'list_id,contact_id', ignoreDuplicates: true },
-      );
+    const { error } = await supabase.from('contact_list_members').upsert(
+      chunk.map((contact_id) => ({ list_id: listId, contact_id })),
+      { onConflict: 'list_id,contact_id', ignoreDuplicates: true },
+    );
     if (error) {
       console.error('[admin listes import] link error', error);
-      return json({ error: `Association à la liste interrompue : ${error.message}`, created, linked, skipped, errors }, 500);
+      return json(
+        { error: `Association à la liste interrompue : ${error.message}`, created, linked, skipped, errors },
+        500,
+      );
     }
     linked += chunk.length;
   }
 
-  return json({ success: true, created, linked, skipped, errors });
-};
+  return json({ success: true, created, updated: existingMatched, linked, skipped, errors });
+}
+
+// ─────────────────────────── Helpers ────────────────────────────────────────
+interface LineError {
+  line: number;
+  reason: string;
+}
+interface ErrOut {
+  error: string;
+  status: number;
+}
+
+/** Validation commune email + longueur des noms. Renvoie un motif d'erreur ou null. */
+function validateCore(email: string, first_name: string, last_name: string): string | null {
+  if (!email || email.length > 254 || !EMAIL_REGEX.test(email)) {
+    return `Email invalide : « ${email || '(vide)'} »`;
+  }
+  if (first_name.length > 100 || last_name.length > 100) {
+    return 'Prénom ou nom trop long (max 100)';
+  }
+  return null;
+}
+
+/** Construit la ligne d'insertion `contacts` (valeurs par défaut incluses). */
+function contactRow(input: {
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  contact_type?: string;
+  zones?: string[];
+}): Record<string, unknown> {
+  return {
+    first_name: input.first_name,
+    last_name: input.last_name,
+    email: input.email,
+    phone: input.phone || null,
+    contact_type: input.contact_type || 'proprietaire',
+    zones: [...new Set(input.zones ?? [])],
+    source: 'import_csv',
+  };
+}
