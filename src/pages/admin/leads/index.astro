@@ -12,7 +12,7 @@ if (!Astro.locals.user) {
 const supabase = getAdminClient();
 const { data: leads } = await supabase
   .from('leads')
-  .select('*, properties(title)')
+  .select('*, properties(title, slug)')
   .order('created_at', { ascending: false });
 
 const normalized = (leads ?? []).map((l: any) => ({
@@ -26,6 +26,7 @@ const normalized = (leads ?? []).map((l: any) => ({
   notes: l.notes,
   created_at: l.created_at,
   property_title: l.properties?.title ?? null,
+  property_slug: l.properties?.slug ?? null,
 }));
 ---
 

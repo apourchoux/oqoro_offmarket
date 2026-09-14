@@ -3,7 +3,7 @@ import type { Lead, LeadStatus } from '../../lib/types';
 import { LEAD_STATUS_LABELS } from '../../lib/types';
 
 interface Props {
-  initialLeads: Array<Lead & { property_title?: string | null }>;
+  initialLeads: Array<Lead & { property_title?: string | null; property_slug?: string | null }>;
 }
 
 const STATUS_ORDER: LeadStatus[] = ['new', 'contacted', 'converted', 'archived'];
@@ -284,7 +284,25 @@ export default function LeadsTable({ initialLeads }: Props) {
               </div>
               <div>
                 <div className="text-[12px] uppercase tracking-wider text-oq-muted mb-1">Bien</div>
-                <div>{selected.property_title ?? '—'}</div>
+                {selected.property_id ? (
+                  <>
+                    <a href={`/admin/biens/${selected.property_id}`}>
+                      {selected.property_title ?? 'Voir le bien'}
+                    </a>
+                    {selected.property_slug && (
+                      <a
+                        href={`/biens/${selected.property_slug}`}
+                        target="_blank"
+                        rel="noopener"
+                        className="block text-[13px] text-oq-muted hover:text-oq-black mt-1"
+                      >
+                        Voir la fiche ↗
+                      </a>
+                    )}
+                  </>
+                ) : (
+                  <div>—</div>
+                )}
               </div>
               <div>
                 <div className="text-[12px] uppercase tracking-wider text-oq-muted mb-1">Statut</div>
