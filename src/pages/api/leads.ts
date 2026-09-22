@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getAdminClient, insertLead } from '../../lib/supabase';
 import { sendLeadConfirmation, sendLeadNotification } from '../../lib/resend';
+import { sendLeadSlackNotification } from '../../lib/slack';
 import { rateLimit } from '../../lib/security';
 import type { Property } from '../../lib/types';
 
@@ -129,9 +130,12 @@ export const POST: APIRoute = async ({ request, redirect, clientAddress }) => {
       property = (data as Property) ?? null;
     }
 
+    // Notifications parallèles, toutes best-effort : un échec d'envoi ne doit
+    // pas perdre un lead déjà enregistré en base.
     await Promise.allSettled([
       sendLeadNotification(lead, property),
       sendLeadConfirmation(lead, property),
+      sendLeadSlackNotification(lead, property, source),
     ]);
 
     return useFormFlow

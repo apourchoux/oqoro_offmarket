@@ -76,13 +76,21 @@ if (apiKey) {
   }
 }
 
+// `optional: true` → l'absence désactive une fonctionnalité annexe sans
+// casser les campagnes : affichage ambre, et exclu du verdict global.
 const envChecks = [
   { key: 'RESEND_API_KEY', ok: Boolean(import.meta.env.RESEND_API_KEY), hint: "Clé API Resend (envoi d'emails)" },
   { key: 'RESEND_FROM', ok: Boolean(import.meta.env.RESEND_FROM), hint: 'Expéditeur par défaut des campagnes' },
   { key: 'RESEND_WEBHOOK_SECRET', ok: Boolean(import.meta.env.RESEND_WEBHOOK_SECRET), hint: 'Signing secret du webhook (statistiques ouvertures/clics/bounces)' },
   { key: 'CAMPAIGN_FUNCTION_SECRET', ok: Boolean(import.meta.env.CAMPAIGN_FUNCTION_SECRET), hint: "Secret de la fonction d'envoi en arrière-plan" },
+  {
+    key: 'SLACK_LEADS_WEBHOOK_URL',
+    ok: Boolean(import.meta.env.SLACK_LEADS_WEBHOOK_URL),
+    optional: true,
+    hint: 'Incoming Webhook Slack — notification des leads dans #oqo_transac (optionnel)',
+  },
 ];
-const allEnvOk = envChecks.every((c) => c.ok);
+const allEnvOk = envChecks.every((c) => c.ok || c.optional);
 ---
 
 <Admin title="Configuration" activeSection="campagnes">
@@ -227,10 +235,14 @@ const allEnvOk = envChecks.every((c) => c.ok);
       {envChecks.map((c) => (
         <li class:list={[
           'flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 rounded-btn border text-[14px]',
-          c.ok ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200',
+          c.ok ? 'bg-emerald-50 border-emerald-200' :
+          c.optional ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200',
         ]}>
-          <span class:list={['font-bold', c.ok ? 'text-emerald-700' : 'text-red-700']}>
-            {c.ok ? '✓' : '✕'}
+          <span class:list={[
+            'font-bold',
+            c.ok ? 'text-emerald-700' : c.optional ? 'text-amber-700' : 'text-red-700',
+          ]}>
+            {c.ok ? '✓' : c.optional ? '!' : '✕'}
           </span>
           <code class="font-mono text-[13px] text-oq-black break-all">{c.key}</code>
           <span class="text-oq-muted text-[13px] w-full sm:w-auto sm:flex-1">{c.hint}</span>
