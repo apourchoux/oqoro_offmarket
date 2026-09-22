@@ -11,6 +11,7 @@ interface ImportMetaEnv {
   readonly LEAD_NOTIFICATION_CC: string;
   readonly RESEND_WEBHOOK_SECRET: string;
   readonly CAMPAIGN_FUNCTION_SECRET: string;
+  readonly SLACK_LEADS_WEBHOOK_URL: string;
   readonly ADMIN_EMAILS: string;
   readonly NETLIFY_BUILD_HOOK: string;
   readonly PUBLIC_GA_MEASUREMENT_ID: string;

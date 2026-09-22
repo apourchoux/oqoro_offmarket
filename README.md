@@ -41,7 +41,7 @@ Chaque workstream du PRD est mappé sur des fichiers dédiés :
 - **WS4 — Pages publiques** : `src/pages/index.astro`,
   `src/pages/biens/[slug].astro`
 - **WS5 — Leads & emails** : `src/components/ContactModal.tsx`,
-  `src/pages/api/leads.ts`, `src/lib/resend.ts`
+  `src/pages/api/leads.ts`, `src/lib/resend.ts`, `src/lib/slack.ts`
 - **WS6 — Campagnes email** : `src/pages/admin/campagnes/**`,
   `src/pages/admin/api/{contacts,campagnes}/**`,
   `src/components/admin/{CampaignComposer,ContactsTable,ZonesPicker}.tsx`,
@@ -65,6 +65,32 @@ npm run typecheck  # astro check
 3. Cocher *Publié* puis *Publier & rebuild* → déclenche le build hook Netlify
    et régénère les pages statiques
 4. Les leads arrivent dans `/admin/leads`
+
+## Notifications Slack des leads
+
+Chaque lead enregistré par `POST /api/leads` est poussé **en direct** dans le
+canal Slack `#oqo_transac` (en plus des emails Resend). Le message Block Kit
+reprend nom / email / téléphone / origine du formulaire, le bien concerné
+(titre, adresse, prix) et deux boutons : *Ouvrir dans l'admin* et *Voir le
+bien*.
+
+Mise en service :
+
+1. Slack → [Your Apps](https://api.slack.com/apps) → *Create New App* → *From
+   scratch* → nom « OQORO Off Market », workspace Oqoro.
+2. *Incoming Webhooks* → activer → *Add New Webhook to Workspace* → choisir le
+   canal `#oqo_transac`.
+3. Copier l'URL `https://hooks.slack.com/services/...` dans la variable
+   d'environnement `SLACK_LEADS_WEBHOOK_URL` (Netlify → Site settings →
+   Environment variables), puis redéployer.
+4. Vérifier : onglet Campagnes → Configuration (la ligne
+   `SLACK_LEADS_WEBHOOK_URL` passe au vert), puis soumettre un lead de test
+   depuis le site.
+
+Variable absente = aucune notification Slack, les emails partent normalement.
+L'envoi est best-effort : une panne Slack est logguée (`[slack]`) mais
+n'empêche jamais l'enregistrement du lead ni la réponse au visiteur (timeout
+5 s).
 
 ## Campagnes email
 
