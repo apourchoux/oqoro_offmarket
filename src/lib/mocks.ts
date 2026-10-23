@@ -43,9 +43,9 @@ export const mockProperty: Property = {
   sale_listing_url: null,
   matterport_url: 'https://my.matterport.com/show/?m=xxxxxxxxxxx',
   meta_title:
-    'Colocation 110m² Lyon 3e à vendre | Rendement 7,2% | OQORO Off Market',
+    'Colocation 110m² Lyon 3e à vendre | Rendement 6,4% | OQORO Off Market',
   meta_description:
-    "Colocation meublée en gestion OQORO à vendre. 4 chambres louées, revenus locatifs certifiés, rendement brut 7,2%.",
+    "Colocation meublée en gestion OQORO à vendre. 4 chambres louées, revenus locatifs certifiés, rendement brut 6,4%.",
   monthly_charges: null,
   yearly_property_tax: null,
   monthly_management_fee: null,
@@ -205,6 +205,7 @@ const monthly_rent_cc = mockLots.reduce(
   (acc, lot) => acc + lot.rent_hc + lot.charges,
   0,
 );
+const monthly_rent_hc = mockLots.reduce((acc, lot) => acc + lot.rent_hc, 0);
 
 export const mockFinancials: PropertyFinancials = {
   id: mockProperty.id,
@@ -214,13 +215,15 @@ export const mockFinancials: PropertyFinancials = {
   monthly_rent_cc,
   annual_rent_cc: monthly_rent_cc * 12,
   gross_yield: Math.round(
-    ((monthly_rent_cc * 12) / mockProperty.sale_price) * 10000,
+    ((monthly_rent_hc * 12) / mockProperty.sale_price) * 10000,
   ) / 100,
   project_yield: Math.round(
-    ((monthly_rent_cc * 12) / mockProperty.total_project) * 10000,
+    ((monthly_rent_hc * 12) / mockProperty.total_project) * 10000,
   ) / 100,
   total_lots: mockLots.length,
   rented_lots: mockLots.filter((l) => l.status === 'loue').length,
+  monthly_rent_hc,
+  annual_rent_hc: monthly_rent_hc * 12,
 };
 
 export const mockPropertyFull: PropertyFull = {
