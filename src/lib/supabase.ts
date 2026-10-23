@@ -167,6 +167,8 @@ function zeroFinancials(id: string): PropertyFinancials {
     project_yield: 0,
     total_lots: 0,
     rented_lots: 0,
+    monthly_rent_hc: 0,
+    annual_rent_hc: 0,
   };
 }
 

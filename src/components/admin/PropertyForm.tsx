@@ -134,14 +134,16 @@ export default function PropertyForm({
       (acc, l) => acc + Number(l.rent_hc) + Number(l.charges),
       0,
     );
-    const annual = monthly_rent_cc * 12;
-    const gross_yield = price > 0 ? (annual / price) * 100 : 0;
-    const project_yield = total_project > 0 ? (annual / total_project) * 100 : 0;
+    const monthly_rent_hc = lots.reduce((acc, l) => acc + Number(l.rent_hc), 0);
+    // Rendements calculés sur les loyers HC (comme la vue property_financials).
+    const annual_hc = monthly_rent_hc * 12;
+    const gross_yield = price > 0 ? (annual_hc / price) * 100 : 0;
+    const project_yield = total_project > 0 ? (annual_hc / total_project) * 100 : 0;
     return {
       notary_fees,
       total_project,
       monthly_rent_cc,
-      annual_rent_cc: annual,
+      annual_rent_cc: monthly_rent_cc * 12,
       gross_yield,
       project_yield,
     };

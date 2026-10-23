@@ -132,7 +132,8 @@ create index if not exists idx_transports_property
   on property_transports(property_id);
 
 -- ─────────── VIEW FINANCIALS ───────────
-create or replace view property_financials as
+create or replace view property_financials
+with (security_invoker = on) as
 select
   p.id,
   p.sale_price,
@@ -140,16 +141,19 @@ select
   p.total_project,
   coalesce(sum(l.rent_hc + l.charges), 0) as monthly_rent_cc,
   coalesce(sum(l.rent_hc + l.charges), 0) * 12 as annual_rent_cc,
+  -- Rendements calculés sur les loyers HORS CHARGES (cf. migration 0013).
   case when p.sale_price > 0
-    then round((coalesce(sum(l.rent_hc + l.charges), 0)
+    then round((coalesce(sum(l.rent_hc), 0)
       * 12 / p.sale_price * 100)::numeric, 2)
     else 0 end as gross_yield,
   case when p.total_project > 0
-    then round((coalesce(sum(l.rent_hc + l.charges), 0)
+    then round((coalesce(sum(l.rent_hc), 0)
       * 12 / p.total_project * 100)::numeric, 2)
     else 0 end as project_yield,
   count(l.id) as total_lots,
-  count(l.id) filter (where l.status = 'loue') as rented_lots
+  count(l.id) filter (where l.status = 'loue') as rented_lots,
+  coalesce(sum(l.rent_hc), 0) as monthly_rent_hc,
+  coalesce(sum(l.rent_hc), 0) * 12 as annual_rent_hc
 from properties p
 left join property_lots l on l.property_id = p.id
 group by p.id;

@@ -312,6 +312,8 @@ export interface PropertyFinancials {
   project_yield: number;
   total_lots: number;
   rented_lots: number;
+  monthly_rent_hc: number;
+  annual_rent_hc: number;
 }
 
 export interface PropertyFull {
